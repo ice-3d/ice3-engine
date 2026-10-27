@@ -1,6 +1,6 @@
 import { ICEEventDispatcher } from '@ice3/core';
 import type { ICEViewport } from '@ice3/renderer';
-import { ICELabel } from './ICELabel';
+import { ICELabel } from './ICELabel.js';
 
 export interface ICE2DLayerOptions {
   readonly id: string;

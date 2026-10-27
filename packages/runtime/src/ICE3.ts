@@ -11,22 +11,22 @@ import {
   type ICERendererBackend,
   type ICEViewport,
 } from '@ice3/renderer';
-import { ICE2DCanvasPainter } from './layer/ICE2DCanvasPainter';
-import { ICE2DLayer } from './layer/ICE2DLayer';
-import { ICE2DLayerRouter } from './layer/ICE2DLayerRouter';
-import { ICEWorldLayer } from './layer/ICEWorldLayer';
+import { ICE2DCanvasPainter } from './layer/ICE2DCanvasPainter.js';
+import { ICE2DLayer } from './layer/ICE2DLayer.js';
+import { ICE2DLayerRouter } from './layer/ICE2DLayerRouter.js';
+import { ICEWorldLayer } from './layer/ICEWorldLayer.js';
 import {
   ICEInputRouter,
   type ICEInputEvent,
   type ICEInputTarget,
-} from './input/ICEInputRouter';
-import { pickSceneNode } from './input/ICEScenePicker';
-import { ICEInteractionState } from './ICEInteractionState';
-import { projectWorldPoint, type ICEProjectedPoint } from './ICEProjection';
+} from './input/ICEInputRouter.js';
+import { pickSceneNode } from './input/ICEScenePicker.js';
+import { ICEInteractionState } from './ICEInteractionState.js';
+import { projectWorldPoint, type ICEProjectedPoint } from './ICEProjection.js';
 import {
   BrowserRenderScheduler,
   type ICERenderScheduler,
-} from './ICERenderScheduler';
+} from './ICERenderScheduler.js';
 import type { ICEVector3Tuple } from '@ice3/core';
 
 export type ICE3Options = {

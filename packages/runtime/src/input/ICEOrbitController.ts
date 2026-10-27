@@ -1,7 +1,7 @@
 import type { ICEEvent } from '@ice3/core';
 import { ICEPerspectiveCamera } from '@ice3/core';
-import type { ICE3 } from '../ICE3';
-import type { ICEInputEvent, ICEInputTarget } from './ICEInputRouter';
+import type { ICE3 } from '../ICE3.js';
+import type { ICEInputEvent, ICEInputTarget } from './ICEInputRouter.js';
 
 type DispatchEvent = ICEEvent<{
   readonly target: ICEInputTarget;

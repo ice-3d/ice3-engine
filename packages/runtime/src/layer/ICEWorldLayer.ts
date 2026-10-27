@@ -1,6 +1,6 @@
 import { ICEScene } from '@ice3/core';
-import type { ICEProjectedPoint } from '../ICEProjection';
-import { ICE2DLayer, type ICE2DLayerOptions } from './ICE2DLayer';
+import type { ICEProjectedPoint } from '../ICEProjection.js';
+import { ICE2DLayer, type ICE2DLayerOptions } from './ICE2DLayer.js';
 
 export type ICEAnchorProjector = (anchorId: string) => ICEProjectedPoint | undefined;
 

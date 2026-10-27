@@ -1,4 +1,4 @@
-import { ICEVector3 } from './ICEVector3';
+import { ICEVector3 } from './ICEVector3.js';
 
 const dot = (left: ICEVector3, right: ICEVector3): number =>
   left.x * right.x + left.y * right.y + left.z * right.z;

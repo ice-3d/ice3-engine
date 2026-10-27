@@ -1,5 +1,5 @@
 import type { ICEViewport } from '@ice3/renderer';
-import type { ICE2DLayer } from './ICE2DLayer';
+import type { ICE2DLayer } from './ICE2DLayer.js';
 
 export class ICE2DCanvasPainter {
   paint(

@@ -1,4 +1,4 @@
-import type { ICENode, ICESerializedNode } from '../scene/ICENode';
+import type { ICENode, ICESerializedNode } from '../scene/ICENode.js';
 
 export interface ICENodeType {
   readonly typeId: string;

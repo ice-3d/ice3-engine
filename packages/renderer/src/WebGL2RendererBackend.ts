@@ -5,14 +5,14 @@ import {
   BOX_POSITIONS,
   collectRenderables,
   colorToRgba,
-} from './WebGL2BoxBatch';
-import { WebGL2Program } from './WebGL2Program';
+} from './WebGL2BoxBatch.js';
+import { WebGL2Program } from './WebGL2Program.js';
 import type {
   ICERendererBackend,
   ICERendererCapabilities,
   ICEFrame,
   ICEViewport,
-} from './types';
+} from './types.js';
 
 export class WebGL2RendererBackend implements ICERendererBackend {
   capabilities: Readonly<ICERendererCapabilities> = {

@@ -1,4 +1,4 @@
-import { ICEEvent } from './ICEEvent';
+import { ICEEvent } from './ICEEvent.js';
 
 type StoredListener = Readonly<{
   listener: (event: ICEEvent<unknown>) => void;

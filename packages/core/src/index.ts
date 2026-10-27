@@ -1,28 +1,28 @@
-export { ICEVector3 } from './math/ICEVector3';
-export type { ICEVector3Tuple } from './math/ICEVector3';
-export { ICEMatrix4 } from './math/ICEMatrix4';
-export { ICEEvent } from './event/ICEEvent';
-export { ICEEventDispatcher } from './event/ICEEventDispatcher';
-export { ICEBoxGeometry } from './geometry/ICEBoxGeometry';
-export type { ICEBoxGeometryOptions } from './geometry/ICEBoxGeometry';
-export { ICEBasicMaterial } from './material/ICEBasicMaterial';
-export type { ICEBasicMaterialOptions } from './material/ICEBasicMaterial';
-export { ICEPerspectiveCamera } from './camera/ICEPerspectiveCamera';
-export type { ICEPerspectiveCameraOptions } from './camera/ICEPerspectiveCamera';
-export { ICENode } from './scene/ICENode';
-export type { ICENodeOptions, ICESerializedNode } from './scene/ICENode';
-export { ICEScene } from './scene/ICEScene';
-export { ICEMesh } from './scene/ICEMesh';
-export type { ICEMeshOptions } from './scene/ICEMesh';
-export { ICETypeRegistry } from './types/ICETypeRegistry';
-export type { ICENodeType } from './types/ICETypeRegistry';
+export { ICEVector3 } from './math/ICEVector3.js';
+export type { ICEVector3Tuple } from './math/ICEVector3.js';
+export { ICEMatrix4 } from './math/ICEMatrix4.js';
+export { ICEEvent } from './event/ICEEvent.js';
+export { ICEEventDispatcher } from './event/ICEEventDispatcher.js';
+export { ICEBoxGeometry } from './geometry/ICEBoxGeometry.js';
+export type { ICEBoxGeometryOptions } from './geometry/ICEBoxGeometry.js';
+export { ICEBasicMaterial } from './material/ICEBasicMaterial.js';
+export type { ICEBasicMaterialOptions } from './material/ICEBasicMaterial.js';
+export { ICEPerspectiveCamera } from './camera/ICEPerspectiveCamera.js';
+export type { ICEPerspectiveCameraOptions } from './camera/ICEPerspectiveCamera.js';
+export { ICENode } from './scene/ICENode.js';
+export type { ICENodeOptions, ICESerializedNode } from './scene/ICENode.js';
+export { ICEScene } from './scene/ICEScene.js';
+export { ICEMesh } from './scene/ICEMesh.js';
+export type { ICEMeshOptions } from './scene/ICEMesh.js';
+export { ICETypeRegistry } from './types/ICETypeRegistry.js';
+export type { ICENodeType } from './types/ICETypeRegistry.js';
 export {
   deserializeScene,
   serializeScene,
-} from './serialization/serializeScene';
+} from './serialization/serializeScene.js';
 export type {
   ICEDeserializedScene,
   ICESerializedScene,
-} from './serialization/serializeScene';
-export { ICEEngineError } from './diagnostics/ICEEngineError';
-export type { ICEDiagnostic, ICEDiagnosticSeverity } from './diagnostics/ICEDiagnostic';
+} from './serialization/serializeScene.js';
+export { ICEEngineError } from './diagnostics/ICEEngineError.js';
+export type { ICEDiagnostic, ICEDiagnosticSeverity } from './diagnostics/ICEDiagnostic.js';

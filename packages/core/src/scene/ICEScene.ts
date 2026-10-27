@@ -1,4 +1,4 @@
-import { ICENode, type ICENodeOptions } from './ICENode';
+import { ICENode, type ICENodeOptions } from './ICENode.js';
 
 export class ICEScene extends ICENode {
   constructor(options: ICENodeOptions) {

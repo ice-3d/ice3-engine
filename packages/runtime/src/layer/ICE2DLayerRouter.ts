@@ -1,5 +1,5 @@
-import type { ICE2DLayer } from './ICE2DLayer';
-import type { ICELabel } from './ICELabel';
+import type { ICE2DLayer } from './ICE2DLayer.js';
+import type { ICELabel } from './ICELabel.js';
 
 export type ICELayerHit = {
   readonly layer: ICE2DLayer;

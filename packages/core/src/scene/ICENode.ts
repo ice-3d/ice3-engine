@@ -1,7 +1,7 @@
-import { ICEEventDispatcher } from '../event/ICEEventDispatcher';
-import { ICEEngineError } from '../diagnostics/ICEEngineError';
-import { ICEMatrix4 } from '../math/ICEMatrix4';
-import { ICEVector3, type ICEVector3Tuple } from '../math/ICEVector3';
+import { ICEEventDispatcher } from '../event/ICEEventDispatcher.js';
+import { ICEEngineError } from '../diagnostics/ICEEngineError.js';
+import { ICEMatrix4 } from '../math/ICEMatrix4.js';
+import { ICEVector3, type ICEVector3Tuple } from '../math/ICEVector3.js';
 
 export interface ICENodeOptions {
   readonly id: string;

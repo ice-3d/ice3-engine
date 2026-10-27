@@ -4,7 +4,7 @@ import type {
   ICERendererCapabilities,
   ICEFrame,
   ICEViewport,
-} from './types';
+} from './types.js';
 
 export class FakeRendererBackend implements ICERendererBackend {
   readonly capabilities: Readonly<ICERendererCapabilities> = {

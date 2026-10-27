@@ -18,14 +18,18 @@
     "test:architecture": "node --test tests/architecture/package-boundaries.test.mjs",
     "test:e2e": "npm run build && playwright test",
     "verify": "npm run test:architecture && npm run typecheck && npm run typecheck:example && npm test && npm run test:e2e",
-    "dev:example": "npm run build && test-tooling --config examples/m0/test-tooling.config.ts"
+    "build:example": "npm run build && webpack --config examples/m0/webpack.config.cjs",
+    "dev:example": "npm run build && webpack serve --config examples/m0/webpack.config.cjs"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
     "@types/node": "24.19.2",
     "jsdom": "30.1.3",
+    "esbuild-loader": "4.5.0",
     "typescript": "7.0.2",
-    "test-tooling": "8.3.5",
-    "node-test": "5.0.5"
+    "node-test": "5.0.5",
+    "webpack": "5.112.2",
+    "webpack-cli": "7.2.3",
+    "webpack-dev-server": "6.1.0"
   }
 }

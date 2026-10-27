@@ -1,7 +1,7 @@
-import type { ICEDiagnostic } from '../diagnostics/ICEDiagnostic';
-import type { ICETypeRegistry } from '../types/ICETypeRegistry';
-import { ICENode, type ICESerializedNode } from '../scene/ICENode';
-import { ICEScene } from '../scene/ICEScene';
+import type { ICEDiagnostic } from '../diagnostics/ICEDiagnostic.js';
+import type { ICETypeRegistry } from '../types/ICETypeRegistry.js';
+import { ICENode, type ICESerializedNode } from '../scene/ICENode.js';
+import { ICEScene } from '../scene/ICEScene.js';
 
 export interface ICESerializedScene {
   readonly schemaVersion: 1;

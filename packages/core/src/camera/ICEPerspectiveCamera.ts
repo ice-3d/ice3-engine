@@ -1,5 +1,5 @@
-import { ICEMatrix4 } from '../math/ICEMatrix4';
-import { ICEVector3, type ICEVector3Tuple } from '../math/ICEVector3';
+import { ICEMatrix4 } from '../math/ICEMatrix4.js';
+import { ICEVector3, type ICEVector3Tuple } from '../math/ICEVector3.js';
 
 export interface ICEPerspectiveCameraOptions {
   readonly id: string;

@@ -1,4 +1,4 @@
-import type { ICEDiagnostic } from './ICEDiagnostic';
+import type { ICEDiagnostic } from './ICEDiagnostic.js';
 
 export class ICEEngineError extends Error {
   constructor(

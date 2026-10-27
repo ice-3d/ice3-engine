@@ -1,8 +1,8 @@
-import type { ICEBoxGeometry } from '../geometry/ICEBoxGeometry';
-import { ICEBoxGeometry as BoxGeometry } from '../geometry/ICEBoxGeometry';
-import type { ICEBasicMaterial } from '../material/ICEBasicMaterial';
-import { ICEBasicMaterial as BasicMaterial } from '../material/ICEBasicMaterial';
-import { ICENode, type ICENodeOptions, type ICESerializedNode } from './ICENode';
+import type { ICEBoxGeometry } from '../geometry/ICEBoxGeometry.js';
+import { ICEBoxGeometry as BoxGeometry } from '../geometry/ICEBoxGeometry.js';
+import type { ICEBasicMaterial } from '../material/ICEBasicMaterial.js';
+import { ICEBasicMaterial as BasicMaterial } from '../material/ICEBasicMaterial.js';
+import { ICENode, type ICENodeOptions, type ICESerializedNode } from './ICENode.js';
 
 export interface ICEMeshOptions extends ICENodeOptions {
   readonly geometry: ICEBoxGeometry;
