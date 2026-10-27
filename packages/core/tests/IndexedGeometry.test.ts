@@ -33,9 +33,33 @@ it('serializes stable geometry identity and edge indices', () => {
     positionCount: 3,
     indexCount: 3,
     edgeIndexCount: 6,
+    colorCount: 0,
     bounds: {
       min: [0, 0, 0],
       max: [1, 1, 0],
     },
   });
+});
+
+it('carries optional per-vertex display colors', () => {
+  const colors = new Float32Array([
+    1, 0, 0,
+    0, 1, 0,
+    0, 0, 1,
+  ]);
+  const geometry = new ICEIndexedGeometry({
+    id: 'colored',
+    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    indices: new Uint16Array([0, 1, 2]),
+    colors,
+  });
+
+  expect(geometry.colors).toBe(colors);
+  expect(geometry.toJSON().colorCount).toBe(3);
+  expect(() => new ICEIndexedGeometry({
+    id: 'broken-colors',
+    positions: geometry.positions,
+    indices: geometry.indices,
+    colors: new Float32Array([1, 0, 0]),
+  })).toThrow(/color/i);
 });

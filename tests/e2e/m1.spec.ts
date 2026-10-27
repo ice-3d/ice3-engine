@@ -42,7 +42,7 @@ test('disposes the asset exactly once', async ({ page }) => {
   await expect(page.locator('[data-role="status"]')).toHaveText('资产已释放');
 });
 
-test('uses a light technical background with material contrast', async ({ page }) => {
+test('uses a black background with material contrast', async ({ page }) => {
   await page.goto('http://127.0.0.1:8104/');
   await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
   const background = await page.evaluate(() => {
@@ -56,7 +56,7 @@ test('uses a light technical background with material contrast', async ({ page }
     return [...pixel];
   });
 
-  expect(background[0]).toBeGreaterThanOrEqual(150);
-  expect(background[1]).toBeGreaterThanOrEqual(150);
-  expect(background[2]).toBeGreaterThanOrEqual(150);
+  expect(background[0]).toBeLessThanOrEqual(5);
+  expect(background[1]).toBeLessThanOrEqual(5);
+  expect(background[2]).toBeLessThanOrEqual(5);
 });

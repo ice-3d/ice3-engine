@@ -7,6 +7,7 @@ import {
   createDuplicateMeshIdGLB,
   createInvalidPrimitiveModeGLB,
   createFourByteAlignedFloatGLB,
+  createVertexColorGLB,
   createOrdinaryGLB,
   createOutOfRangeAccessorGLB,
   createTRSNodeGLB,
@@ -67,4 +68,16 @@ it('rejects primitive modes outside triangles and profile edges', () => {
 it('accepts float VEC3 data aligned to four bytes rather than twelve', () => {
   const snapshot = readPreparedGLB(createFourByteAlignedFloatGLB());
   expect(snapshot.geometries[0]!.positions).toHaveLength(9);
+});
+
+it('reads prepared per-vertex display colors', () => {
+  const snapshot = readPreparedGLB(createVertexColorGLB());
+  expect([...snapshot.geometries[0]!.colors!].map((value) => (
+    Number(value.toFixed(1))
+  ))).toEqual([
+    0.8, 0.2, 0.1,
+    0.2, 0.8, 0.1,
+    0.1, 0.2, 0.8,
+  ]);
+  expect(snapshot.materials[0]!.baseColor).toBe('#ffffff');
 });

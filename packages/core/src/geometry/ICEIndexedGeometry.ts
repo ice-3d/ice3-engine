@@ -5,6 +5,7 @@ export interface ICEIndexedGeometryOptions {
   readonly positions: Float32Array;
   readonly indices: Uint16Array | Uint32Array;
   readonly edgeIndices?: Uint16Array | Uint32Array;
+  readonly colors?: Float32Array;
 }
 
 export class ICEIndexedGeometry implements ICEGeometry {
@@ -13,6 +14,7 @@ export class ICEIndexedGeometry implements ICEGeometry {
   readonly positions: Float32Array;
   readonly indices: Uint16Array | Uint32Array;
   readonly edgeIndices?: Uint16Array | Uint32Array;
+  readonly colors?: Float32Array;
 
   constructor(options: ICEIndexedGeometryOptions) {
     if (!options.id.trim()) {
@@ -39,11 +41,23 @@ export class ICEIndexedGeometry implements ICEGeometry {
     if (options.edgeIndices && options.edgeIndices.length % 2 !== 0) {
       throw new TypeError('ICE edge index count must be even');
     }
+    if (
+      options.colors
+      && options.colors.length !== vertexCount * 3
+      && options.colors.length !== vertexCount * 4
+    ) {
+      throw new TypeError(
+        'ICE color count must be 3 or 4 values per vertex',
+      );
+    }
     this.id = options.id;
     this.positions = options.positions;
     this.indices = options.indices;
     if (options.edgeIndices) {
       this.edgeIndices = options.edgeIndices;
+    }
+    if (options.colors) {
+      this.colors = options.colors;
     }
   }
 
@@ -67,6 +81,7 @@ export class ICEIndexedGeometry implements ICEGeometry {
       positionCount: this.positions.length / 3,
       indexCount: this.indices.length,
       edgeIndexCount: this.edgeIndices?.length ?? 0,
+      colorCount: this.colors ? this.positions.length / 3 : 0,
       bounds: this.getBounds(),
     };
   }

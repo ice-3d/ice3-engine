@@ -8,6 +8,7 @@ it('reuses buffers for the same geometry and releases unseen geometry', () => {
   const positionBuffer = {} as WebGLBuffer;
   const triangleIndexBuffer = {} as WebGLBuffer;
   const edgeIndexBuffer = {} as WebGLBuffer;
+  const colorBuffer = {} as WebGLBuffer;
   const gl = {
     ARRAY_BUFFER: 1,
     ELEMENT_ARRAY_BUFFER: 2,
@@ -18,7 +19,8 @@ it('reuses buffers for the same geometry and releases unseen geometry', () => {
       .fn()
       .mockReturnValueOnce(positionBuffer)
       .mockReturnValueOnce(triangleIndexBuffer)
-      .mockReturnValueOnce(edgeIndexBuffer),
+      .mockReturnValueOnce(edgeIndexBuffer)
+      .mockReturnValueOnce(colorBuffer),
     bindVertexArray: vi.fn(),
     bindBuffer: vi.fn(),
     bufferData: vi.fn(),
@@ -32,6 +34,7 @@ it('reuses buffers for the same geometry and releases unseen geometry', () => {
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint16Array([0, 1, 2]),
     edgeIndices: new Uint16Array([0, 1, 1, 2, 2, 0]),
+    colors: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]),
   });
   const cache = new WebGL2GeometryCache();
 
@@ -42,7 +45,7 @@ it('reuses buffers for the same geometry and releases unseen geometry', () => {
 
   expect(WebGL2Program.POSITION_ATTRIBUTE).toBe(0);
   expect(second.vertexArray).toBe(first.vertexArray);
-  expect(gl.createBuffer).toHaveBeenCalledTimes(3);
+  expect(gl.createBuffer).toHaveBeenCalledTimes(4);
 
   cache.beginFrame();
   cache.endFrame();

@@ -19,7 +19,7 @@ const stage = required<HTMLElement>('[data-role="stage"]');
 const status = required<HTMLOutputElement>('[data-role="status"]');
 const disposeButton = required<HTMLButtonElement>('#dispose');
 const engine = new ICE3().init(stage);
-engine.setBackgroundColor('#aeb8c4');
+engine.setBackgroundColor('#000000');
 const camera = new ICEPerspectiveCamera({
   id: 'camera-main',
   fov: 45,

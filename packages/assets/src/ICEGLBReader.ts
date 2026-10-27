@@ -69,6 +69,15 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
         views,
         accessors[positionIndex],
       );
+      const colorAccessorIndex = record(primitive.attributes)?.COLOR_0;
+      const colors = colorAccessorIndex === undefined
+        ? undefined
+        : readColorAccessor(
+            binary,
+            views,
+            accessors[Number(colorAccessorIndex)],
+            positions.length / 3,
+          );
       const indices = readIndexAccessor(
         binary,
         views,
@@ -100,6 +109,7 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
         positions,
         indices,
         ...(edgeIndices ? { edgeIndices } : {}),
+        ...(colors ? { colors } : {}),
         bounds,
       });
       for (const entry of nodesForMesh) {
@@ -236,6 +246,31 @@ function readIndexAccessor(
   return accessor.componentType === 5123
     ? new Uint16Array(binary.buffer, binary.byteOffset + offset, count)
     : new Uint32Array(binary.buffer, binary.byteOffset + offset, count);
+}
+
+function readColorAccessor(
+  binary: Uint8Array,
+  views: readonly JSONRecord[],
+  accessor: JSONRecord | undefined,
+  vertexCount: number,
+): Float32Array {
+  if (
+    !accessor
+    || accessor.componentType !== 5126
+    || accessor.type !== 'VEC3'
+    || Number(accessor.count) !== vertexCount
+  ) {
+    throw assetError(
+      'ICE3_ASSET_ACCESSOR_INVALID',
+      'COLOR_0 must be float VEC3 matching the position count',
+    );
+  }
+  const offset = accessorOffset(binary, views, accessor);
+  return new Float32Array(
+    binary.buffer,
+    binary.byteOffset + offset,
+    vertexCount * 3,
+  );
 }
 
 function accessorOffset(

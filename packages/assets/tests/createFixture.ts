@@ -10,6 +10,7 @@ type FixtureOptions = {
   readonly duplicateMeshId?: boolean;
   readonly invalidPrimitiveMode?: boolean;
   readonly floatOffset4?: boolean;
+  readonly withVertexColors?: boolean;
 };
 
 export function createMinimalPreparedGLB(
@@ -21,11 +22,19 @@ export function createMinimalPreparedGLB(
   const positionOffset = options.floatOffset4 ? 4 : 0;
   const indexOffset = positionOffset + 36;
   const edgeOffset = Math.ceil((indexOffset + 6) / 4) * 4;
-  const binaryLength = edgeOffset + 12;
+  const colorOffset = edgeOffset + 12;
+  const binaryLength = colorOffset + (options.withVertexColors ? 36 : 0);
   const binary = Buffer.alloc(binaryLength);
   Buffer.from(positions.buffer).copy(binary, positionOffset);
   Buffer.from(indices.buffer).copy(binary, indexOffset);
   Buffer.from(edges.buffer).copy(binary, edgeOffset);
+  if (options.withVertexColors) {
+    Buffer.from(new Float32Array([
+      0.8, 0.2, 0.1,
+      0.2, 0.8, 0.1,
+      0.1, 0.2, 0.8,
+    ]).buffer).copy(binary, colorOffset);
+  }
   const digest = createHash('sha256').update(binary).digest('hex');
 
   const json = {
@@ -97,6 +106,10 @@ export function createMinimalPreparedGLB(
         pbrMetallicRoughness: { baseColorFactor: [0.9, 0.95, 1, 1] },
         extras: { ice3: { id: 'fixture/material/0/edges' } },
       },
+      {
+        pbrMetallicRoughness: { baseColorFactor: [1, 1, 1, 1] },
+        extras: { ice3: { id: 'fixture/material/vertex-colors' } },
+      },
     ],
     accessors: [
       {
@@ -115,11 +128,22 @@ export function createMinimalPreparedGLB(
         type: 'SCALAR',
       },
       { bufferView: 2, componentType: 5123, count: 6, type: 'SCALAR' },
+      ...(options.withVertexColors ? [{
+        bufferView: 3,
+        componentType: 5126,
+        count: 3,
+        type: 'VEC3',
+      }] : []),
     ],
     bufferViews: [
       { buffer: 0, byteOffset: positionOffset, byteLength: 36 },
       { buffer: 0, byteOffset: indexOffset, byteLength: 6 },
       { buffer: 0, byteOffset: edgeOffset, byteLength: 12 },
+      ...(options.withVertexColors ? [{
+        buffer: 0,
+        byteOffset: colorOffset,
+        byteLength: 36,
+      }] : []),
     ],
     buffers: [{ byteLength: binaryLength }],
     ...(options.forbiddenFeature
@@ -164,6 +188,17 @@ export function createInvalidPrimitiveModeGLB(): ArrayBuffer {
 
 export function createFourByteAlignedFloatGLB(): ArrayBuffer {
   return createMinimalPreparedGLB({ floatOffset4: true });
+}
+
+export function createVertexColorGLB(): ArrayBuffer {
+  const bytes = Buffer.from(createMinimalPreparedGLB({ withVertexColors: true }));
+  const jsonLength = bytes.readUInt32LE(12);
+  const json = JSON.parse(
+    bytes.subarray(20, 20 + jsonLength).toString('utf8').replace(/ +$/g, ''),
+  );
+  json.meshes[0].primitives[0].attributes.COLOR_0 = 3;
+  json.meshes[0].primitives[0].material = 2;
+  return packGLB(json, bytes.subarray(28 + jsonLength));
 }
 
 function packGLB(json: unknown, binary: Buffer): ArrayBuffer {

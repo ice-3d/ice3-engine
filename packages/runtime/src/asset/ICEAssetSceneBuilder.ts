@@ -27,6 +27,7 @@ export function buildAssetScene(
       positions: geometry.positions,
       indices: geometry.indices,
       ...(geometry.edgeIndices ? { edgeIndices: geometry.edgeIndices } : {}),
+      ...(geometry.colors ? { colors: geometry.colors } : {}),
     })
   ));
   const materials = snapshot.materials.map((material) => (

@@ -16,6 +16,7 @@ export interface ICEPreparedGeometry {
   readonly positions: Float32Array;
   readonly indices: Uint16Array | Uint32Array;
   readonly edgeIndices?: Uint16Array | Uint32Array;
+  readonly colors?: Float32Array;
   readonly bounds: ICEGeometryBounds;
 }
 

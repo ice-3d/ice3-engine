@@ -3,37 +3,53 @@ import type { ICEMatrix4 } from '@ice3/core';
 
 const VERTEX_SOURCE = `
 attribute vec3 a_position;
+attribute vec3 a_color;
 uniform mat4 u_worldViewProjection;
 uniform vec2 u_clipOffset;
+varying vec3 v_color;
 
 void main() {
   gl_Position = u_worldViewProjection * vec4(a_position, 1.0);
   gl_Position.xy += u_clipOffset * gl_Position.w;
+  v_color = a_color;
 }
 `;
 
 const FRAGMENT_SOURCE = `
 precision mediump float;
 uniform vec4 u_color;
+uniform float u_useVertexColor;
+varying vec3 v_color;
 
 void main() {
-  gl_FragColor = u_color;
+  gl_FragColor = vec4(
+    u_color.rgb * mix(vec3(1.0), v_color, step(0.5, u_useVertexColor)),
+    u_color.a
+  );
 }
 `;
 
 export class WebGL2Program {
   static readonly POSITION_ATTRIBUTE = 0;
+  static readonly COLOR_ATTRIBUTE = 1;
   readonly program: WebGLProgram;
   private readonly matrixLocation: WebGLUniformLocation;
   private readonly colorLocation: WebGLUniformLocation;
   private readonly clipOffsetLocation: WebGLUniformLocation;
+  private readonly vertexColorLocation: WebGLUniformLocation;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     const program = this.createProgram(VERTEX_SOURCE, FRAGMENT_SOURCE);
     const matrixLocation = gl.getUniformLocation(program, 'u_worldViewProjection');
     const colorLocation = gl.getUniformLocation(program, 'u_color');
     const clipOffsetLocation = gl.getUniformLocation(program, 'u_clipOffset');
-    if (!matrixLocation || !colorLocation || !clipOffsetLocation) {
+    const vertexColorLocation = gl.getUniformLocation(program, 'u_useVertexColor');
+    if (
+      !matrixLocation
+      || !colorLocation
+      || !clipOffsetLocation
+      || !vertexColorLocation
+    ) {
       gl.deleteProgram(program);
       throw new ICEEngineError(
         'ICE3_SHADER_LINK_FAILED',
@@ -44,6 +60,7 @@ export class WebGL2Program {
     this.matrixLocation = matrixLocation;
     this.colorLocation = colorLocation;
     this.clipOffsetLocation = clipOffsetLocation;
+    this.vertexColorLocation = vertexColorLocation;
   }
 
   use(): void {
@@ -60,6 +77,10 @@ export class WebGL2Program {
 
   setClipOffset(x: number, y: number): void {
     this.gl.uniform2f(this.clipOffsetLocation, x, y);
+  }
+
+  setVertexColors(enabled: boolean): void {
+    this.gl.uniform1f(this.vertexColorLocation, enabled ? 1 : 0);
   }
 
   dispose(): void {
@@ -83,6 +104,7 @@ export class WebGL2Program {
     gl.attachShader(program, vertex);
     gl.attachShader(program, fragment);
     gl.bindAttribLocation(program, WebGL2Program.POSITION_ATTRIBUTE, 'a_position');
+    gl.bindAttribLocation(program, WebGL2Program.COLOR_ATTRIBUTE, 'a_color');
     gl.linkProgram(program);
     gl.deleteShader(vertex);
     gl.deleteShader(fragment);

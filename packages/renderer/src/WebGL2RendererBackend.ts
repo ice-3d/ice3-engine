@@ -164,6 +164,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.program.setMatrix(mvp);
       this.program.setColor(colorToRgba(renderable.mesh.material.color));
       const geometry = this.geometryCache.retain(gl, renderable.mesh.geometry);
+      this.program.setVertexColors(Boolean(renderable.mesh.geometry.colors));
       gl.bindVertexArray(geometry.vertexArray);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
       gl.drawElements(
@@ -176,6 +177,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       );
       this.frameStats.drawCalls += 1;
       if (renderable.mesh.material.edgeColor) {
+        this.program.setVertexColors(false);
         this.program.setColor(
           colorToRgba(renderable.mesh.material.edgeColor),
         );

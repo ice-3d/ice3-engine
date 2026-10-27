@@ -8,6 +8,7 @@ export interface ICEGeometry {
   readonly positions: Float32Array;
   readonly indices: Uint16Array | Uint32Array;
   readonly edgeIndices?: Uint16Array | Uint32Array;
+  readonly colors?: Float32Array;
   getBounds(): ICEGeometryBounds;
   toJSON(): Record<string, unknown>;
 }

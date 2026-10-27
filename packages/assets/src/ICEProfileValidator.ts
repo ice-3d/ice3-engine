@@ -140,6 +140,24 @@ export function validatePreparedProfile(
           'line primitives must use the edge role',
         );
       }
+      if (mode === 4) {
+        const attributes = record(primitive.attributes);
+        const colorIndex = attributes?.COLOR_0;
+        if (colorIndex !== undefined) {
+          const position = accessors[Number(attributes?.POSITION)];
+          const colors = accessors[Number(colorIndex)];
+          if (
+            colors?.componentType !== 5126
+            || colors.type !== 'VEC3'
+            || colors.count !== position?.count
+          ) {
+            throw assetError(
+              'ICE3_ASSET_ACCESSOR_INVALID',
+              'COLOR_0 must be float VEC3 matching POSITION',
+            );
+          }
+        }
+      }
     }
   }
   return { json, binary, profile };
