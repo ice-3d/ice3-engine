@@ -47,6 +47,12 @@ export {
   type ICETilesetStats,
   type ICETilesetTileState,
 } from './asset/ICETilesetLoader.js';
+export {
+  ICETilesetScheduler,
+  type ICETilesetSchedulerOptions,
+  type ICETilesetWorkSet,
+  type ICETilesetWorkSetInput,
+} from './asset/ICETilesetScheduler.js';
 export type {
   ICEPreparedContract,
   ICEPreparedStats,
