@@ -13,10 +13,11 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false",
+    "typecheck:example": "tsc -p examples/m0/tsconfig.json --pretty false",
     "test": "node-test run",
     "test:architecture": "node --test tests/architecture/package-boundaries.test.mjs",
     "test:e2e": "npm run build && playwright test",
-    "verify": "npm run test:architecture && npm run typecheck && npm test && npm run test:e2e",
+    "verify": "npm run test:architecture && npm run typecheck && npm run typecheck:example && npm test && npm run test:e2e",
     "dev:example": "npm run build && test-tooling --config examples/m0/test-tooling.config.ts"
   },
   "devDependencies": {

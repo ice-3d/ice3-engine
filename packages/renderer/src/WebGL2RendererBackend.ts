@@ -33,9 +33,16 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private frameStats = { drawCalls: 0, renderedMeshes: 0, gpuBytes: 0 };
   private readonly handleContextLost = (event: Event): void => {
     event.preventDefault();
+    this.program = null;
+    this.vertexBuffer = null;
+    this.indexBuffer = null;
+    this.vertexArray = null;
     this.onContextLost?.();
   };
   private readonly handleContextRestored = (): void => {
+    if (this.gl) {
+      this.createGeometry(this.gl);
+    }
     this.onContextRestored?.();
   };
 
@@ -48,6 +55,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       alpha: true,
       antialias: true,
       premultipliedAlpha: true,
+      preserveDrawingBuffer: true,
     });
     if (!gl) {
       throw new ICEEngineError(
@@ -64,6 +72,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       backend: 'webgl2',
       maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE) as number,
     };
+    gl.enable(gl.DEPTH_TEST);
     this.createGeometry(gl);
     this.canvas.addEventListener('webglcontextlost', this.handleContextLost);
     this.canvas.addEventListener('webglcontextrestored', this.handleContextRestored);
@@ -158,6 +167,10 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     const indexBuffer = gl.createBuffer();
     const program = new WebGL2Program(gl, 0, 1);
     if (!vertexArray || !vertexBuffer || !indexBuffer) {
+      program.dispose();
+      gl.deleteVertexArray(vertexArray);
+      gl.deleteBuffer(vertexBuffer);
+      gl.deleteBuffer(indexBuffer);
       throw new ICEEngineError(
         'ICE3_GPU_RESOURCE_FAILED',
         'ICE3_GPU_RESOURCE_FAILED: geometry allocation failed',

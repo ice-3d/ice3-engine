@@ -1,0 +1,47 @@
+# ICE3 M0 Diagnostics
+
+Diagnostics use stable codes. Callers should branch on `code`, not on message text.
+
+## Engine and target
+
+| Code | Trigger | Caller action |
+| --- | --- | --- |
+| `ICE3_INVALID_TARGET` | Selector resolves to no element, a canvas has no parent, or a canvas cannot be created | Provide a connected host element |
+| `ICE3_ALREADY_INITIALIZED` | `init()` is called more than once on one engine | Create a new engine after `destroy()` |
+| `ICE3_ENGINE_NOT_READY` | Rendering is requested without a scene or camera, or a backend method runs before initialization | Complete scene, camera, and initialization configuration |
+| `ICE3_ENGINE_DESTROYED` | A backend or engine operation runs after disposal | Stop using the instance and create a replacement |
+| `ICE3_CONTEXT_LOST` | The browser loses the GPU context | Keep the app visible, wait for restoration, and inspect the event |
+| `ICE3_CONTEXT_RESTORED` | The browser restores the GPU context and the engine can draw again | Resume normal operation and verify a new frame |
+
+## Scene and layers
+
+| Code | Trigger | Caller action |
+| --- | --- | --- |
+| `ICE3_DUPLICATE_OBJECT_ID` | A scene node reuses an existing ID without being the same object | Assign a unique stable ID |
+| `ICE3_SCENE_CYCLE` | A parent-child operation would form a cycle | Restructure the node hierarchy |
+| `ICE3_LAYER_ORDER_CONFLICT` | A layer conflicts with an existing layer identity | Use one stable ID per layer |
+| `ICE3_UNKNOWN_ANCHOR` | A world label references an ID absent from the active scene | Correct the anchor ID or add the target node |
+| `ICE3_UNKNOWN_TYPE` | Deserialization finds an unregistered type ID | Register the type before loading |
+
+## Rendering
+
+| Code | Trigger | Caller action |
+| --- | --- | --- |
+| `ICE3_WEBGL2_UNAVAILABLE` | WebGL2 context creation fails | Use a certified WebGL2 browser and GPU configuration |
+| `ICE3_SHADER_COMPILE_FAILED` | Native shader compilation fails | Inspect the diagnostic and renderer logs |
+| `ICE3_SHADER_LINK_FAILED` | Program linking or uniform lookup fails | Verify shader compatibility with the active backend |
+| `ICE3_GPU_RESOURCE_FAILED` | GPU buffer or vertex-array allocation fails | Reduce resource pressure and recreate the context |
+
+## Diagnostic shape
+
+```ts
+interface ICEDiagnostic {
+  severity: 'error' | 'warning' | 'info';
+  code: string;
+  message: string;
+  path?: string;
+  details?: Record<string, unknown>;
+}
+```
+
+`ICE3` exposes the most recent diagnostic through `getDiagnostics().lastDiagnostic` and emits `DIAGNOSTIC` when a new diagnostic is recorded.

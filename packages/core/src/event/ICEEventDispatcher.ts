@@ -36,6 +36,11 @@ export class ICEEventDispatcher {
     return this;
   }
 
+  removeAllListeners(): this {
+    this.listeners.clear();
+    return this;
+  }
+
   trigger<T>(type: string, param?: T): this {
     const current = this.listeners.get(type);
     if (!current) {

@@ -5,6 +5,7 @@ declare global {
     __ice3M0: {
       diagnostics(): Readonly<ICEEngineDiagnostics>;
       projection(): ICEProjectedPoint;
+      scenePixelAtProjection(): readonly [number, number, number, number];
       hudRect(): Readonly<{
         x: number;
         y: number;

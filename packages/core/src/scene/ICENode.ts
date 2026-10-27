@@ -138,7 +138,7 @@ export class ICENode extends ICEEventDispatcher {
     for (const child of [...this._children]) {
       this.removeChild(child, { dispose: true });
     }
-    this.off('', undefined);
+    this.removeAllListeners();
   }
 
   private getRoot(): ICENode {

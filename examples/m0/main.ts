@@ -10,6 +10,8 @@ import {
   ICEScreenLayer,
   ICEWorldLayer,
   type ICEEngineDiagnostics,
+  type ICEInputEvent,
+  type ICEInputTarget,
   type ICEProjectedPoint,
 } from 'ice3';
 
@@ -27,6 +29,7 @@ const rebuild = required<HTMLButtonElement>('#rebuild');
 
 let engine: ICE3;
 let orbit: ICEOrbitController;
+let loseContextExtension: WEBGL_lose_context | null = null;
 
 function measureWorldLabelOffset(current: ICE3): {
   screenX: number;
@@ -55,6 +58,10 @@ function mount(rebuilt: boolean): void {
   stage.replaceChildren();
 
   engine = new ICE3().init(stage);
+  loseContextExtension = document
+    .querySelector<HTMLCanvasElement>('canvas[data-layer="scene"]')
+    ?.getContext('webgl2')
+    ?.getExtension('WEBGL_lose_context') ?? null;
   const scene = new ICEScene({ id: 'scene-main' });
   const camera = new ICEPerspectiveCamera({
     id: 'camera-main',
@@ -100,6 +107,16 @@ function mount(rebuilt: boolean): void {
       ? `已选中 ${selection[0]}`
       : '运行';
   });
+  engine.on<{ target: ICEInputTarget; event: ICEInputEvent }>(
+    'POINTER_DOWN',
+    (event) => {
+      if (event.param?.target.kind === 'layer') {
+        status.textContent = event.param.target.labelId === 'hud-status'
+          ? 'HUD 已点击'
+          : '图层已点击';
+      }
+    },
+  );
   engine.start();
   status.textContent = rebuilt ? '已重建' : '运行';
 }
@@ -109,6 +126,26 @@ rebuild.addEventListener('click', () => mount(true));
 window.__ice3M0 = {
   diagnostics: (): Readonly<ICEEngineDiagnostics> => engine.getDiagnostics(),
   projection: (): ICEProjectedPoint => engine.project([0, 0, 0]),
+  scenePixelAtProjection: (): readonly [number, number, number, number] => {
+    const point = engine.project([0, 0, 0]);
+    const canvas = document.querySelector<HTMLCanvasElement>(
+      'canvas[data-layer="scene"]',
+    );
+    const gl = canvas?.getContext('webgl2');
+    if (!canvas || !gl) throw new Error('WebGL2 canvas missing');
+    const pixel = new Uint8Array(4);
+    const dpr = engine.getDiagnostics().dpr;
+    gl.readPixels(
+      Math.max(0, Math.floor(point.x * dpr)),
+      Math.max(0, Math.floor((engine.getDiagnostics().viewport.height - point.y) * dpr)),
+      1,
+      1,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      pixel,
+    );
+    return [pixel[0]!, pixel[1]!, pixel[2]!, pixel[3]!];
+  },
   hudRect: () => {
     const rect = engine
       .getDiagnostics()
@@ -119,24 +156,16 @@ window.__ice3M0 = {
   getSelection: () => engine.getSelection(),
   measureWorldLabelOffset: () => measureWorldLabelOffset(engine),
   loseContext: () => {
-    const canvas = document.querySelector<HTMLCanvasElement>(
-      'canvas[data-layer="scene"]',
-    );
-    const extension = canvas?.getContext('webgl2')?.getExtension(
-      'WEBGL_lose_context',
-    );
-    if (!extension) throw new Error('Context-loss test extension unavailable');
-    extension.loseContext();
+    if (!loseContextExtension) {
+      throw new Error('Context-loss test extension unavailable');
+    }
+    loseContextExtension.loseContext();
   },
   restoreContext: () => {
-    const canvas = document.querySelector<HTMLCanvasElement>(
-      'canvas[data-layer="scene"]',
-    );
-    const extension = canvas?.getContext('webgl2')?.getExtension(
-      'WEBGL_lose_context',
-    );
-    if (!extension) throw new Error('Context-loss test extension unavailable');
-    extension.restoreContext();
+    if (!loseContextExtension) {
+      throw new Error('Context-loss test extension unavailable');
+    }
+    loseContextExtension.restoreContext();
   },
 };
 

@@ -25,4 +25,16 @@ describe('ICEEventDispatcher', () => {
 
     expect(calls).toEqual([1]);
   });
+
+  it('removes all listeners for all event types', () => {
+    const events = new ICEEventDispatcher();
+    const calls: string[] = [];
+    events.on('first', () => calls.push('first'));
+    events.on('second', () => calls.push('second'));
+
+    events.removeAllListeners();
+    events.trigger('first').trigger('second');
+
+    expect(calls).toEqual([]);
+  });
 });

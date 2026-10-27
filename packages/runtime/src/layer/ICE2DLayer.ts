@@ -82,6 +82,6 @@ export class ICE2DLayer extends ICEEventDispatcher {
 
   dispose(): void {
     this.labels.length = 0;
-    this.off('', undefined);
+    this.removeAllListeners();
   }
 }

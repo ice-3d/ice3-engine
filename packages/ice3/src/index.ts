@@ -21,6 +21,8 @@ export type {
   ICEDiagnostic,
   ICEDiagnosticSeverity,
   ICEEngineDiagnostics,
+  ICEInputEvent,
+  ICEInputTarget,
   ICEProjectedPoint,
   ICESerializedScene,
 } from '@ice3/runtime';

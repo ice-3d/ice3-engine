@@ -107,7 +107,7 @@ export class ICE3 extends ICEEventDispatcher {
     this.scheduler = options.scheduler ?? new BrowserRenderScheduler();
   }
 
-  init(target: string | HTMLDivElement | HTMLCanvasElement): this {
+  init(target: string | HTMLElement): this {
     if (this.state !== 'created') {
       throw new ICEEngineError(
         'ICE3_ALREADY_INITIALIZED',
@@ -137,9 +137,19 @@ export class ICE3 extends ICEEventDispatcher {
       canvas,
       onContextLost: () => {
         this.contextLossCount += 1;
+        this.recordDiagnostic(
+          'ICE3_CONTEXT_LOST',
+          'The GPU context was lost; waiting for restoration',
+          'warning',
+        );
         this.trigger('CONTEXT_LOST');
       },
       onContextRestored: () => {
+        this.recordDiagnostic(
+          'ICE3_CONTEXT_RESTORED',
+          'The GPU context was restored',
+          'info',
+        );
         this.trigger('CONTEXT_RESTORED');
         this.requestRender('context-restored');
       },
@@ -303,6 +313,7 @@ export class ICE3 extends ICEEventDispatcher {
     this.camera = null;
     this.state = 'destroyed';
     this.trigger('DESTROY');
+    this.removeAllListeners();
   }
 
   resize(): this {
@@ -537,8 +548,12 @@ export class ICE3 extends ICEEventDispatcher {
     }
   }
 
-  private recordDiagnostic(code: string, message: string): void {
-    this.lastDiagnostic = { severity: 'error', code, message };
+  private recordDiagnostic(
+    code: string,
+    message: string,
+    severity: ICEDiagnostic['severity'] = 'error',
+  ): void {
+    this.lastDiagnostic = { severity, code, message };
     this.trigger('DIAGNOSTIC', this.lastDiagnostic);
   }
 }
