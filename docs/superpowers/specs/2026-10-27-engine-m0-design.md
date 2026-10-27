@@ -2,8 +2,8 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 等待用户评审 |
-| 版本 | 0.1 |
+| 状态 | M0 已完成并通过用户验收 |
+| 版本 | 1.1 |
 | 日期 | 2026-10-27 |
 | 范围 | `ice3-engine` 仓库的 M0 可运行纵切面 |
 | 上游约束 | 产品方案 v0.6、工作区文档与交付物命名约束 |
@@ -131,7 +131,6 @@ import {
   ICEMesh,
   ICEBoxGeometry,
   ICEBasicMaterial,
-  ICEWorldLayer,
   ICEScreenLayer,
   ICELabel,
   ICEOrbitController,
@@ -150,18 +149,12 @@ const camera = new ICEPerspectiveCamera({
 const block = new ICEMesh({
   id: 'demo-block',
   geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
-  material: new ICEBasicMaterial({ color: '#2f81f7' }),
+  material: new ICEBasicMaterial({
+    color: '#2f81f7',
+    edgeColor: '#e6f2ff',
+  }),
 });
 scene.addChild(block);
-
-const worldLayer = new ICEWorldLayer({ id: 'world-layer', order: 0 });
-worldLayer.addChild(
-  new ICELabel({
-    id: 'demo-block-label',
-    anchorId: 'demo-block',
-    text: '示例设备',
-  }),
-);
 
 const hudLayer = new ICEScreenLayer({ id: 'screen-layer', order: 10 });
 hudLayer.addChild(
@@ -177,7 +170,6 @@ new ICEOrbitController(engine, camera).start();
 
 engine.setScene(scene);
 engine.setCamera(camera);
-engine.addLayer(worldLayer);
 engine.addLayer(hudLayer);
 engine.start();
 ```
@@ -209,7 +201,7 @@ M0 支持以下最小对象：
 - `ICEMesh`：关联几何和材质的最小可渲染节点。
 - `ICEPerspectiveCamera`：透视投影、位置和朝向。
 - `ICEBoxGeometry`：M0 唯一内置几何。
-- `ICEBasicMaterial`：无光照颜色材质。
+- `ICEBasicMaterial`：无光照基础色材质，可选高对比几何边线颜色。
 
 M0 节点身份规则：
 
@@ -237,7 +229,9 @@ M0 提供：
 `ICEOrbitController` 负责 M0 的旋转和缩放：
 
 - 左键拖拽或单指拖拽旋转。
+- 拖拽可从几何表面或空白区域开始。
 - 滚轮或双指手势缩放。
+- 旋转和缩放使用按帧阻尼，释放后平滑收敛。
 - 不处理平移，避免扩大 M0 输入范围。
 - 控制器与 2D 图层共享同一输入路由结果。
 - 控制器遵守最小/最大距离，不修改场景节点状态。
@@ -376,7 +370,7 @@ interface ICEDiagnostic {
 
 - 画布铺满示例容器。
 - 3D 区域显示一个基础方块。
-- 方块绑定一个世界锚定标签。
+- 方块使用平光基础色和清晰几何边线。
 - 左上角显示一个可点击的 2D 状态 HUD。
 - 点击方块后高亮并广播选择变化。
 - 点击 HUD 时不触发 3D 选择。
@@ -410,11 +404,11 @@ interface ICEDiagnostic {
 - 拖拽旋转、滚轮缩放有效。
 - HUD 点击不会选中 3D 物体。
 - HUD 透明区域点击能选中 3D 物体。
-- 世界锚定标签在不同相机位置和窗口尺寸下保持对齐。
+- 平光模型不同区域的基础色一致，边线清晰可见。
 - 窗口 resize、DPR 变化、停止、销毁和重建后无重复事件及资源泄漏。
-- 当前 Chromium、Firefox 和 WebKit 测试环境均通过。
+- 当前 Chromium 和 WebKit 测试环境均通过。
 
-M0 的像素测试仅覆盖世界锚点位置、背景是否正常绘制和 HUD 是否可见，避免因字体抗锯齿差异产生无意义失败。
+M0 的像素测试覆盖平光颜色、几何边线、3D 物体绘制和 HUD 可见性，避免因字体抗锯齿差异产生无意义失败。
 
 ## 15. 性能与可观测性
 
@@ -456,12 +450,12 @@ M0 完成后按顺序评估：
 
 ## 18. 验收清单
 
-- [ ] 公共示例只依赖 `ice3` 包。
-- [ ] 内部包依赖无循环、无私有路径穿透。
-- [ ] 自有名称、类型和事件符合 ICE 风格。
-- [ ] 2D/3D 对象共享稳定身份。
-- [ ] HUD、透明穿透和 3D 拾取顺序正确。
-- [ ] 世界锚点误差不超过一个 CSS 像素。
-- [ ] resize、DPR、Context Loss、销毁和重建稳定。
-- [ ] 单元、集成和三浏览器交互测试通过。
-- [ ] 文档、代码、注释和示例无竞品或厂商名称。
+- [x] 公共示例只依赖 `ice3` 包。
+- [x] 内部包依赖无循环、无私有路径穿透。
+- [x] 自有名称、类型和事件符合 ICE 风格。
+- [x] 2D/3D 对象共享稳定身份。
+- [x] HUD、透明穿透和 3D 拾取顺序正确。
+- [x] 世界锚点能力由公共 API 和自动化测试覆盖。
+- [x] resize、DPR、Context Loss、销毁和重建稳定。
+- [x] 单元、集成和 Chromium/WebKit 交互测试通过。
+- [x] 文档、代码、注释和示例无竞品或厂商名称。

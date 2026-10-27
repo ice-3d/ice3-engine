@@ -1,6 +1,6 @@
 # ICE3 Engine
 
-ICE3 Engine is a modern, programmable 3D engine for industrial applications. M0 is a runnable vertical slice that proves the public API, native WebGL2 scene rendering, shared 2D/3D input, world-anchored labels, screen HUD, lifecycle management, and browser verification.
+ICE3 Engine is a modern, programmable 3D engine for industrial applications. M0 is a runnable vertical slice that proves the public API, native WebGL2 scene rendering, shared 2D/3D input, layered composition, lifecycle management, and browser verification.
 
 ## Architecture
 
@@ -18,11 +18,12 @@ Consumers import only from `ice3`. Internal package paths are private.
 
 ## M0 capabilities
 
-- Create an engine, scene, perspective camera, box geometry, and basic material.
+- Create an engine, scene, perspective camera, box geometry, and flat basic material.
+- Add optional high-contrast geometry edges without relying on lighting.
 - Draw visible boxes through a native WebGL2 backend.
 - Add world-anchored and screen-anchored Canvas2D labels.
 - Route pointer and wheel input from the top 2D layer to the 3D scene.
-- Rotate and zoom the camera with `ICEOrbitController`.
+- Rotate from geometry or empty space and zoom with damping through `ICEOrbitController`.
 - Resize with correct DPR handling.
 - Recover rendering resources after GPU context restoration.
 - Serialize and restore the M0 scene model.
