@@ -11,6 +11,10 @@ import {
   type ICERendererBackend,
   type ICEViewport,
 } from '@ice3/renderer';
+import { ICE2DCanvasPainter } from './layer/ICE2DCanvasPainter';
+import { ICE2DLayer } from './layer/ICE2DLayer';
+import { ICE2DLayerRouter } from './layer/ICE2DLayerRouter';
+import { ICEWorldLayer } from './layer/ICEWorldLayer';
 import { ICEInteractionState } from './ICEInteractionState';
 import { projectWorldPoint, type ICEProjectedPoint } from './ICEProjection';
 import {
@@ -18,13 +22,6 @@ import {
   type ICERenderScheduler,
 } from './ICERenderScheduler';
 import type { ICEVector3Tuple } from '@ice3/core';
-
-export interface ICELayerHandle {
-  readonly id: string;
-  readonly order: number;
-  visible: boolean;
-  dispose(): void;
-}
 
 export type ICE3Options = {
   readonly backend?: ICERendererBackend;
@@ -60,7 +57,9 @@ export class ICE3 extends ICEEventDispatcher {
   private readonly backend: ICERendererBackend;
   private readonly scheduler: ICERenderScheduler;
   private readonly interaction = new ICEInteractionState();
-  private readonly layers: ICELayerHandle[] = [];
+  private readonly layers: ICE2DLayer[] = [];
+  private readonly layerRouter = new ICE2DLayerRouter(() => this.layers);
+  private readonly layerPainter = new ICE2DCanvasPainter();
   private state: EngineState = 'created';
   private host: HTMLElement | null = null;
   private baseCanvas: HTMLCanvasElement | null = null;
@@ -141,7 +140,7 @@ export class ICE3 extends ICEEventDispatcher {
     return this;
   }
 
-  addLayer(layer: ICELayerHandle): this {
+  addLayer(layer: ICE2DLayer): this {
     this.assertActive();
     if (this.layers.some((item) => item.id === layer.id)) {
       throw new ICEEngineError(
@@ -155,7 +154,7 @@ export class ICE3 extends ICEEventDispatcher {
     return this;
   }
 
-  removeLayer(layer: ICELayerHandle): this {
+  removeLayer(layer: ICE2DLayer): this {
     const index = this.layers.indexOf(layer);
     if (index >= 0) {
       this.layers.splice(index, 1);
@@ -232,7 +231,10 @@ export class ICE3 extends ICEEventDispatcher {
       backend: this.backend.capabilities,
       nodeCount: this.scene ? countNodes(this.scene) : 0,
       layerCount: this.layers.length,
-      labelCount: 0,
+      labelCount: this.layers.reduce(
+        (total, layer) => total + layer.getLabels().length,
+        0,
+      ),
       dpr: this.dpr,
       canvas: {
         width: this.baseCanvas?.width ?? 0,
@@ -240,7 +242,13 @@ export class ICE3 extends ICEEventDispatcher {
       },
       viewport: { ...this.viewport },
       contextLossCount: this.contextLossCount,
-      labels: [],
+      labels: this.layers.flatMap((layer) =>
+        layer.getLabels().map((label) => ({
+          id: label.id,
+          layerId: layer.id,
+          rect: label.getRect(),
+        })),
+      ),
       ...(this.lastDiagnostic ? { lastDiagnostic: this.lastDiagnostic } : {}),
     };
   }
@@ -342,6 +350,31 @@ export class ICE3 extends ICEEventDispatcher {
       viewport: this.viewport,
       dpr: this.dpr,
     });
+    if (this.overlayCanvas && this.layers.length > 0) {
+      if (this.scene) {
+        for (const layer of this.layers) {
+          if (layer instanceof ICEWorldLayer) {
+            layer.prepare(this.scene, (anchorId) => {
+              const node = this.scene?.findByID(anchorId);
+              if (!node) {
+                this.recordDiagnostic(
+                  'ICE3_UNKNOWN_ANCHOR',
+                  `Unknown ICE label anchor: ${anchorId}`,
+                );
+                return undefined;
+              }
+              return this.project(node.getWorldPosition().toArray());
+            });
+          }
+        }
+      }
+      this.layerPainter.paint(
+        this.overlayCanvas,
+        this.layers,
+        this.viewport,
+        this.dpr,
+      );
+    }
     this.cpuFrameTimeMs = performance.now() - startedAt;
     if (this.lastFrameAt) {
       const frameMs = startedAt - this.lastFrameAt;
@@ -365,3 +398,5 @@ export class ICE3 extends ICEEventDispatcher {
 
 const countNodes = (node: ICENode): number =>
   1 + node.children.reduce((total, child) => total + countNodes(child), 0);
+
+export { ICE2DLayerRouter };
