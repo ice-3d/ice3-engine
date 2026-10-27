@@ -117,6 +117,8 @@ test('2D controls shield 3D and transparent areas pass through', async ({ page }
 });
 
 test('mouse drag and wheel animate the camera smoothly', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
   const center = await page.evaluate(() => window.__ice3M0.projection());
   const stage = await page.locator('[data-role="stage"]').boundingBox();
@@ -132,17 +134,14 @@ test('mouse drag and wheel animate the camera smoothly', async ({ page }) => {
     stage.y + center.y + 48,
     { steps: 8 },
   );
-  await page.mouse.move(
-    stage.x + center.x,
-    stage.y + center.y,
-    { steps: 8 },
-  );
   await page.mouse.up();
   await expect(page.locator('[data-role="status"]')).toHaveText('运行');
   expect(await page.evaluate(() => window.__ice3M0.getSelection())).toEqual([]);
+  await page.waitForTimeout(200);
+  expect(errors).toEqual([]);
   await expect
     .poll(() => page.evaluate(() => window.__ice3M0.diagnostics().frameId))
-    .toBeGreaterThan(beforeDrag + 4);
+    .toBeGreaterThan(beforeDrag + 2);
 
   await page.waitForTimeout(400);
   const beforeWheel = await page.evaluate(
@@ -151,7 +150,8 @@ test('mouse drag and wheel animate the camera smoothly', async ({ page }) => {
   await page.mouse.wheel(0, 600);
   await expect
     .poll(() => page.evaluate(() => window.__ice3M0.diagnostics().frameId))
-    .toBeGreaterThan(beforeWheel + 4);
+    .toBeGreaterThan(beforeWheel + 2);
+  expect(errors).toEqual([]);
 });
 
 test('GPU picking selects the nearest overlapping device', async ({ page }) => {

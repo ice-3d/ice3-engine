@@ -16,6 +16,7 @@ export interface GeometryEntry {
 export class WebGL2GeometryCache {
   private readonly entries = new Map<ICEGeometry, GeometryEntry>();
   private active = new Set<ICEGeometry>();
+  private readonly pinned = new Set<ICEGeometry>();
   private gl: WebGL2RenderingContext | null = null;
 
   retain(
@@ -118,9 +119,21 @@ export class WebGL2GeometryCache {
     this.active = new Set();
   }
 
+  pin(
+    gl: WebGL2RenderingContext,
+    geometry: ICEGeometry,
+  ): Readonly<GeometryEntry> {
+    this.pinned.add(geometry);
+    return this.retain(gl, geometry);
+  }
+
+  unpin(geometry: ICEGeometry): void {
+    this.pinned.delete(geometry);
+  }
+
   endFrame(): void {
     for (const [geometry, entry] of this.entries) {
-      if (this.active.has(geometry)) {
+      if (this.active.has(geometry) || this.pinned.has(geometry)) {
         continue;
       }
       this.deleteEntry(entry);
@@ -131,6 +144,7 @@ export class WebGL2GeometryCache {
   clear(): void {
     this.entries.clear();
     this.active.clear();
+    this.pinned.clear();
     this.gl = null;
   }
 

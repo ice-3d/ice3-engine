@@ -1,5 +1,7 @@
 import {
+  ICEBasicMaterial,
   ICEEventDispatcher,
+  ICEIndexedGeometry,
   ICEMesh,
   ICENode,
   ICEScene,
@@ -8,6 +10,11 @@ import {
   type ICEMatrix4Tuple,
   type ICEPerspectiveCamera,
 } from '@ice3/core';
+import {
+  queueBatchGeneration,
+  type ICEBatchGenerationHandle,
+  type ICEBatchUploadBuffer,
+} from '@ice3/renderer';
 import {
   readTileset,
   type ICETilesetSnapshot,
@@ -23,6 +30,21 @@ import {
   ICELodSelector,
   type ICELodSelection,
 } from './ICELodSelector.js';
+import {
+  ICEAdaptiveRenderBatchController,
+  type ICEAdaptiveBatchExecutionResult,
+  type ICEAdaptiveBatchRequest,
+  type ICERenderBatchingOptions,
+} from '../batching/ICEAdaptiveRenderBatchController.js';
+import {
+  ICEBatchWorkerPool,
+} from '../batching/ICEBatchWorkerPool.js';
+import type {
+  ICEBatchWorkerOutput,
+  ICEBatchWorkerSource,
+} from '../batching/ICEBatchWorkerProtocol.js';
+import { ICERenderBatchPlanner } from '../batching/ICERenderBatchPlanner.js';
+import { ICERenderBatch } from './ICERenderBatch.js';
 
 export type ICETilesetTileState =
   | 'pending'
@@ -72,6 +94,7 @@ export interface ICETilesetLoaderOptions {
   readonly maxCommitsPerFrame?: number;
   readonly maxScreenSpaceErrorPixels?: number;
   readonly lodSettleDelayMs?: number;
+  readonly renderBatching?: ICERenderBatchingOptions;
 }
 
 export interface ICETilesetOpenOptions {
@@ -86,6 +109,7 @@ export class ICETilesetLoader {
   private readonly scheduler: ICETilesetScheduler;
   private readonly maxScreenSpaceErrorPixels: number;
   private readonly lodSettleDelayMs: number;
+  private readonly renderBatching: ICERenderBatchingOptions | undefined;
 
   constructor(
     private readonly engine: ICE3,
@@ -102,6 +126,45 @@ export class ICETilesetLoader {
     this.maxCommitsPerFrame = options.maxCommitsPerFrame ?? 1;
     this.maxScreenSpaceErrorPixels = options.maxScreenSpaceErrorPixels ?? 16;
     this.lodSettleDelayMs = options.lodSettleDelayMs ?? 180;
+    this.renderBatching = options.renderBatching;
+    if (
+      options.renderBatching
+      && (
+        !['asset', 'adaptive', 'off'].includes(options.renderBatching.mode)
+        || (
+          options.renderBatching.maxWorkers !== undefined
+          && (
+            !Number.isInteger(options.renderBatching.maxWorkers)
+            || options.renderBatching.maxWorkers < 1
+          )
+        )
+        || (
+          options.renderBatching.idleTaskBudgetMs !== undefined
+          && (
+            !Number.isFinite(options.renderBatching.idleTaskBudgetMs)
+            || options.renderBatching.idleTaskBudgetMs < 0
+          )
+        )
+        || (
+          options.renderBatching.uploadBytesPerFrame !== undefined
+          && (
+            !Number.isInteger(options.renderBatching.uploadBytesPerFrame)
+            || options.renderBatching.uploadBytesPerFrame < 1
+          )
+        )
+        || (
+          options.renderBatching.maxExtraGpuBytes !== undefined
+          && (
+            !Number.isFinite(options.renderBatching.maxExtraGpuBytes)
+            || options.renderBatching.maxExtraGpuBytes < 0
+          )
+        )
+      )
+    ) {
+      throw new Error(
+        'ICE3_TILESET_INVALID: adaptive batching options are invalid',
+      );
+    }
     if (
       !Number.isInteger(this.maxConcurrentTiles)
       || this.maxConcurrentTiles < 1
@@ -177,6 +240,7 @@ export class ICETilesetLoader {
       this.maxCommitsPerFrame,
       this.maxScreenSpaceErrorPixels,
       this.lodSettleDelayMs,
+      this.renderBatching,
       options.signal,
     );
     handle.start();
@@ -228,6 +292,17 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   private cameraMoving = false;
   private lodSettleTimer: ReturnType<typeof setTimeout> | undefined;
   private motionFallbackId: string | undefined;
+  private readonly adaptiveController: ICEAdaptiveRenderBatchController | undefined;
+  private readonly batchWorkerPool: ICEBatchWorkerPool | undefined;
+  private readonly adaptivePlanner = new ICERenderBatchPlanner();
+  private readonly adaptiveUploadBytesPerFrame: number;
+  private readonly adaptiveMaxExtraGpuBytes: number;
+  private readonly adaptiveIdleTaskBudgetMs: number;
+  private adaptiveAbortController: AbortController | undefined;
+  private adaptiveUploadHandle: ICEBatchGenerationHandle | undefined;
+  private adaptiveState: ICEAdaptiveSceneState | undefined;
+  private adaptivePlanningSignature = '';
+  private readonly renderBatchingMode: ICERenderBatchingOptions['mode'];
 
   constructor(
     private readonly engine: ICE3,
@@ -239,12 +314,40 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     private readonly maxCommitsPerFrame: number,
     private readonly maxScreenSpaceErrorPixels: number,
     lodSettleDelayMs: number,
+    renderBatching: ICERenderBatchingOptions | undefined,
     callerSignal?: AbortSignal,
   ) {
     super();
     this.scene = new ICEScene({ id: `${snapshot.assetId}:scene` });
     this.bounds = snapshot.bounds;
     this.lodSettleDelayMs = lodSettleDelayMs;
+    this.renderBatchingMode = renderBatching?.mode ?? 'asset';
+    this.adaptiveUploadBytesPerFrame =
+      renderBatching?.uploadBytesPerFrame ?? 8 * 1024 * 1024;
+    this.adaptiveMaxExtraGpuBytes =
+      renderBatching?.maxExtraGpuBytes ?? 256 * 1024 * 1024;
+    this.adaptiveIdleTaskBudgetMs =
+      renderBatching?.idleTaskBudgetMs ?? 4;
+    if (renderBatching?.mode === 'adaptive') {
+      this.batchWorkerPool = new ICEBatchWorkerPool({
+        ...(renderBatching.maxWorkers === undefined
+          ? {}
+          : { maxWorkers: renderBatching.maxWorkers }),
+      });
+      this.adaptiveController = new ICEAdaptiveRenderBatchController({
+        mode: 'adaptive',
+        activeGeneration: 1,
+        maxExtraGpuBytes: this.adaptiveMaxExtraGpuBytes,
+        execute: (request) => this.executeAdaptiveBatch(request),
+        onDiagnostic: (code, generation, message) => {
+          this.engine.reportDiagnostic(
+            code,
+            `${message} (generation ${generation})`,
+            'info',
+          );
+        },
+      });
+    }
     this.assetLoader = new ICEAssetLoader(engine, {
       fetch: (input, init) => fetch(input, {
         ...(init ?? {}),
@@ -323,6 +426,21 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         ), 0),
       residentBytes: this.residentBytes,
       lod,
+    });
+  }
+
+  get adaptiveStats(): Readonly<{
+    mode: ICERenderBatchingOptions['mode'];
+    activeGeneration: number;
+    candidateGeneration?: number;
+    adaptiveBatchCount: number;
+  }> {
+    const candidate = this.adaptiveController?.candidate;
+    return Object.freeze({
+      mode: this.renderBatchingMode,
+      activeGeneration: this.adaptiveController?.activeGeneration ?? 1,
+      ...(candidate === undefined ? {} : { candidateGeneration: candidate }),
+      adaptiveBatchCount: this.adaptiveState?.nodes.length ?? 0,
     });
   }
 
@@ -458,6 +576,10 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.cancelAdaptiveCandidate();
+    this.restoreAdaptiveScene();
+    this.adaptiveController?.dispose();
+    this.batchWorkerPool?.dispose();
     this.removeCallerAbort?.();
     this.removeCallerAbort = undefined;
     this.engine.off('AFTER_RENDER', this.handleAfterRender);
@@ -810,6 +932,8 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       }
       committed += 1;
       try {
+        this.cancelAdaptiveCandidate();
+        this.restoreAdaptiveScene();
         if (this.scene.findByID(candidate.container.id)) {
           throw new Error(`ICE3_TILESET_DUPLICATE_ID: ${candidate.container.id}`);
         }
@@ -861,6 +985,8 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   }
 
   private unloadTile(tileId: string): void {
+    this.cancelAdaptiveCandidate();
+    this.restoreAdaptiveScene();
     const record = this.resident.get(tileId);
     if (!record) return;
     this.scene.removeChild(record.container, { dispose: true });
@@ -887,6 +1013,8 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   }
 
   private enterCameraMotion(): void {
+    this.cancelAdaptiveCandidate();
+    this.restoreAdaptiveScene();
     if (this.lodSettleDelayMs === 0) {
       this.cameraMoving = false;
       this.requestWorkSetUpdate(true);
@@ -1058,6 +1186,270 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     }
   }
 
+  private maybeStartAdaptiveBatch(): void {
+    if (
+      !this.adaptiveController
+      || this.cameraMoving
+      || this.adaptiveState
+      || this.adaptivePlanningSignature === this.lastSignature
+    ) {
+      return;
+    }
+    const batches = collectAdaptiveSourceBatches(
+      this.scene,
+      performance.now() + this.adaptiveIdleTaskBudgetMs,
+    );
+    if (batches.length < 2) return;
+    const plan = this.adaptivePlanner.plan({
+      generation: this.adaptiveController.activeGeneration + 1,
+      visibleBatchIds: batches.map((batch) => batch.id),
+      batches: batches.map((batch) => ({
+        id: batch.id,
+        materialKey: batch.materialKey,
+        triangleCount: batch.geometry.indices.length / 3,
+        byteLength: geometryByteLength(batch),
+        bounds: batch.geometry.getBounds(),
+      })),
+      maxExtraGpuBytes: this.adaptiveMaxExtraGpuBytes,
+    });
+    if (!plan.accepted) {
+      if (plan.estimatedBytes > this.adaptiveMaxExtraGpuBytes) {
+        this.engine.reportDiagnostic(
+          'ICE3_RENDER_BATCH_MEMORY_REJECTED',
+          `Adaptive render batch generation exceeds the extra GPU memory budget (generation ${plan.generation})`,
+          'warning',
+        );
+      }
+      return;
+    }
+    this.adaptivePlanningSignature = this.lastSignature;
+    this.adaptiveController.request({
+      cameraMoving: this.cameraMoving,
+      generation: plan.generation,
+      plan,
+    });
+  }
+
+  private async executeAdaptiveBatch(
+    request: ICEAdaptiveBatchRequest,
+  ): Promise<ICEAdaptiveBatchExecutionResult> {
+    if (!this.batchWorkerPool) {
+      return {
+        kind: 'failed',
+        reason: 'worker',
+        error: new Error('ICE3_RENDER_BATCH_WORKER_UNAVAILABLE'),
+      };
+    }
+    const sourceById = new Map(
+      collectAdaptiveSourceBatches(this.scene).map((batch) => [
+        batch.id,
+        batch,
+      ] as const),
+    );
+    this.adaptiveAbortController?.abort();
+    const controller = new AbortController();
+    this.adaptiveAbortController = controller;
+    const materialByKey = new Map<string, ICEBasicMaterial>();
+    const groups = new Map<string, ICEBatchWorkerSource[]>();
+    for (const id of request.plan.sourceBatchIds) {
+      const batch = sourceById.get(id);
+      if (!batch) continue;
+      await yieldMainThread();
+      if (controller.signal.aborted) {
+        return {
+          kind: 'failed',
+          reason: 'worker',
+          error: new DOMException('Adaptive source staging aborted', 'AbortError'),
+        };
+      }
+      materialByKey.set(batch.materialKey, batch.material);
+      const group = groups.get(batch.materialKey) ?? [];
+      const source = await workerSource(batch, controller.signal);
+      if (controller.signal.aborted) {
+        return {
+          kind: 'failed',
+          reason: 'worker',
+          error: new DOMException('Adaptive source staging aborted', 'AbortError'),
+        };
+      }
+      group.push(source);
+      groups.set(batch.materialKey, group);
+    }
+    if (groups.size === 0) {
+      return {
+        kind: 'failed',
+        reason: 'worker',
+        error: new Error('ICE3_RENDER_BATCH_ADAPTIVE_EMPTY'),
+      };
+    }
+    let responses;
+    try {
+      responses = await Promise.all(
+        [...groups.values()].map((sources) => this.batchWorkerPool!.run({
+          type: 'build',
+          generation: request.generation,
+          maxTrianglesPerBatch: 500_000,
+          maxBytesPerBatch: 32 * 1024 * 1024,
+          sources,
+        }, controller.signal)),
+      );
+    } catch (error) {
+      if (controller.signal.aborted) {
+        return { kind: 'failed', reason: 'worker', error };
+      }
+      return { kind: 'failed', reason: 'worker', error };
+    }
+    const failed = responses.find((response) => response.type === 'failed');
+    if (failed?.type === 'failed') {
+      return {
+        kind: 'failed',
+        reason: 'worker',
+        error: new Error(failed.message),
+      };
+    }
+    const outputs = responses.flatMap((response) => (
+      response.type === 'built' ? response.batches : []
+    ));
+    const uploadBuffers = outputs.map((output) => uploadBuffer(output));
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (
+        result: ICEAdaptiveBatchExecutionResult,
+      ): void => {
+        if (settled) return;
+        settled = true;
+        controller.signal.removeEventListener('abort', abort);
+        resolve(result);
+      };
+      const abort = (): void => {
+        this.adaptiveUploadHandle?.cancel();
+        finish({
+          kind: 'failed',
+          reason: 'upload',
+          error: new DOMException('Adaptive batch upload aborted', 'AbortError'),
+        });
+      };
+      controller.signal.addEventListener('abort', abort, { once: true });
+      this.adaptiveUploadHandle = queueBatchGeneration(uploadBuffers, {
+        generation: request.generation,
+        bytesPerFrame: this.adaptiveUploadBytesPerFrame,
+        isCurrent: () => !controller.signal.aborted,
+        upload: (buffer) => {
+          const geometry = new ICEIndexedGeometry({
+            id: buffer.id,
+            positions: buffer.positions,
+            indices: buffer.indices,
+            semanticIndices: buffer.semanticIndices,
+          });
+          this.engine.prepareRenderBatchGeometry(geometry);
+          return {
+            buffer,
+            geometry,
+            material: materialByKey.get(buffer.materialKey)!,
+          };
+        },
+        release: (resource) => {
+          this.engine.releaseRenderBatchGeometry(
+            (resource as ICEAdaptiveUploadedResource).geometry,
+          );
+        },
+        onActivate: (_generation, resources) => {
+          this.activateAdaptiveScene(
+            request.generation,
+            request.plan.sourceBatchIds,
+            resources as readonly ICEAdaptiveUploadedResource[],
+          );
+        },
+        onUploaded: () => {
+          finish({
+            kind: 'completed',
+            estimatedBytes: request.plan.estimatedBytes,
+          });
+        },
+        onFailed: (_generation, error) => {
+          finish({ kind: 'failed', reason: 'upload', error });
+        },
+      });
+    });
+  }
+
+  private activateAdaptiveScene(
+    generation: number,
+    sourceIds: readonly string[],
+    resources: readonly ICEAdaptiveUploadedResource[],
+  ): void {
+    this.restoreAdaptiveScene();
+    const sourceVisibility = new Map<ICERenderBatch, boolean>();
+    const sourceNodes: ICERenderBatch[] = [];
+    const adaptiveNodes = resources.map((resource, index) => (
+      new ICERenderBatch({
+        id: `adaptive:${generation}:${index}`,
+        displayName: `adaptive-render-batch-${index}`,
+        geometry: resource.geometry,
+        material: resource.material,
+        semanticIds: resource.buffer.semanticIds,
+        semanticNodeIds: resource.buffer.semanticNodeIds,
+        semanticSelectionIds: resource.buffer.semanticSelectionIds,
+        materialKey: resource.buffer.materialKey,
+      })
+    ));
+    const added: ICERenderBatch[] = [];
+    try {
+      for (const id of sourceIds) {
+        const node = this.scene.findByID(id);
+        if (!(node instanceof ICERenderBatch)) continue;
+        sourceVisibility.set(node, node.visible);
+        sourceNodes.push(node);
+        node.visible = false;
+      }
+      for (const node of adaptiveNodes) {
+        this.scene.addChild(node);
+        added.push(node);
+      }
+      this.adaptiveState = {
+        generation,
+        nodes: adaptiveNodes,
+        resources,
+        sourceNodes,
+        sourceVisibility,
+      };
+      this.engine.requestRender('adaptive-render-batch-activated');
+    } catch (error) {
+      for (const node of added) {
+        this.scene.removeChild(node, { dispose: true });
+      }
+      for (const [node, visible] of sourceVisibility) {
+        node.visible = visible;
+      }
+      this.engine.requestRender('adaptive-render-batch-restored');
+      throw error;
+    }
+  }
+
+  private restoreAdaptiveScene(): void {
+    const state = this.adaptiveState;
+    if (!state) return;
+    this.adaptiveState = undefined;
+    for (const node of state.nodes) {
+      if (this.scene.findByID(node.id)) {
+        this.scene.removeChild(node, { dispose: true });
+      }
+    }
+    for (const resource of state.resources) {
+      this.engine.releaseRenderBatchGeometry(resource.geometry);
+    }
+    for (const [node, visible] of state.sourceVisibility) {
+      node.visible = visible;
+    }
+    this.engine.requestRender('adaptive-render-batch-restored');
+  }
+
+  private cancelAdaptiveCandidate(): void {
+    this.adaptiveController?.cameraMotion();
+    this.adaptiveAbortController?.abort();
+    this.adaptivePlanningSignature = '';
+  }
+
   private settleIdleWaiters(): void {
     const unsettled = new Set<string>([
       ...this.requestQueue
@@ -1084,6 +1476,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       && !this.idleEmitted
       && !this.workSetUpdateScheduled
     ) {
+      this.maybeStartAdaptiveBatch();
       this.idleEmitted = true;
       this.trigger<ICETilesetEvent>('TILESET_IDLE', { stats: this.stats });
     }
@@ -1106,6 +1499,124 @@ interface ICEResidentTile {
   readonly container: ICENode;
   readonly bytes: number;
   readonly contentUris: readonly string[];
+}
+
+interface ICEAdaptiveSceneState {
+  readonly generation: number;
+  readonly nodes: readonly ICERenderBatch[];
+  readonly resources: readonly ICEAdaptiveUploadedResource[];
+  readonly sourceNodes: readonly ICERenderBatch[];
+  readonly sourceVisibility: ReadonlyMap<ICERenderBatch, boolean>;
+}
+
+interface ICEAdaptiveUploadedResource {
+  readonly buffer: ICEBatchUploadBuffer;
+  readonly geometry: ICEIndexedGeometry;
+  readonly material: ICEBasicMaterial;
+}
+
+function collectAdaptiveSourceBatches(
+  scene: ICEScene,
+  deadline = Infinity,
+): ICERenderBatch[] {
+  const output: ICERenderBatch[] = [];
+  const visit = (node: ICENode, parentVisible: boolean): void => {
+    if (output.length % 256 === 0 && performance.now() > deadline) return;
+    const visible = parentVisible && node.visible;
+    if (
+      visible
+      && node instanceof ICERenderBatch
+      && !node.geometry.edgeIndices?.length
+      && node.geometry.semanticIndices
+    ) {
+      output.push(node);
+    }
+    for (const child of node.children) visit(child, visible);
+  };
+  visit(scene, true);
+  return output;
+}
+
+function geometryByteLength(batch: ICERenderBatch): number {
+  return batch.geometry.positions.byteLength
+    + batch.geometry.indices.byteLength
+    + (batch.geometry.semanticIndices?.byteLength ?? 0);
+}
+
+async function workerSource(
+  batch: ICERenderBatch,
+  signal: AbortSignal,
+): Promise<ICEBatchWorkerSource> {
+  const semanticIndices = batch.geometry.semanticIndices!;
+  return {
+    id: batch.id,
+    materialKey: batch.materialKey,
+    positions: (
+      await copyFloat32(batch.geometry.positions, signal)
+    ).buffer as ArrayBuffer,
+    indices: (
+      await copyUint32(batch.geometry.indices, signal)
+    ).buffer as ArrayBuffer,
+    semanticIndices: (
+      await copyUint32(semanticIndices, signal)
+    ).buffer as ArrayBuffer,
+    semanticIds: batch.semanticIds,
+    semanticNodeIds: batch.semanticNodeIds,
+    semanticSelectionIds: batch.semanticSelectionIds,
+  };
+}
+
+async function copyFloat32(
+  source: Float32Array,
+  signal: AbortSignal,
+): Promise<Float32Array> {
+  const target = new Float32Array(source.length);
+  for (let offset = 0; offset < source.length; offset += 262_144) {
+    target.set(source.subarray(offset, offset + 262_144), offset);
+    if (signal.aborted) break;
+    await yieldMainThread();
+  }
+  return target;
+}
+
+async function copyUint32(
+  source: Uint16Array | Uint32Array,
+  signal: AbortSignal,
+): Promise<Uint32Array> {
+  const target = new Uint32Array(source.length);
+  for (let offset = 0; offset < source.length; offset += 262_144) {
+    target.set(source.subarray(offset, offset + 262_144), offset);
+    if (signal.aborted) break;
+    await yieldMainThread();
+  }
+  return target;
+}
+
+function uploadBuffer(
+  output: ICEBatchWorkerOutput,
+): ICEBatchUploadBuffer {
+  const positions = new Float32Array(output.positions);
+  const indices = new Uint32Array(output.indices);
+  const semanticIndices = new Uint32Array(output.semanticIndices);
+  return {
+    id: output.id,
+    materialKey: output.materialKey,
+    positions,
+    indices,
+    semanticIndices,
+    semanticIds: output.semanticIds,
+    semanticNodeIds: output.semanticNodeIds,
+    semanticSelectionIds: output.semanticSelectionIds,
+    bounds: output.bounds,
+    triangleCount: output.triangleCount,
+    byteLength: positions.byteLength
+      + indices.byteLength
+      + semanticIndices.byteLength,
+  };
+}
+
+function yieldMainThread(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 interface ICETileCandidate extends Omit<ICEResidentTile, 'tile'> {

@@ -1,4 +1,8 @@
-import { ICEEngineError, ICEMatrix4 } from '@ice3/core';
+import {
+  ICEEngineError,
+  ICEMatrix4,
+  type ICEGeometry,
+} from '@ice3/core';
 import {
   collectRenderables,
   selectionIdentity,
@@ -186,6 +190,20 @@ export class WebGL2RendererBackend implements ICERendererBackend {
 
   setBackgroundColor(color: string): void {
     this.backgroundRgba = colorToRgba(color);
+  }
+
+  prepareBatchGeometry(geometry: ICEGeometry): void {
+    if (!this.gl || !this.geometryCache) {
+      throw new ICEEngineError(
+        'ICE3_ENGINE_NOT_READY',
+        'Renderer is not initialized',
+      );
+    }
+    this.geometryCache.pin(this.gl, geometry);
+  }
+
+  releaseBatchGeometry(geometry: ICEGeometry): void {
+    this.geometryCache?.unpin(geometry);
   }
 
   render(frame: ICEFrame): void {
@@ -495,6 +513,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       }
       gl.depthMask(true);
       gl.disable(gl.BLEND);
+      this.program.use();
       this.program.setClipOffset(0, 0);
     }
     gl.bindVertexArray(null);
