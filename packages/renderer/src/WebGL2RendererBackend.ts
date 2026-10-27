@@ -22,6 +22,9 @@ const EDGE_PIXEL_OFFSETS = [
   [0, 1],
 ] as const;
 
+const SELECTION_RGBA = [255 / 255, 213 / 255, 74 / 255] as const;
+const SELECTION_TINT_ALPHA = 0.24;
+
 export function colorToRgba(color: string): [number, number, number, number] {
   const normalized = color.startsWith('#') ? color.slice(1) : color;
   const expanded = normalized.length === 3
@@ -216,7 +219,12 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.depthMask(false);
       this.program.setVertexColors(false);
-      this.program.setColor([99 / 255, 215 / 255, 1, 0.16]);
+      this.program.setColor([
+        SELECTION_RGBA[0],
+        SELECTION_RGBA[1],
+        SELECTION_RGBA[2],
+        SELECTION_TINT_ALPHA,
+      ]);
       for (const renderable of renderables) {
         if (!selected.has(selectionIdentity(renderable.mesh))) continue;
         mvp.elements.set(viewProjection.elements);
@@ -236,7 +244,12 @@ export class WebGL2RendererBackend implements ICERendererBackend {
           0,
         );
       }
-      this.program.setColor([99 / 255, 215 / 255, 1, 1]);
+      this.program.setColor([
+        SELECTION_RGBA[0],
+        SELECTION_RGBA[1],
+        SELECTION_RGBA[2],
+        1,
+      ]);
       for (const renderable of renderables) {
         if (!selected.has(selectionIdentity(renderable.mesh))) continue;
         const geometry = this.geometryCache.retain(gl, renderable.mesh.geometry);

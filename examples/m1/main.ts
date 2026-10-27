@@ -1,10 +1,8 @@
 import {
   ICE3,
   ICEAssetLoader,
-  ICELabel,
   ICEOrbitController,
   ICEPerspectiveCamera,
-  ICEScreenLayer,
   type ICEEngineDiagnostics,
   type ICENode,
   type ICEProjectedPoint,
@@ -23,6 +21,12 @@ const loading = required<HTMLElement>('[data-role="loading"]');
 const loadingTitle = required<HTMLElement>('[data-role="loading-title"]');
 const loadingDetail = required<HTMLElement>('[data-role="loading-detail"]');
 const controlsHint = required<HTMLElement>('[data-role="controls-hint"]');
+const selectionInfo = required<HTMLElement>('[data-role="selection-info"]');
+const selectionName = required<HTMLElement>('[data-role="selection-name"]');
+const selectionCode = required<HTMLElement>('[data-role="selection-code"]');
+const selectionStatus = required<HTMLElement>('[data-role="selection-status"]');
+const selectionType = required<HTMLElement>('[data-role="selection-type"]');
+const selectionArea = required<HTMLElement>('[data-role="selection-area"]');
 const engine = new ICE3().init(stage);
 engine.setBackgroundColor('#000000');
 const camera = new ICEPerspectiveCamera({
@@ -33,22 +37,6 @@ const camera = new ICEPerspectiveCamera({
   position: [3.2, 2.4, 4.5],
   target: [0, 0, 0],
 });
-const selectionLayer = new ICEScreenLayer({
-  id: 'selection-layer',
-  order: 20,
-  interactive: false,
-});
-const selectionLabel = new ICELabel({
-  id: 'selection-label',
-  text: '',
-  screenPosition: [0, 0],
-  color: '#e8f2fa',
-  background: 'rgba(7, 20, 30, 0.94)',
-  padding: 8,
-});
-selectionLabel.visible = false;
-selectionLayer.addChild(selectionLabel);
-engine.addLayer(selectionLayer);
 const loader = new ICEAssetLoader(engine);
 let handle: Awaited<ReturnType<ICEAssetLoader['load']>> | null = null;
 let orbit: ICEOrbitController | null = null;
@@ -64,35 +52,43 @@ engine.on<{ selection: readonly string[] }>('SELECTION_CHANGE', (event) => {
   selectedNode = selectedId
     ? handle?.scene.findByID(selectedId) ?? null
     : null;
-  selectionLabel.setText(selectedNode?.displayName ?? '');
-  selectionLabel.visible = Boolean(selectedNode);
   status.textContent = selectedNode
     ? `已选中 ${selectedNode.displayName}`
     : assetReleased ? '资产已释放' : '资产已加载';
-});
-engine.on('BEFORE_RENDER', () => {
-  if (!selectedNode) {
-    selectionLabel.visible = false;
-    return;
+  if (selectedNode) {
+    showSelectionInfo(selectedNode);
+  } else {
+    hideSelectionInfo();
   }
-  const anchor = engine.project(selectedNode.getWorldPosition().toArray());
-  if (!anchor.visible) {
-    selectionLabel.visible = false;
-    return;
-  }
-  const viewport = engine.getDiagnostics().viewport;
-  const rect = selectionLabel.getRect();
-  const x = Math.min(
-    Math.max(12, anchor.x - rect.width / 2),
-    Math.max(12, viewport.width - rect.width - 12),
-  );
-  const y = Math.min(
-    Math.max(12, anchor.y - rect.height - 24),
-    Math.max(12, viewport.height - rect.height - 12),
-  );
-  selectionLabel.setScreenPosition([x, y]);
-  selectionLabel.visible = true;
 });
+
+function hashText(value: string): number {
+  let hash = 2166136261;
+  for (const character of value) {
+    hash ^= character.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function showSelectionInfo(node: ICENode): void {
+  const hash = hashText(node.id);
+  const statuses = ['运行正常', '待机', '维护中'] as const;
+  const types = ['泵组', '输送设备', '控制柜', '检测设备', '执行机构'] as const;
+  const areas = ['A 区', 'B 区', '动力区', '装配区'] as const;
+  selectionName.textContent = node.displayName;
+  selectionCode.textContent = `EQ-${hash.toString(16).toUpperCase().padStart(8, '0')}`;
+  selectionStatus.textContent = statuses[hash % statuses.length]!;
+  selectionType.textContent = types[(hash >>> 3) % types.length]!;
+  selectionArea.textContent = areas[(hash >>> 6) % areas.length]!;
+  selectionInfo.dataset.state = 'visible';
+  selectionInfo.setAttribute('aria-hidden', 'false');
+}
+
+function hideSelectionInfo(): void {
+  selectionInfo.dataset.state = 'hidden';
+  selectionInfo.setAttribute('aria-hidden', 'true');
+}
 
 function scenePixelAtProjection(): readonly [number, number, number, number] {
   const point = engine.project(assetCenter);
@@ -124,8 +120,7 @@ function disposeAsset(): void {
   handle.dispose();
   handle = null;
   selectedNode = null;
-  selectionLabel.setText('');
-  selectionLabel.visible = false;
+  hideSelectionInfo();
   controlsHint.dataset.state = 'hidden';
   controlsHint.setAttribute('aria-hidden', 'true');
   status.textContent = '资产已释放';
@@ -171,8 +166,7 @@ async function start(): Promise<void> {
     controlsHint.setAttribute('aria-hidden', 'false');
   } catch (error) {
     selectedNode = null;
-    selectionLabel.setText('');
-    selectionLabel.visible = false;
+    hideSelectionInfo();
     loading.dataset.state = 'error';
     loading.setAttribute('aria-label', '工业模型加载失败');
     loadingTitle.textContent = '模型加载失败';
@@ -194,9 +188,6 @@ window.__ice3M1 = {
   cameraTarget: () => camera.getTarget().toArray(),
   scenePixelAtProjection,
   selectedIds: () => engine.getSelection(),
-  selectedLabelText: () => selectionLabel.visible
-    ? selectionLabel.text
-    : undefined,
   disposeAsset,
   assetStats: () => handle?.stats ?? {
     nodeCount: 0,

@@ -75,6 +75,38 @@
           </div>
         </dl>
       </aside>
+      <aside
+        class="selection-info"
+        data-role="selection-info"
+        data-state="hidden"
+        aria-hidden="true"
+        aria-live="polite"
+        aria-labelledby="selection-name"
+      >
+        <div class="selection-info__header">
+          <span>当前设备</span>
+          <span class="selection-info__badge">演示信息</span>
+        </div>
+        <h2 id="selection-name" data-role="selection-name"></h2>
+        <dl class="selection-info__details">
+          <div>
+            <dt>设备编号</dt>
+            <dd data-role="selection-code"></dd>
+          </div>
+          <div>
+            <dt>运行状态</dt>
+            <dd data-role="selection-status"></dd>
+          </div>
+          <div>
+            <dt>设备类型</dt>
+            <dd data-role="selection-type"></dd>
+          </div>
+          <div>
+            <dt>所属区域</dt>
+            <dd data-role="selection-area"></dd>
+          </div>
+        </dl>
+      </aside>
     </main>
     <script type="module" src="/main.js"></script>
   </body>

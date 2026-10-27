@@ -119,6 +119,17 @@ test('fits loading and control hints within a narrow viewport', async ({ page })
   if (!hintBox) throw new Error('Control hint bounds missing');
   expect(hintBox.x).toBeGreaterThanOrEqual(0);
   expect(hintBox.x + hintBox.width).toBeLessThanOrEqual(390);
+
+  const center = await page.evaluate(() => window.__ice3M1.assetCenter());
+  const stage = await page.locator('[data-role="stage"]').boundingBox();
+  if (!stage) throw new Error('Stage bounds missing');
+  await page.mouse.click(stage.x + center.x, stage.y + center.y);
+  const info = page.locator('[data-role="selection-info"]');
+  await expect(info).toBeVisible();
+  const infoBox = await info.boundingBox();
+  if (!infoBox) throw new Error('Selection info bounds missing');
+  expect(infoBox.x).toBeGreaterThanOrEqual(0);
+  expect(infoBox.x + infoBox.width).toBeLessThanOrEqual(390);
 });
 
 test('loads and renders the prepared industrial asset', async ({ page }) => {
@@ -233,7 +244,7 @@ test('moves the camera with WASD and arrow keys', async ({ page }) => {
   );
 });
 
-test('selects one equipment unit with a label and cyan highlight', async ({ page }) => {
+test('selects one equipment unit with a yellow highlight and info panel', async ({ page }) => {
   await page.goto('http://127.0.0.1:8104/');
   await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
   const center = await page.evaluate(() => window.__ice3M1.assetCenter());
@@ -248,18 +259,46 @@ test('selects one equipment unit with a label and cyan highlight', async ({ page
   await expect.poll(
     () => page.evaluate(() => window.__ice3M1.selectedIds().length),
   ).toBe(1);
-  expect(await page.evaluate(() => window.__ice3M1.selectedLabelText()))
-    .toBeTruthy();
-  const labelRect = await page.evaluate(() => (
-    window.__ice3M1.diagnostics().labels.find(
+  const info = page.locator('[data-role="selection-info"]');
+  await expect(info).toBeVisible();
+  await expect(info).toContainText('演示信息');
+  await expect(page.locator('[data-role="selection-name"]')).not.toBeEmpty();
+  await expect(page.locator('[data-role="selection-code"]')).toContainText('EQ-');
+  await expect(page.locator('[data-role="selection-status"]')).not.toBeEmpty();
+  await expect(page.locator('[data-role="selection-type"]')).not.toBeEmpty();
+  await expect(page.locator('[data-role="selection-area"]')).not.toBeEmpty();
+  expect(await page.evaluate(() => (
+    window.__ice3M1.diagnostics().labels.some(
       (label) => label.id === 'selection-label',
-    )?.rect
-  ));
-  expect(labelRect?.x).toBeGreaterThan(0);
-  expect(labelRect?.y).toBeGreaterThan(0);
-  await expect.poll(
-    () => page.evaluate(() => window.__ice3M1.scenePixelAtProjection()),
-  ).not.toEqual(before);
+    )
+  ))).toBe(false);
+  await expect.poll(() => page.evaluate(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>(
+      'canvas[data-layer="scene"]',
+    )!;
+    const gl = canvas.getContext('webgl2')!;
+    const pixels = new Uint8Array(canvas.width * canvas.height * 4);
+    gl.readPixels(
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      pixels,
+    );
+    let count = 0;
+    for (let offset = 0; offset < pixels.length; offset += 4) {
+      if (
+        pixels[offset]! > 180
+        && pixels[offset + 1]! > 140
+        && pixels[offset + 2]! < 120
+      ) {
+        count += 1;
+      }
+    }
+    return count;
+  })).toBeGreaterThan(20);
   expect(await page.evaluate(
     () => window.__ice3M1.diagnostics().lastPickTimeMs,
   )).toBeGreaterThan(0);
@@ -297,8 +336,7 @@ test('clears selection on empty click and does not select while dragging', async
   await expect.poll(
     () => page.evaluate(() => window.__ice3M1.selectedIds().length),
   ).toBe(0);
-  expect(await page.evaluate(() => window.__ice3M1.selectedLabelText()))
-    .toBeUndefined();
+  await expect(page.locator('[data-role="selection-info"]')).toBeHidden();
 });
 
 test('does not select during a two-pointer pinch gesture', async ({ page }) => {

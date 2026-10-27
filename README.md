@@ -70,7 +70,7 @@ reuse existing example servers.
   actionable failure feedback in place when loading cannot complete.
 - Keep a compact, non-blocking control hint visible after the scene is ready.
 - Select a named equipment unit with an exact GPU click pick and preserve
-  source colors under a non-destructive cyan highlight.
+  source colors under a non-destructive yellow highlight.
 - Reject ordinary GLB or profile features that need runtime conversion.
 
 ## M0 boundaries
