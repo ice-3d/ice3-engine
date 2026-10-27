@@ -140,3 +140,17 @@ it('does not abort other callers when one shared request is cancelled', async ()
 
   await expect(second).resolves.toBeDefined();
 });
+
+it('clears one cached URL without clearing another', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const fetch = vi.fn(async () => new Response(fixtureBytes.slice(0)));
+  const loader = new ICEAssetLoader(engine, { fetch });
+
+  await loader.load('/first.glb');
+  await loader.load('/second.glb');
+  loader.clear('/first.glb');
+  await loader.load('/first.glb');
+  await loader.load('/second.glb');
+
+  expect(fetch).toHaveBeenCalledTimes(3);
+});
