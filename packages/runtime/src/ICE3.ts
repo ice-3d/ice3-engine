@@ -141,6 +141,7 @@ export class ICE3 extends ICEEventDispatcher {
   private lastPickId: string | undefined;
   private readonly pointerGestures = new Map<number, PointerGesture>();
   private lastDiagnostic: ICEDiagnostic | undefined;
+  private instancingFallbackReported = false;
   private readonly removeInputListeners: Array<() => void> = [];
   private readonly handleWindowResize = (): void => {
     this.resize();
@@ -512,6 +513,19 @@ export class ICE3 extends ICEEventDispatcher {
       dpr: this.dpr,
       selection: this.interaction.getSelection(),
     });
+    const instancingFallback = (
+      this.backend.stats?.instancingFallbacks ?? 0
+    ) > 0;
+    if (instancingFallback && !this.instancingFallbackReported) {
+      this.recordDiagnostic(
+        'ICE3_RENDER_INSTANCING_FALLBACK',
+        'Instance buffers are unavailable; repeated geometry uses individual draws',
+        'warning',
+      );
+      this.instancingFallbackReported = true;
+    } else if (!instancingFallback) {
+      this.instancingFallbackReported = false;
+    }
     if (this.overlayCanvas && this.layers.length > 0) {
       if (this.scene) {
         for (const layer of this.layers) {

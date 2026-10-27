@@ -39,6 +39,7 @@ Diagnostics use stable codes. Callers should branch on `code`, not on message te
 | `ICE3_ASSET_CONTRACT_MISSING` | A legacy prepared asset has no collaboration contract | Rebuild with a current toolchain when possible |
 | `ICE3_ASSET_CONTRACT_UNSUPPORTED` | Contract version or budget metadata is unsupported | Rebuild with a compatible toolchain/runtime pair |
 | `ICE3_ASSET_STATS_MISMATCH` | Embedded asset stats differ from the prepared structure | Rebuild the asset and inspect toolchain output |
+| `ICE3_ASSET_BATCH_INVALID` | Batch metadata, semantic arrays, primitive references, or semantic indices are invalid | Regenerate the static batches with the current toolchain |
 | `ICE3_TOOL_RUNTIME_CONVERSION_REQUIRED` | Asset declares that runtime conversion is required | Move conversion into the external toolchain |
 
 ## Tilesets
@@ -66,6 +67,7 @@ Diagnostics use stable codes. Callers should branch on `code`, not on message te
 | `ICE3_SHADER_COMPILE_FAILED` | Native shader compilation fails | Inspect the diagnostic and renderer logs |
 | `ICE3_SHADER_LINK_FAILED` | Program linking or uniform lookup fails | Verify shader compatibility with the active backend |
 | `ICE3_GPU_RESOURCE_FAILED` | GPU buffer or vertex-array allocation fails | Reduce resource pressure and recreate the context |
+| `ICE3_RENDER_INSTANCING_FALLBACK` | Instance buffers cannot be allocated and repeated geometry uses ordinary draws | Reduce GPU memory pressure; selection remains available |
 
 ## Diagnostic shape
 
