@@ -600,10 +600,10 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     this.workSet = workSet;
     this.idleEmitted = false;
 
+    if (!this.cameraMoving) this.promoteReadyVisibleTargets();
     const retainingTransitionCoverage = this.cameraMoving
       || this.hasPendingVisibleTargets();
     if (!retainingTransitionCoverage) {
-      this.promoteReadyVisibleTargets();
       for (const id of [...this.resident.keys()]) {
         if (
           !workSet.retainIds.has(id)
@@ -928,13 +928,9 @@ export class ICETilesetHandle extends ICEEventDispatcher {
 
   private promoteReadyVisibleTargets(): void {
     const targets = this.lodSelection?.target ?? [];
-    if (
-      targets.length === 0
-      || targets.some((tile) => !this.resident.has(tile.id))
-    ) {
-      return;
-    }
-    const targetIds = new Set(targets.map((tile) => tile.id));
+    if (targets.length === 0) return;
+    const targetIds = this.lodVisibleCoverage(targets);
+    if (!targetIds || targetIds.size === 0) return;
     const fallback = targets
       .flatMap((tile) => this.lodAncestors(tile.id))
       .find((tile) => (
@@ -974,6 +970,27 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         stats: this.stats,
       });
     }
+  }
+
+  private lodVisibleCoverage(
+    targets: readonly ICETilesetTile[],
+  ): Set<string> | undefined {
+    const coverage = new Set<string>();
+    for (const target of targets) {
+      const id = this.lodCoverageId(target);
+      if (!id) return undefined;
+      coverage.add(id);
+    }
+    const visible = new Set<string>();
+    for (const id of coverage) {
+      const tile = this.tilesById.get(id);
+      if (!tile) continue;
+      const coveredByAncestor = this.lodAncestors(id).some((ancestor) => (
+        coverage.has(ancestor.id)
+      ));
+      if (!coveredByAncestor) visible.add(id);
+    }
+    return visible;
   }
 
   private reconcileSelectionVisibility(): void {

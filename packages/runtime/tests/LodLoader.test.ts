@@ -198,6 +198,47 @@ it('uses a retained coarse ancestor as the stable motion fallback', async () => 
     .map((node) => node.id)).toEqual(['hierarchical-demo:tile:root']);
 });
 
+it('shows each complete coarse branch instead of waiting for every leaf', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const lodCamera = camera();
+  lodCamera.setPosition([15.5, 0, 500]).setTarget([15.5, 0, 0]);
+  let resolveGroup!: (response: Response) => void;
+  let groupRequested = false;
+  const fetch = vi.fn((input: RequestInfo | URL) => {
+    const path = relative(input);
+    if (path.startsWith('parts/')) {
+      return new Promise<Response>(() => {});
+    }
+    if (path === 'coarse/group-root-0.glb') {
+      groupRequested = true;
+      return new Promise<Response>((resolve) => {
+        resolveGroup = resolve;
+      });
+    }
+    return Promise.resolve(new Response(fixture(path)));
+  });
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch,
+    camera: lodCamera,
+    maxScreenSpaceErrorPixels: 0.001,
+    lodSettleDelayMs: 20,
+  }).open('https://example.test/hierarchical-demo/tileset.json');
+  await tileset.whenReady();
+  await expect.poll(() => groupRequested).toBe(true);
+
+  lodCamera.setPosition([5.5, 0, 20]).setTarget([5.5, 0, 0]);
+  engine.trigger('AFTER_RENDER');
+  resolveGroup(new Response(fixture('coarse/group-root-0.glb')));
+  await expect.poll(() => tileset.tileState('root/0')).toBe('loaded');
+  await new Promise((resolve) => setTimeout(resolve, 100));
+
+  const visibleIds = tileset.scene.children
+    .filter((node) => node.visible)
+    .map((node) => node.id);
+  expect(visibleIds).toEqual(['hierarchical-demo:tile:root/0']);
+  tileset.dispose();
+});
+
 it('keeps parent coverage when focused fine content fails', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const lodCamera = camera();
