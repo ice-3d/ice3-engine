@@ -232,3 +232,57 @@ test('moves the camera with WASD and arrow keys', async ({ page }) => {
     5,
   );
 });
+
+test('selects one equipment unit with a label and cyan highlight', async ({ page }) => {
+  await page.goto('http://127.0.0.1:8104/');
+  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  const center = await page.evaluate(() => window.__ice3M1.assetCenter());
+  const stage = await page.locator('[data-role="stage"]').boundingBox();
+  if (!stage) throw new Error('Stage bounds missing');
+  const before = await page.evaluate(
+    () => window.__ice3M1.scenePixelAtProjection(),
+  );
+
+  await page.mouse.click(stage.x + center.x, stage.y + center.y);
+
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.selectedIds().length),
+  ).toBe(1);
+  expect(await page.evaluate(() => window.__ice3M1.selectedLabelText()))
+    .toBeTruthy();
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.scenePixelAtProjection()),
+  ).not.toEqual(before);
+  expect(await page.evaluate(
+    () => window.__ice3M1.diagnostics().lastPickTimeMs,
+  )).toBeGreaterThan(0);
+});
+
+test('clears selection on empty click and does not select while dragging', async ({ page }) => {
+  await page.goto('http://127.0.0.1:8104/');
+  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  const center = await page.evaluate(() => window.__ice3M1.assetCenter());
+  const stage = await page.locator('[data-role="stage"]').boundingBox();
+  if (!stage) throw new Error('Stage bounds missing');
+
+  await page.mouse.move(stage.x + center.x, stage.y + center.y);
+  await page.mouse.down();
+  await page.mouse.move(
+    stage.x + center.x + 40,
+    stage.y + center.y,
+    { steps: 5 },
+  );
+  await page.mouse.up();
+  expect(await page.evaluate(() => window.__ice3M1.selectedIds())).toEqual([]);
+
+  await page.mouse.click(stage.x + center.x, stage.y + center.y);
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.selectedIds().length),
+  ).toBe(1);
+  await page.mouse.click(stage.x + stage.width - 20, stage.y + 20);
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.selectedIds().length),
+  ).toBe(0);
+  expect(await page.evaluate(() => window.__ice3M1.selectedLabelText()))
+    .toBeUndefined();
+});

@@ -58,6 +58,27 @@ function mount(rebuilt: boolean): void {
     }),
   });
   scene.addChild(block);
+  const overlapProbe = new URLSearchParams(window.location.search)
+    .has('selection-probe');
+  if (overlapProbe) {
+    block.visible = false;
+    camera.setPosition([0, 0, 5]);
+    camera.setTarget([0, 0, 0]);
+    scene.addChild(new ICEMesh({
+      id: 'far-large',
+      position: [0, 0, -1],
+      scale: [2, 2, 2],
+      geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
+      material: new ICEBasicMaterial({ color: '#166534' }),
+    }));
+    scene.addChild(new ICEMesh({
+      id: 'near-small',
+      position: [0, 0, 1],
+      scale: [0.4, 0.4, 0.4],
+      geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
+      material: new ICEBasicMaterial({ color: '#2563eb' }),
+    }));
+  }
 
   const hudLayer = new ICEScreenLayer({ id: 'screen-layer', order: 10 });
   hudLayer.addChild(

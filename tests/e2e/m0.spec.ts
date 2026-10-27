@@ -154,10 +154,23 @@ test('mouse drag and wheel animate the camera smoothly', async ({ page }) => {
     .toBeGreaterThan(beforeWheel + 4);
 });
 
+test('GPU picking selects the nearest overlapping device', async ({ page }) => {
+  await page.goto('/?selection-probe=1');
+  const center = await page.evaluate(() => window.__ice3M0.projection());
+  const stage = await page.locator('[data-role="stage"]').boundingBox();
+  if (!stage) throw new Error('Stage bounds missing');
+
+  await page.mouse.click(stage.x + center.x, stage.y + center.y);
+
+  await expect(page.locator('[data-role="status"]')).toHaveText(
+    '已选中 near-small',
+  );
+});
+
 test('recovers after context loss', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/?selection-probe=1');
   const before = await page.evaluate(() => window.__ice3M0.diagnostics().frameId);
 
   await page.evaluate(() => window.__ice3M0.loseContext());
@@ -173,5 +186,12 @@ test('recovers after context loss', async ({ page }) => {
     const pixel = window.__ice3M0.scenePixelAtProjection();
     return pixel[2] - pixel[0];
   })).toBeGreaterThan(0);
+  const center = await page.evaluate(() => window.__ice3M0.projection());
+  const stage = await page.locator('[data-role="stage"]').boundingBox();
+  if (!stage) throw new Error('Stage bounds missing');
+  await page.mouse.click(stage.x + center.x, stage.y + center.y);
+  await expect(page.locator('[data-role="status"]')).toHaveText(
+    '已选中 near-small',
+  );
   expect(errors).toEqual([]);
 });

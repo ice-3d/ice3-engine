@@ -69,6 +69,8 @@ reuse existing example servers.
 - Show an accessible staging overlay while large prepared assets load and keep
   actionable failure feedback in place when loading cannot complete.
 - Keep a compact, non-blocking control hint visible after the scene is ready.
+- Select a named equipment unit with an exact GPU click pick and preserve
+  source colors under a non-destructive cyan highlight.
 - Reject ordinary GLB or profile features that need runtime conversion.
 
 ## M0 boundaries
