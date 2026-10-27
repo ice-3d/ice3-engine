@@ -22,8 +22,8 @@ const EDGE_PIXEL_OFFSETS = [
   [0, 1],
 ] as const;
 
-const SELECTION_RGBA = [255 / 255, 213 / 255, 74 / 255] as const;
-const SELECTION_TINT_ALPHA = 0.24;
+const SELECTION_RGBA = [255 / 255, 208 / 255, 0] as const;
+const SELECTION_TINT_ALPHA = 0.65;
 
 export function colorToRgba(color: string): [number, number, number, number] {
   const normalized = color.startsWith('#') ? color.slice(1) : color;

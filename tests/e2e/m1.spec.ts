@@ -304,6 +304,11 @@ test('selects one equipment unit with a yellow highlight and info panel', async 
     }
     return count;
   })).toBeGreaterThan(20);
+  const selectedPixel = await page.evaluate(
+    () => window.__ice3M1.scenePixelAtProjection(),
+  );
+  expect(selectedPixel[0] - before[0]).toBeGreaterThanOrEqual(60);
+  expect(before[2] - selectedPixel[2]).toBeGreaterThanOrEqual(60);
   expect(await page.evaluate(
     () => window.__ice3M1.diagnostics().lastPickTimeMs,
   )).toBeGreaterThan(0);
