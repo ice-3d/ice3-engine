@@ -35,6 +35,46 @@
           <span class="loading__hint">大型模型可能需要数秒</span>
         </div>
       </section>
+      <aside
+        class="controls-hint"
+        data-role="controls-hint"
+        data-state="hidden"
+        aria-hidden="true"
+        aria-label="视角操作提示"
+      >
+        <div class="controls-hint__header">
+          <span class="controls-hint__signal" aria-hidden="true"></span>
+          <span>操作提示</span>
+        </div>
+        <dl class="controls-hint__desktop">
+          <div>
+            <dt>
+              <kbd>WASD</kbd>
+              <span>或</span>
+              <kbd>方向键</kbd>
+            </dt>
+            <dd>移动视图</dd>
+          </div>
+          <div>
+            <dt><span class="controls-hint__gesture">鼠标拖拽</span></dt>
+            <dd>旋转视角</dd>
+          </div>
+          <div>
+            <dt><span class="controls-hint__gesture">滚轮</span></dt>
+            <dd>缩放</dd>
+          </div>
+        </dl>
+        <dl class="controls-hint__touch">
+          <div>
+            <dt>单指拖动</dt>
+            <dd>旋转视角</dd>
+          </div>
+          <div>
+            <dt>双指捏合</dt>
+            <dd>缩放</dd>
+          </div>
+        </dl>
+      </aside>
     </main>
     <script type="module" src="/main.js"></script>
   </body>

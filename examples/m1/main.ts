@@ -21,6 +21,7 @@ const disposeButton = required<HTMLButtonElement>('#dispose');
 const loading = required<HTMLElement>('[data-role="loading"]');
 const loadingTitle = required<HTMLElement>('[data-role="loading-title"]');
 const loadingDetail = required<HTMLElement>('[data-role="loading-detail"]');
+const controlsHint = required<HTMLElement>('[data-role="controls-hint"]');
 const engine = new ICE3().init(stage);
 engine.setBackgroundColor('#000000');
 const camera = new ICEPerspectiveCamera({
@@ -77,6 +78,8 @@ function disposeAsset(): void {
   orbit = null;
   handle.dispose();
   handle = null;
+  controlsHint.dataset.state = 'hidden';
+  controlsHint.setAttribute('aria-hidden', 'true');
   status.textContent = '资产已释放';
 }
 
@@ -115,6 +118,8 @@ async function start(): Promise<void> {
     stage.setAttribute('aria-busy', 'false');
     disposeButton.disabled = false;
     loading.dataset.state = 'ready';
+    controlsHint.dataset.state = 'visible';
+    controlsHint.setAttribute('aria-hidden', 'false');
   } catch (error) {
     loading.dataset.state = 'error';
     loading.setAttribute('aria-label', '工业模型加载失败');

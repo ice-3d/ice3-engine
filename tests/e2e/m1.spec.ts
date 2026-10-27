@@ -1,5 +1,39 @@
 import { expect, test } from '@playwright/test';
 
+test('shows compact camera hints after the asset is ready', async ({ page }) => {
+  await page.route('**/assets/prepared-cube.glb', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await route.continue();
+  });
+  await page.goto('http://127.0.0.1:8104/');
+
+  const hint = page.locator('[data-role="controls-hint"]');
+
+  await expect(hint).toBeHidden();
+  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  await expect(hint).toBeVisible();
+  await expect(hint).toContainText('操作提示');
+  await expect(hint).toContainText('WASD');
+  await expect(hint).toContainText('方向键');
+  await expect(hint).toContainText('鼠标拖拽');
+  await expect(hint).toContainText('滚轮');
+  await expect(hint).toHaveCSS('pointer-events', 'none');
+
+  const layout = await page.evaluate(() => {
+    const stage = document.querySelector<HTMLElement>('[data-role="stage"]')!;
+    const panel = document.querySelector<HTMLElement>(
+      '[data-role="controls-hint"]',
+    )!;
+    const stageRect = stage.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    return {
+      stageCenterX: stageRect.left + stageRect.width / 2,
+      panelRight: panelRect.right,
+    };
+  });
+  expect(layout.panelRight).toBeLessThan(layout.stageCenterX);
+});
+
 test('shows an accessible loading state until the asset is ready', async ({ page }) => {
   await page.route('**/assets/prepared-cube.glb', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 600));
@@ -44,7 +78,7 @@ test('keeps a visible error state when model loading fails', async ({ page }) =>
   await expect(page.getByRole('button', { name: '释放资产' })).toBeDisabled();
 });
 
-test('fits the loading state within a narrow viewport', async ({ page }) => {
+test('fits loading and control hints within a narrow viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/assets/prepared-cube.glb', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 600));
@@ -77,6 +111,14 @@ test('fits the loading state within a narrow viewport', async ({ page }) => {
   expect(layout.toolbarContentBottom).toBeLessThanOrEqual(layout.stageTop);
   expect(layout.contentLeft).toBeGreaterThanOrEqual(0);
   expect(layout.contentRight).toBeLessThanOrEqual(layout.viewportWidth);
+
+  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  const hint = page.locator('[data-role="controls-hint"]');
+  await expect(hint).toBeVisible();
+  const hintBox = await hint.boundingBox();
+  if (!hintBox) throw new Error('Control hint bounds missing');
+  expect(hintBox.x).toBeGreaterThanOrEqual(0);
+  expect(hintBox.x + hintBox.width).toBeLessThanOrEqual(390);
 });
 
 test('loads and renders the prepared industrial asset', async ({ page }) => {

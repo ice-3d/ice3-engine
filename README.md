@@ -68,6 +68,7 @@ reuse existing example servers.
 - Cancel loads, dispose assets idempotently, and release GPU buffers.
 - Show an accessible staging overlay while large prepared assets load and keep
   actionable failure feedback in place when loading cannot complete.
+- Keep a compact, non-blocking control hint visible after the scene is ready.
 - Reject ordinary GLB or profile features that need runtime conversion.
 
 ## M0 boundaries
