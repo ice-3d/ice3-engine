@@ -68,3 +68,17 @@ test('rejects transforms that are not affine', () => {
   expect(() => readTileset(JSON.stringify(invalid), 'https://x.test/'))
     .toThrow(/ICE3_TILESET_INVALID/);
 });
+
+test('rejects content on a non-leaf tile until LOD scheduling is supported', () => {
+  const invalid = JSON.parse(tileset());
+  invalid.root.children = [{
+    boundingVolume: {
+      box: [1, -2, 0.5, 1, 0, 0, 0, 2, 0, 0, 0, 0.5],
+    },
+    geometricError: 0,
+    content: { uri: 'parts/part-001.glb' },
+  }];
+
+  expect(() => readTileset(JSON.stringify(invalid), 'https://x.test/'))
+    .toThrow(/ICE3_TILESET_UNSUPPORTED/);
+});

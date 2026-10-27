@@ -150,6 +150,11 @@ function parseTile(
     assertContains(bounds, parsed.bounds, id);
     return parsed;
   });
+  if (contentUri && children.length > 0) {
+    throw unsupported(
+      'content on non-leaf tiles requires LOD scheduling and is not supported',
+    );
+  }
   if (!contentUri && children.length === 0) {
     throw invalid(`tile ${id} has neither content nor children`);
   }
