@@ -180,6 +180,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   private readonly resident = new Map<string, ICEResidentTile>();
   private readonly candidates = new Map<string, ICETileCandidate>();
   private readonly activeIds = new Set<string>();
+  private readonly prefetchIds = new Set<string>();
   private readonly failedLodFallbacks = new Set<string>();
   private readonly lodAncestorCache = new Map<
     string,
@@ -411,11 +412,16 @@ export class ICETilesetHandle extends ICEEventDispatcher {
 
   whenIdle(): Promise<void> {
     const pending = new Set([
-      ...this.requestQueue.map((tile) => tile.id),
-      ...this.commitQueue,
+      ...this.requestQueue
+        .map((tile) => tile.id)
+        .filter((id) => !this.prefetchIds.has(id)),
+      ...this.commitQueue.filter((id) => !this.prefetchIds.has(id)),
       ...this.lodUnsettledIds(),
       ...[...this.states]
-        .filter(([, state]) => state === 'pending' || state === 'loading')
+        .filter(([id, state]) => (
+          !this.prefetchIds.has(id)
+          && (state === 'pending' || state === 'loading')
+        ))
         .map(([id]) => id),
     ]);
     if (pending.size === 0 && !this.workSetUpdateScheduled) {
@@ -535,10 +541,16 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       .map((id) => this.tilesById.get(id))
       .filter((tile): tile is ICETilesetTile => Boolean(tile));
     const nextTiles = this.lodNextTiles(targetTiles);
+    const prefetchTiles = this.residentBudgetReached()
+      ? []
+      : [...lodSelection.prefetch];
+    this.prefetchIds.clear();
+    for (const tile of prefetchTiles) this.prefetchIds.add(tile.id);
     const candidateMap = new Map<string, ICETilesetTile>();
     for (const tile of [
       ...coverageTiles,
       ...nextTiles,
+      ...prefetchTiles,
     ]) {
       candidateMap.set(tile.id, tile);
     }
@@ -562,7 +574,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     }
 
     this.enforceResidentBudget();
-    const desired = nextTiles;
+    const desired = [...nextTiles, ...prefetchTiles];
     const desiredIds = new Set(desired.map((tile) => tile.id));
     const pending: ICETilesetTile[] = [];
     for (const tile of this.snapshot.tiles) {
@@ -690,6 +702,10 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         return;
       }
       this.states.set(tile.id, 'failed');
+      if (this.prefetchIds.has(tile.id)) {
+        this.states.set(tile.id, 'evicted');
+        return;
+      }
       this.engine.reportDiagnostic(
         'ICE3_TILESET_TILE_FAILED',
         error instanceof Error ? error.message : String(error),
@@ -761,6 +777,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         this.emit('TILESET_TILE_LOADED', tileId);
         if (
           !this.readySettled
+          && !this.prefetchIds.has(tileId)
           && this.workSet?.visible.some((tile) => tile.id === tileId)
         ) {
           this.readySettled = true;
@@ -877,11 +894,16 @@ export class ICETilesetHandle extends ICEEventDispatcher {
 
   private settleIdleWaiters(): void {
     const unsettled = new Set([
-      ...this.requestQueue.map((tile) => tile.id),
-      ...this.commitQueue,
+      ...this.requestQueue
+        .map((tile) => tile.id)
+        .filter((id) => !this.prefetchIds.has(id)),
+      ...this.commitQueue.filter((id) => !this.prefetchIds.has(id)),
       ...this.lodUnsettledIds(),
       ...[...this.states]
-        .filter(([, state]) => state === 'pending' || state === 'loading')
+        .filter(([id, state]) => (
+          !this.prefetchIds.has(id)
+          && (state === 'pending' || state === 'loading')
+        ))
         .map(([id]) => id),
     ]);
     for (const waiter of [...this.idleWaiters]) {
