@@ -71,6 +71,22 @@ body {
   font-size: var(--ice-font-caption);
 }
 
+.tileset-progress {
+  min-width: 74px;
+  color: var(--ice-color-accent);
+  font-size: var(--ice-font-caption);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.tileset-progress[data-state="partial"] {
+  color: var(--ice-color-danger);
+}
+
+.tileset-progress[data-state="released"] {
+  color: var(--ice-color-text-muted);
+}
+
 #stage {
   position: relative;
   min-width: 0;
@@ -510,6 +526,10 @@ body {
 
   .toolbar div {
     flex: 1 1 100%;
+  }
+
+  .tileset-progress {
+    margin-left: auto;
   }
 
   .loading {

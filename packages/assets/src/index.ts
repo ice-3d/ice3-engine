@@ -11,3 +11,8 @@ export type {
   ICEPreparedNode,
   ICEPreparedStats,
 } from './ICEPreparedGLB.js';
+export { readTileset } from './ICETilesetReader.js';
+export type {
+  ICETilesetSnapshot,
+  ICETilesetTile,
+} from './ICETileset.js';

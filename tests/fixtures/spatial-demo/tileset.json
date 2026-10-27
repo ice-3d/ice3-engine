@@ -1,0 +1,212 @@
+{
+  "asset": {
+    "version": "1.1",
+    "extras": {
+      "ice3": {
+        "assetId": "spatial-demo",
+        "contractVersion": "1.0"
+      }
+    }
+  },
+  "geometricError": 31.016124838541643,
+  "root": {
+    "boundingVolume": {
+      "box": [
+        15.5,
+        0,
+        0.5,
+        15.5,
+        0,
+        0,
+        0,
+        0,
+        0.5,
+        0,
+        0,
+        0
+      ]
+    },
+    "geometricError": 31.016124838541643,
+    "refine": "REPLACE",
+    "children": [
+      {
+        "boundingVolume": {
+          "box": [
+            5.5,
+            0,
+            0.5,
+            5.5,
+            0,
+            0,
+            0,
+            0,
+            0.5,
+            0,
+            0,
+            0
+          ]
+        },
+        "geometricError": 11.045361017187261,
+        "refine": "REPLACE",
+        "children": [
+          {
+            "boundingVolume": {
+              "box": [
+                0.5,
+                0,
+                0.5,
+                0.5,
+                0,
+                0,
+                0,
+                0,
+                0.5,
+                0,
+                0,
+                0
+              ]
+            },
+            "geometricError": 0,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "parts/part-000.glb"
+            },
+            "extras": {
+              "ice3": {
+                "assetId": "spatial-demo",
+                "partitionId": "part-000"
+              }
+            }
+          },
+          {
+            "boundingVolume": {
+              "box": [
+                10.5,
+                0,
+                0.5,
+                0.5,
+                0,
+                0,
+                0,
+                0,
+                0.5,
+                0,
+                0,
+                0
+              ]
+            },
+            "geometricError": 0,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "parts/part-001.glb"
+            },
+            "extras": {
+              "ice3": {
+                "assetId": "spatial-demo",
+                "partitionId": "part-001"
+              }
+            }
+          }
+        ],
+        "extras": {
+          "ice3": {
+            "assetId": "spatial-demo",
+            "partitionId": "group-root-0"
+          }
+        }
+      },
+      {
+        "boundingVolume": {
+          "box": [
+            25.5,
+            0,
+            0.5,
+            5.5,
+            0,
+            0,
+            0,
+            0,
+            0.5,
+            0,
+            0,
+            0
+          ]
+        },
+        "geometricError": 11.045361017187261,
+        "refine": "REPLACE",
+        "children": [
+          {
+            "boundingVolume": {
+              "box": [
+                20.5,
+                0,
+                0.5,
+                0.5,
+                0,
+                0,
+                0,
+                0,
+                0.5,
+                0,
+                0,
+                0
+              ]
+            },
+            "geometricError": 0,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "parts/part-002.glb"
+            },
+            "extras": {
+              "ice3": {
+                "assetId": "spatial-demo",
+                "partitionId": "part-002"
+              }
+            }
+          },
+          {
+            "boundingVolume": {
+              "box": [
+                30.5,
+                0,
+                0.5,
+                0.5,
+                0,
+                0,
+                0,
+                0,
+                0.5,
+                0,
+                0,
+                0
+              ]
+            },
+            "geometricError": 0,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "parts/part-003.glb"
+            },
+            "extras": {
+              "ice3": {
+                "assetId": "spatial-demo",
+                "partitionId": "part-003"
+              }
+            }
+          }
+        ],
+        "extras": {
+          "ice3": {
+            "assetId": "spatial-demo",
+            "partitionId": "group-root-1"
+          }
+        }
+      }
+    ],
+    "extras": {
+      "ice3": {
+        "assetId": "spatial-demo",
+        "partitionId": "group-root"
+      }
+    }
+  }
+}

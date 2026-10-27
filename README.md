@@ -47,7 +47,7 @@ npm run dev:example:m1
 ```
 
 Open <http://127.0.0.1:8103> for the programmatic M0 scene and
-<http://127.0.0.1:8104> for the prepared GLB asset.
+<http://127.0.0.1:8104> for the incrementally loaded tiled asset.
 
 ## Verification
 
@@ -78,14 +78,24 @@ reuse existing example servers.
 - Select a named equipment unit with an exact GPU click pick and preserve
   source colors under a non-destructive yellow highlight.
 - Reject ordinary GLB or profile features that need runtime conversion.
+- Open an OGC 3D Tiles 1.1 Tileset and incrementally load independent
+  Prepared GLBs in camera-distance order.
+- Merge completed partitions into one scene so equipment selection and spatial
+  interaction continue to work across tile boundaries.
+- Expose immutable Tileset progress, emit partition lifecycle events, preserve
+  successful partitions after a tile failure, and release all partitions
+  idempotently.
 
 ## M0 boundaries
 
 M0 does not include model loading, LOD, instancing, spatial streaming, industrial semantics, Agent integration, asset tools, post-processing, or a WebGPU backend.
 
 M1 does not include generic glTF compatibility, animation, skins, Morph
-targets, textures, complex materials, instancing, LOD, spatial queries, or
-runtime source-format conversion.
+targets, textures, complex materials, instancing, generated LOD, dynamic tile
+unload, full screen-space-error scheduling, or runtime source-format conversion.
+The first Tileset runtime supports explicit `children`, local Cartesian `box` or
+`sphere` bounds, relative Prepared GLB content, finite tile transforms, and
+`REPLACE` refinement.
 
 API details are in [docs/api/m0.md](docs/api/m0.md) and
 [docs/api/m1.md](docs/api/m1.md). Stable diagnostic codes are in

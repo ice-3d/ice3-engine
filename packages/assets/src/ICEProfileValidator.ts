@@ -133,6 +133,7 @@ export function validatePreparedProfile(
       || offset < 0
       || length < 0
       || offset + length > binary.byteLength
+      || view.buffer !== 0
       || view.byteStride !== undefined
     ) {
       throw assetError(

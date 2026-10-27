@@ -1,0 +1,212 @@
+{
+  "asset": {
+    "version": "1.1",
+    "extras": {
+      "ice3": {
+        "assetId": "partition-demo",
+        "contractVersion": "1.0"
+      }
+    }
+  },
+  "geometricError": 14.282856857085699,
+  "root": {
+    "boundingVolume": {
+      "box": [
+        6,
+        0,
+        0,
+        7,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0
+      ]
+    },
+    "geometricError": 14.282856857085699,
+    "refine": "REPLACE",
+    "children": [
+      {
+        "boundingVolume": {
+          "box": [
+            2,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            1,
+            0
+          ]
+        },
+        "geometricError": 6.6332495807108005,
+        "refine": "REPLACE",
+        "children": [
+          {
+            "boundingVolume": {
+              "box": [
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                1,
+                0
+              ]
+            },
+            "geometricError": 0,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "parts/part-000.glb"
+            },
+            "extras": {
+              "ice3": {
+                "assetId": "partition-demo",
+                "partitionId": "part-000"
+              }
+            }
+          },
+          {
+            "boundingVolume": {
+              "box": [
+                4,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                1,
+                0
+              ]
+            },
+            "geometricError": 0,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "parts/part-001.glb"
+            },
+            "extras": {
+              "ice3": {
+                "assetId": "partition-demo",
+                "partitionId": "part-001"
+              }
+            }
+          }
+        ],
+        "extras": {
+          "ice3": {
+            "assetId": "partition-demo",
+            "partitionId": "group-root-0"
+          }
+        }
+      },
+      {
+        "boundingVolume": {
+          "box": [
+            10,
+            0,
+            0,
+            3,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            1,
+            0
+          ]
+        },
+        "geometricError": 6.6332495807108005,
+        "refine": "REPLACE",
+        "children": [
+          {
+            "boundingVolume": {
+              "box": [
+                8,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                1,
+                0
+              ]
+            },
+            "geometricError": 0,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "parts/part-002.glb"
+            },
+            "extras": {
+              "ice3": {
+                "assetId": "partition-demo",
+                "partitionId": "part-002"
+              }
+            }
+          },
+          {
+            "boundingVolume": {
+              "box": [
+                12,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                1,
+                0
+              ]
+            },
+            "geometricError": 0,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "parts/part-003.glb"
+            },
+            "extras": {
+              "ice3": {
+                "assetId": "partition-demo",
+                "partitionId": "part-003"
+              }
+            }
+          }
+        ],
+        "extras": {
+          "ice3": {
+            "assetId": "partition-demo",
+            "partitionId": "group-root-1"
+          }
+        }
+      }
+    ],
+    "extras": {
+      "ice3": {
+        "assetId": "partition-demo",
+        "partitionId": "group-root"
+      }
+    }
+  }
+}

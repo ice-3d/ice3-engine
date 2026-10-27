@@ -38,6 +38,15 @@ export {
   type ICEAssetLoaderOptions,
   type ICEAssetLoadOptions,
 } from './asset/ICEAssetLoader.js';
+export {
+  ICETilesetHandle,
+  ICETilesetLoader,
+  type ICETilesetEvent,
+  type ICETilesetLoaderOptions,
+  type ICETilesetOpenOptions,
+  type ICETilesetStats,
+  type ICETilesetTileState,
+} from './asset/ICETilesetLoader.js';
 export type {
   ICEPreparedContract,
   ICEPreparedStats,

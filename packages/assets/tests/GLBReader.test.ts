@@ -7,6 +7,7 @@ import {
   createForbiddenFeatureGLB,
   createDuplicateMeshIdGLB,
   createInvalidPrimitiveModeGLB,
+  createMissingBufferViewBufferGLB,
   createFourByteAlignedFloatGLB,
   createVertexColorGLB,
   createOrdinaryGLB,
@@ -34,6 +35,11 @@ it('rejects an accessor extending past the BIN chunk', () => {
   expect(() => readPreparedGLB(createOutOfRangeAccessorGLB())).toThrowError(
     /ICE3_ASSET_ACCESSOR_INVALID/,
   );
+});
+
+it('rejects a prepared buffer view without its required buffer index', () => {
+  expect(() => readPreparedGLB(createMissingBufferViewBufferGLB()))
+    .toThrowError(/ICE3_ASSET_ACCESSOR_INVALID/);
 });
 
 it('rejects node TRS when the ICE3 profile requires matrix transforms', () => {
