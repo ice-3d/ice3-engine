@@ -100,4 +100,42 @@ describe('scene ownership', () => {
 
     expect(node.getWorldPosition().toArray()).toEqual([2, 3, 4]);
   });
+
+  it('uses display names for presentation and falls back to stable IDs', () => {
+    expect(new ICENode({ id: 'motor-1', displayName: '一号泵' }).displayName)
+      .toBe('一号泵');
+    expect(new ICENode({ id: 'motor-2' }).displayName).toBe('motor-2');
+  });
+
+  it('defaults mesh selection identity to its stable ID', () => {
+    const node = new ICEMesh({
+      id: 'motor-3',
+      geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
+      material: new ICEBasicMaterial({ color: '#ffffff' }),
+    });
+    expect(node.selectionId).toBe('motor-3');
+  });
+
+  it('accepts a shared selection identity for multiple mesh primitives', () => {
+    const geometry = new ICEIndexedGeometry({
+      id: 'shared-geometry',
+      positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+      indices: new Uint16Array([0, 1, 2]),
+    });
+    const material = new ICEBasicMaterial({ color: '#ffffff' });
+    const first = new ICEMesh({
+      id: 'motor-4/primitive/0',
+      selectionId: 'motor-4',
+      geometry,
+      material,
+    });
+    const second = new ICEMesh({
+      id: 'motor-4/primitive/1',
+      selectionId: 'motor-4',
+      geometry,
+      material,
+    });
+    expect([first.selectionId, second.selectionId])
+      .toEqual(['motor-4', 'motor-4']);
+  });
 });

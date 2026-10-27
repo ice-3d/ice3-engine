@@ -148,3 +148,21 @@ it('round-trips a matrix-native mesh transform', () => {
 
   expect(block.getWorldPosition().toArray()).toEqual([2, 3, 4]);
 });
+
+it('round-trips display and equipment selection names', () => {
+  const registry = new ICETypeRegistry();
+  registry.register('ice3:Mesh', ICEMesh);
+  const scene = new ICEScene({ id: 'scene' });
+  scene.addChild(new ICEMesh({
+    id: 'motor-part',
+    displayName: '一号泵',
+    selectionId: 'motor-group',
+    geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
+    material: new ICEBasicMaterial({ color: '#ffffff' }),
+  }));
+
+  const restored = deserializeScene(serializeScene(scene), registry);
+  const mesh = restored.scene.findByID('motor-part') as ICEMesh;
+  expect(mesh.displayName).toBe('一号泵');
+  expect(mesh.selectionId).toBe('motor-group');
+});

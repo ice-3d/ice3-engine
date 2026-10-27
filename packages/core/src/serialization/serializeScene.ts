@@ -29,6 +29,7 @@ export function deserializeScene(
   const errors: ICEDiagnostic[] = [];
   const scene = new ICEScene({
     id: value.scene.id,
+    displayName: value.scene.displayName,
     position: value.scene.position,
     rotation: value.scene.rotation,
     scale: value.scene.scale,

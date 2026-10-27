@@ -5,6 +5,7 @@ import { ICEBasicMaterial as BasicMaterial } from '../material/ICEBasicMaterial.
 import { ICENode, type ICENodeOptions, type ICESerializedNode } from './ICENode.js';
 
 export interface ICEMeshOptions extends ICENodeOptions {
+  readonly selectionId?: string;
   readonly geometry: ICEGeometry;
   readonly material: ICEBasicMaterial;
 }
@@ -14,11 +15,13 @@ export class ICEMesh extends ICENode {
 
   readonly geometry: ICEGeometry;
   readonly material: ICEBasicMaterial;
+  readonly selectionId: string;
 
   constructor(options: ICEMeshOptions) {
     super(options);
     this.geometry = options.geometry;
     this.material = options.material;
+    this.selectionId = options.selectionId?.trim() || options.id;
   }
 
   override get typeId(): string {
@@ -28,6 +31,7 @@ export class ICEMesh extends ICENode {
   override toJSON(): ICESerializedNode {
     return {
       ...super.toJSON(),
+      selectionId: this.selectionId,
       geometry: this.geometry.toJSON(),
       material: this.material.toJSON(),
     };
@@ -38,6 +42,12 @@ export class ICEMesh extends ICENode {
     const material = value.material as Record<string, unknown>;
     return new ICEMesh({
       id: value.id,
+      displayName: typeof value.displayName === 'string'
+        ? value.displayName
+        : value.id,
+      selectionId: typeof value.selectionId === 'string'
+        ? value.selectionId
+        : value.id,
       position: value.position,
       rotation: value.rotation,
       scale: value.scale,
