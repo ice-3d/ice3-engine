@@ -5,6 +5,7 @@ import {
   ICEPerspectiveCamera,
   ICEScene,
   type ICEDiagnostic,
+  type ICEGeometry,
   type ICENode,
 } from '@ice3/core';
 import {
@@ -250,6 +251,22 @@ export class ICE3 extends ICEEventDispatcher {
     this.assertActive();
     this.backend.setBackgroundColor?.(color);
     this.requestRender('background-color');
+    return this;
+  }
+
+  prepareRenderBatchGeometry(geometry: ICEGeometry): this {
+    if (!this.backend.prepareBatchGeometry) {
+      throw new ICEEngineError(
+        'ICE3_RENDER_BATCH_ADAPTER_UNAVAILABLE',
+        'The active renderer cannot stage adaptive batch geometry',
+      );
+    }
+    this.backend.prepareBatchGeometry(geometry);
+    return this;
+  }
+
+  releaseRenderBatchGeometry(geometry: ICEGeometry): this {
+    this.backend.releaseBatchGeometry?.(geometry);
     return this;
   }
 

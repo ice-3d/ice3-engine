@@ -39,6 +39,7 @@ export type {
   ICETilesetTileState,
   ICEPreparedContract,
   ICEPreparedStats,
+  ICERenderBatchingOptions,
   ICESerializedScene,
   ICEGeometry,
   ICEGeometryBounds,

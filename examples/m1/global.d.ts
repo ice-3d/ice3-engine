@@ -34,6 +34,12 @@ declare global {
         materialCount: number;
         selectionGroupCount: number;
       };
+      adaptiveStats(): {
+        mode: 'asset' | 'adaptive' | 'off';
+        activeGeneration: number;
+        candidateGeneration?: number;
+        adaptiveBatchCount: number;
+      };
       tilesetStats(): ICETilesetStats;
     };
   }

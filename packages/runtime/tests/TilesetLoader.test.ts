@@ -113,6 +113,18 @@ it('rejects an invalid SSE threshold', () => {
   })).toThrow(/ICE3_TILESET_LOD_INVALID/);
 });
 
+it('rejects invalid adaptive batching options', () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+
+  expect(() => new ICETilesetLoader(engine, {
+    camera: camera(),
+    renderBatching: {
+      mode: 'adaptive',
+      maxWorkers: 0,
+    },
+  })).toThrow(/ICE3_TILESET_INVALID/);
+});
+
 it('keeps successful tiles after one tile fails', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const fetch = vi.fn(async (input: RequestInfo | URL) => {

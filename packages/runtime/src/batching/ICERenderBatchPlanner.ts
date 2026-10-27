@@ -44,10 +44,15 @@ export class ICERenderBatchPlanner {
     if (candidates.length < 2) {
       return rejected(input.generation, candidates);
     }
-    const estimatedBytes = candidates.reduce(
+    const sourceBytes = candidates.reduce(
       (total, candidate) => total + candidate.batch.byteLength,
       0,
     );
+    const candidateBytes = candidates.reduce(
+      (total, candidate) => total + candidate.batch.triangleCount * 28,
+      0,
+    );
+    const estimatedBytes = sourceBytes + candidateBytes;
     const drawCallsSaved = candidates.length - new Set(
       candidates.map((candidate) => candidate.batch.materialKey),
     ).size;

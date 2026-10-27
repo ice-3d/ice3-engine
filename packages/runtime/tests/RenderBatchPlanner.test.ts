@@ -32,10 +32,21 @@ test('rejects a merge above the extra GPU byte budget', () => {
 
 test('accepts an exact byte-budget boundary', () => {
   const input = planInput(16, 1024 * 1024);
+  for (const batch of input.batches) batch.triangleCount = 0;
 
   expect(planner.plan(input)).toMatchObject({
     accepted: false,
     estimatedBytes: 16 * 1024 * 1024,
+  });
+});
+
+test('includes candidate geometry in the extra memory estimate', () => {
+  const input = planInput(4, 1024 * 1024);
+  input.maxExtraGpuBytes = 4 * 1024 * 1024;
+
+  expect(planner.plan(input)).toMatchObject({
+    accepted: false,
+    estimatedBytes: 4 * 1024 * 1024 + 4 * 500 * 28,
   });
 });
 

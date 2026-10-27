@@ -1,4 +1,21 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { extname, join } from 'node:path';
+
+async function fulfillAdaptiveAsset(
+  route: Route,
+): Promise<void> {
+  const relative = new URL(route.request().url()).pathname
+    .split('/assets/hierarchical-demo/')[1] ?? '';
+  const file = join('examples/m1/assets/adaptive-demo', relative);
+  await route.fulfill({
+    status: 200,
+    contentType: extname(file) === '.json'
+      ? 'application/json'
+      : 'model/gltf-binary',
+    body: readFileSync(file),
+  });
+}
 
 async function waitForAssetProjectionToSettle(page: Page): Promise<void> {
   await page.waitForFunction(() => new Promise<boolean>((resolve) => {
@@ -53,6 +70,69 @@ test('shows compact camera hints after the asset is ready', async ({ page }) => 
     };
   });
   expect(layout.panelRight).toBeLessThan(layout.stageCenterX);
+});
+
+test('activates one adaptive generation only after idle', async ({ page }) => {
+  const errors: string[] = [];
+  const failedRequests: string[] = [];
+  const consoleErrors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('requestfailed', (request) => {
+    failedRequests.push(request.url());
+  });
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
+  await page.route(
+    '**/assets/hierarchical-demo/**',
+    fulfillAdaptiveAsset,
+  );
+  await page.goto('http://127.0.0.1:8104/?adaptive=1');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
+
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.adaptiveStats()),
+  ).toMatchObject({
+    mode: 'adaptive',
+    activeGeneration: 2,
+    adaptiveBatchCount: 1,
+  });
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.diagnostics().renderer.drawCalls),
+  ).toBe(1);
+  expect(await page.evaluate(
+    () => window.__ice3M1.diagnostics().renderer.instancingFallbacks,
+  )).toBe(0);
+
+  for (let index = 0; index < 12; index += 1) {
+    await page.evaluate((offset) => {
+      window.__ice3M1.setCameraPose(
+        [offset * 0.2, 0.2, 5],
+        [0, 0, 0],
+      );
+    }, index % 2 === 0 ? 1 : -1);
+    await page.waitForTimeout(30);
+    const stats = await page.evaluate(() => window.__ice3M1.adaptiveStats());
+    expect(stats).toMatchObject({
+      activeGeneration: 2,
+      adaptiveBatchCount: 0,
+    });
+    expect(stats.candidateGeneration).toBeUndefined();
+  }
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.adaptiveStats()),
+  ).toMatchObject({
+    activeGeneration: 3,
+    adaptiveBatchCount: 1,
+  });
+  await page.evaluate(() => window.__ice3M1.selectOverviewDevice());
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.selectedIds().length),
+  ).toBe(1);
+
+  expect(errors).toEqual([]);
+  expect(failedRequests).toEqual([]);
+  expect(consoleErrors).toEqual([]);
 });
 
 test('shows an accessible loading state until the asset is ready', async ({ page }) => {
@@ -247,13 +327,13 @@ test('loads and renders the prepared industrial asset', async ({ page }) => {
 
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   await expect
-    .poll(() => page.evaluate(() => window.__ice3M1.scenePixelAtProjection()))
-    .toEqual(expect.arrayContaining([
-      expect.any(Number),
-      expect.any(Number),
-      expect.any(Number),
-      expect.any(Number),
-    ]));
+    .poll(async () => {
+      const pixel = await page.evaluate(
+        () => window.__ice3M1.scenePixelAtProjection(),
+      );
+      return pixel[2] > pixel[0];
+    })
+    .toBe(true);
   const pixel = await page.evaluate(() => window.__ice3M1.scenePixelAtProjection());
   expect(pixel[2]).toBeGreaterThan(pixel[0]);
   expect(await page.evaluate(

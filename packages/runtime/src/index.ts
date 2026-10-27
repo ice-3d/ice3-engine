@@ -74,3 +74,19 @@ export type {
   ICEPreparedContract,
   ICEPreparedStats,
 } from '@ice3/assets';
+export {
+  ICEAdaptiveRenderBatchController,
+} from './batching/ICEAdaptiveRenderBatchController.js';
+export type {
+  ICEAdaptiveBatchExecutionResult,
+  ICEAdaptiveBatchRequest,
+  ICEAdaptiveBatchRequestResult,
+  ICERenderBatchingMode,
+  ICERenderBatchingOptions,
+} from './batching/ICEAdaptiveRenderBatchController.js';
+export { ICERenderBatchPlanner } from './batching/ICERenderBatchPlanner.js';
+export type {
+  ICERenderBatchCandidate,
+  ICERenderBatchPlan,
+  ICERenderBatchPlanInput,
+} from './batching/ICERenderBatchPlan.js';

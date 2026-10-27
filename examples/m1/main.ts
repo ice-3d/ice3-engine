@@ -44,7 +44,21 @@ const camera = new ICEPerspectiveCamera({
   position: [3.2, 2.4, 4.5],
   target: [0, 0, 0],
 });
-const loader = new ICETilesetLoader(engine, { camera });
+const adaptiveBatching =
+  new URLSearchParams(window.location.search).get('adaptive') === '1';
+const loader = new ICETilesetLoader(engine, {
+  camera,
+  ...(adaptiveBatching
+    ? {
+        renderBatching: {
+          mode: 'adaptive' as const,
+          maxWorkers: 2,
+          uploadBytesPerFrame: 2 * 1024 * 1024,
+          maxExtraGpuBytes: 32 * 1024 * 1024,
+        },
+      }
+    : {}),
+});
 let handle: ICETilesetHandle | null = null;
 let orbit: ICEOrbitController | null = null;
 let selectedNode: ICENode | null = null;
@@ -198,6 +212,21 @@ function findStableMesh(node: ICENode): ICEMesh | undefined {
   visit(node);
   meshes.sort((left, right) => left.id.localeCompare(right.id, 'en'));
   return meshes[0];
+}
+
+function firstSelectionIdentity(node: ICENode): string | undefined {
+  if (node instanceof ICEMesh) return node.selectionId;
+  const batch = node as ICENode & {
+    readonly semanticSelectionIds?: readonly string[];
+  };
+  if (node.typeId === 'ice3:RenderBatch') {
+    return batch.semanticSelectionIds?.[0];
+  }
+  for (const child of node.children) {
+    const selectionId = firstSelectionIdentity(child);
+    if (selectionId) return selectionId;
+  }
+  return undefined;
 }
 
 function findNodeBySelectionId(
@@ -419,8 +448,10 @@ window.__ice3M1 = {
     engine.requestRender('lod-focus');
   },
   selectOverviewDevice: () => {
-    const mesh = handle ? findStableMesh(handle.scene) : undefined;
-    engine.setSelection(mesh ? [mesh.selectionId] : []);
+    const selectionId = handle
+      ? firstSelectionIdentity(handle.scene)
+      : undefined;
+    engine.setSelection(selectionId ? [selectionId] : []);
   },
   whenLodIdle: async () => {
     await Promise.resolve();
@@ -439,6 +470,11 @@ window.__ice3M1 = {
   selectedIds: () => engine.getSelection(),
   disposeAsset,
   assetStats: sceneStats,
+  adaptiveStats: () => handle?.adaptiveStats ?? {
+    mode: 'asset',
+    activeGeneration: 1,
+    adaptiveBatchCount: 0,
+  },
   tilesetStats: () => handle?.stats ?? {
     total: 0,
     pending: 0,
