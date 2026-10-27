@@ -110,3 +110,44 @@ it('discards stale refinement coverage when the camera leaves', async () => {
   expect(tileset.stats.lod.transitioning).toBe(0);
   expect(tileset.scene.children).toHaveLength(0);
 });
+
+it('preserves selection when coarse content is replaced by fine content', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const lodCamera = camera();
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch: immediateFetch(),
+    camera: lodCamera,
+    maxScreenSpaceErrorPixels: 0.01,
+  }).open('https://example.test/hierarchical-demo/tileset.json');
+  await tileset.whenReady();
+  engine.setScene(tileset.scene).setSelection(['hierarchical-demo/node/0']);
+
+  lodCamera.setPosition([0.5, 0, 2]).setTarget([0.5, 0, 0]);
+  engine.trigger('AFTER_RENDER');
+  await expect.poll(() => tileset.stats.lod.fineResident)
+    .toBeGreaterThan(0);
+  await expect.poll(() => tileset.stats.lod.coarseResident).toBe(0);
+  await tileset.whenIdle();
+
+  expect(engine.getSelection()).toEqual(['hierarchical-demo/node/0']);
+});
+
+it('keeps coarse coverage and stops optional refinement at the budget', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const lodCamera = camera();
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch: immediateFetch(),
+    camera: lodCamera,
+    maxResidentTiles: 1,
+    maxScreenSpaceErrorPixels: 0.01,
+  }).open('https://example.test/hierarchical-demo/tileset.json');
+  await tileset.whenReady();
+
+  lodCamera.setPosition([0.5, 0, 2]).setTarget([0.5, 0, 0]);
+  engine.trigger('AFTER_RENDER');
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  expect(tileset.stats.lod.coarseResident).toBeGreaterThan(0);
+  expect(tileset.stats.lod.fallback).toBeGreaterThan(0);
+  expect(tileset.stats.lod.transitioning).toBe(0);
+});

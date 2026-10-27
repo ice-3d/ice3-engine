@@ -264,7 +264,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     const unavailableTargets = targetTiles.filter((tile) => (
       !this.resident.has(tile.id)
     ));
-    const transitioning = unavailableTargets.length;
+    const transitioning = this.lodNextTiles(targetTiles).length;
     const fallbacks = new Set([
       ...[...coverageIds].filter((id) => (
         unavailableTargets.some((tile) => (
@@ -354,6 +354,12 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       const next = deepestResident < 0
         ? ancestors[0] ?? target
         : ancestors[deepestResident + 1] ?? target;
+      if (
+        this.residentBudgetReached()
+        && this.lodCoverageId(target)
+      ) {
+        continue;
+      }
       output.set(next.id, next);
     }
     return [...output.values()];
@@ -763,17 +769,20 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   private unloadTile(tileId: string): void {
     const record = this.resident.get(tileId);
     if (!record) return;
-    const ids = new Set<string>();
-    collectNodeIDs(record.container, ids);
-    if (this.engine.getSelection().some((id) => ids.has(id))) {
-      this.engine.setSelection([]);
-    }
     this.scene.removeChild(record.container, { dispose: true });
     this.resident.delete(tileId);
     this.residentBytes = Math.max(0, this.residentBytes - record.bytes);
     this.assetLoader.clear(record.contentUri);
     this.states.set(tileId, 'evicted');
     this.emit('TILESET_TILE_UNLOADED', tileId);
+    const remainingIds = new Set<string>();
+    collectNodeAndSelectionIDs(this.scene, remainingIds);
+    const selection = this.engine.getSelection();
+    if (selection.some((id) => !remainingIds.has(id))) {
+      this.engine.setSelection(
+        selection.filter((id) => remainingIds.has(id)),
+      );
+    }
     this.engine.requestRender('tileset-tile-unloaded');
   }
 
@@ -910,6 +919,17 @@ function estimateSceneBytes(scene: ICEScene): number {
 function collectNodeIDs(node: ICENode, output: Set<string>): void {
   output.add(node.id);
   for (const child of node.children) collectNodeIDs(child, output);
+}
+
+function collectNodeAndSelectionIDs(
+  node: ICENode,
+  output: Set<string>,
+): void {
+  output.add(node.id);
+  if (node instanceof ICEMesh) output.add(node.selectionId);
+  for (const child of node.children) {
+    collectNodeAndSelectionIDs(child, output);
+  }
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
