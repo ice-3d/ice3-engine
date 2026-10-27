@@ -154,7 +154,7 @@ const block = new ICEMesh({
 });
 scene.addChild(block);
 
-const worldLayer = new ICEWorldLayer();
+const worldLayer = new ICEWorldLayer({ id: 'world-layer', order: 0 });
 worldLayer.addChild(
   new ICELabel({
     id: 'demo-block-label',
@@ -163,7 +163,7 @@ worldLayer.addChild(
   }),
 );
 
-const hudLayer = new ICEScreenLayer();
+const hudLayer = new ICEScreenLayer({ id: 'screen-layer', order: 10 });
 hudLayer.addChild(
   new ICELabel({
     id: 'hud-status',
