@@ -55,6 +55,19 @@ test('selects parent coarse content at overview distance', () => {
   expect(result.fallbackByTargetId.get('root')).toBeUndefined();
 });
 
+test('selects a root logical tile from standard multi-content entries', () => {
+  const root: ICETilesetTile = {
+    ...tree(),
+    children: [],
+    contentUri: undefined,
+    contentUris: ['coarse/root-0.glb', 'coarse/root-1.glb'],
+  };
+  const result = selector.select(input(1000, 800, { root }));
+
+  expect(result.target.map((tile) => tile.id)).toEqual(['root']);
+  expect(result.target[0]!.contentUris).toHaveLength(2);
+});
+
 test('refines into visible children when screen-space error is high', () => {
   const result = selector.select(input(2));
 
