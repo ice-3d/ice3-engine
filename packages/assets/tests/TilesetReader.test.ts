@@ -82,3 +82,18 @@ test('rejects content on a non-leaf tile until LOD scheduling is supported', () 
   expect(() => readTileset(JSON.stringify(invalid), 'https://x.test/'))
     .toThrow(/ICE3_TILESET_UNSUPPORTED/);
 });
+
+test('rejects unsupported viewer volumes and multi-content tiles', () => {
+  const viewer = JSON.parse(tileset());
+  viewer.root.viewerRequestVolume = {
+    box: [1, -2, 0.5, 1, 0, 0, 0, 2, 0, 0, 0, 0.5],
+  };
+  expect(() => readTileset(JSON.stringify(viewer), 'https://x.test/'))
+    .toThrow(/ICE3_TILESET_UNSUPPORTED/);
+
+  const contents = JSON.parse(tileset());
+  delete contents.root.content;
+  contents.root.contents = [{ uri: 'parts/part-000.glb' }];
+  expect(() => readTileset(JSON.stringify(contents), 'https://x.test/'))
+    .toThrow(/ICE3_TILESET_UNSUPPORTED/);
+});

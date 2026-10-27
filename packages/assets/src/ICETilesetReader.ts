@@ -97,6 +97,12 @@ function parseTile(
   if (input.implicitTiling !== undefined) {
     throw unsupported('implicit tiling is not supported');
   }
+  if (input.viewerRequestVolume !== undefined) {
+    throw unsupported('viewerRequestVolume is not supported');
+  }
+  if (input.contents !== undefined) {
+    throw unsupported('multiple tile contents are not supported');
+  }
   if (
     Array.isArray(input.extensionsRequired)
     && input.extensionsRequired.length > 0
