@@ -11,6 +11,7 @@ type FixtureOptions = {
   readonly invalidPrimitiveMode?: boolean;
   readonly floatOffset4?: boolean;
   readonly withVertexColors?: boolean;
+  readonly selectionId?: string;
   readonly contract?: 'active' | 'legacy' | 'unsupported' | 'conversion';
   readonly missingBufferViewBuffer?: boolean;
 };
@@ -102,7 +103,14 @@ export function createMinimalPreparedGLB(
         ? { translation: [0, 0, 0] }
         : { matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] }),
       mesh: 0,
-      extras: { ice3: { id: 'fixture/node/0' } },
+      extras: {
+        ice3: {
+          id: 'fixture/node/0',
+          ...(options.selectionId
+            ? { selectionId: options.selectionId }
+            : {}),
+        },
+      },
     }],
     meshes: [{
       primitives: [

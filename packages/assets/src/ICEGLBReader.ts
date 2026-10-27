@@ -37,12 +37,17 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
   }
 
   const nodes: ICEPreparedNode[] = sourceNodes.map((node, index) => {
-    const id = record(record(node.extras)?.ice3)?.id;
+    const profile = record(record(node.extras)?.ice3);
+    const id = profile?.id;
     if (typeof id !== 'string') {
       throw assetError('ICE3_ASSET_INVALID_GLB', 'node identity is missing');
     }
+    const selectionId = profile?.selectionId;
     return {
       id,
+      selectionId: typeof selectionId === 'string' && selectionId.trim()
+        ? selectionId
+        : id,
       name: typeof node.name === 'string' ? node.name : id,
       parent: parents[index] ?? null,
       matrix: node.matrix as ICEMatrix4Tuple,

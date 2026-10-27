@@ -10,6 +10,7 @@ const snapshotWithEdges: ICEPreparedAssetSnapshot = {
   nodes: [
     {
       id: 'root',
+      selectionId: 'root',
       name: 'root',
       parent: null,
       matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
@@ -17,6 +18,7 @@ const snapshotWithEdges: ICEPreparedAssetSnapshot = {
     },
     {
       id: 'root/motor',
+      selectionId: 'root/motor',
       name: 'motor',
       parent: 0,
       matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1],
@@ -83,6 +85,22 @@ it('preserves prepared display names and equipment identity', () => {
   expect(mesh.displayName).toBe('motor');
   expect(mesh.selectionId).toBe('root/motor');
   expect(built.scene.findByID('root')?.displayName).toBe('Factory Root');
+});
+
+it('uses selection identity independently from the LOD node ID', () => {
+  const mesh = buildAssetScene({
+    ...snapshotWithEdges,
+    nodes: [
+      snapshotWithEdges.nodes[0]!,
+      {
+        ...snapshotWithEdges.nodes[1]!,
+        id: 'overview/node/1',
+        selectionId: 'source/node/1',
+      },
+    ],
+  }).scene.findByID('overview/node/1') as ICEMesh;
+
+  expect(mesh.selectionId).toBe('source/node/1');
 });
 
 it('keeps secondary primitives in the same equipment selection group', () => {

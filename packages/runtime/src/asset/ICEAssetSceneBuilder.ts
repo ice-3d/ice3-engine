@@ -51,7 +51,7 @@ export function buildAssetScene(
       ? new ICEMesh({
           id: source.id,
           displayName: source.name,
-          selectionId: source.id,
+          selectionId: source.selectionId,
           matrix: source.matrix,
           geometry,
           material,
@@ -87,7 +87,7 @@ export function buildAssetScene(
       node.addChild(new ICEMesh({
         id: mesh.id,
         displayName: source.name,
-        selectionId: source.id,
+        selectionId: source.selectionId,
         geometry,
         material,
       }));
