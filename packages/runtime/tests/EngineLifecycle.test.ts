@@ -165,13 +165,19 @@ it('passes a configured background color to the renderer', () => {
 it('reports renderer metrics alongside engine frame metrics', () => {
   const engine = new ICE3({
     backend: new FakeRendererBackend({
-      stats: { drawCalls: 3, renderedMeshes: 1, gpuBytes: 2048 },
+      stats: {
+        drawCalls: 3,
+        renderedMeshes: 1,
+        renderedBatches: 0,
+        gpuBytes: 2048,
+      },
     }),
   });
 
   expect(engine.getDiagnostics().renderer).toEqual({
     drawCalls: 3,
     renderedMeshes: 1,
+    renderedBatches: 0,
     gpuBytes: 2048,
   });
 });

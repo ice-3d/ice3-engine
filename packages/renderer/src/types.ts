@@ -27,6 +27,7 @@ export interface ICERendererCapabilities {
 export interface ICERendererStats {
   readonly drawCalls: number;
   readonly renderedMeshes: number;
+  readonly renderedBatches: number;
   readonly gpuBytes: number;
 }
 

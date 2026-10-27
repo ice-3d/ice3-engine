@@ -34,3 +34,9 @@ export function collectRenderables(
 }
 
 export const selectionIdentity = (mesh: ICEMesh): string => mesh.selectionId;
+
+export {
+  collectRenderBatches,
+  type ICERenderBatchDraw,
+  type ICERenderBatchNode,
+} from './WebGL2RenderBatch.js';

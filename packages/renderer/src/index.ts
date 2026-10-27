@@ -5,6 +5,11 @@ export {
 } from './WebGL2RendererBackend.js';
 export { collectRenderables } from './WebGL2GeometryBatch.js';
 export type { ICEGeometryRenderable } from './WebGL2GeometryBatch.js';
+export { collectRenderBatches } from './WebGL2RenderBatch.js';
+export type {
+  ICERenderBatchDraw,
+  ICERenderBatchNode,
+} from './WebGL2RenderBatch.js';
 export type {
   ICERendererBackend,
   ICERendererCapabilities,

@@ -68,6 +68,7 @@ export type ICEEngineDiagnostics = {
   readonly renderer: Readonly<{
     drawCalls: number;
     renderedMeshes: number;
+    renderedBatches: number;
     gpuBytes: number;
   }>;
   readonly selectionCount: number;
@@ -384,6 +385,7 @@ export class ICE3 extends ICEEventDispatcher {
       renderer: this.backend.stats ?? {
         drawCalls: 0,
         renderedMeshes: 0,
+        renderedBatches: 0,
         gpuBytes: 0,
       },
       selectionCount: this.interaction.getSelection().length,

@@ -3,14 +3,37 @@ import {
   ICEBoxGeometry,
   ICEIndexedGeometry,
   ICEMesh,
+  ICENode,
   ICEScene,
 } from '@ice3/core';
 import { expect, it } from 'node-test';
 import {
   collectRenderables,
+  collectRenderBatches,
   selectionIdentity,
   type ICEGeometryRenderable,
 } from '../src/WebGL2GeometryBatch';
+
+class TestBatchNode extends ICENode {
+  override get typeId(): string {
+    return 'ice3:RenderBatch';
+  }
+
+  constructor(id: string) {
+    super({ id });
+  }
+
+  readonly geometry = new ICEIndexedGeometry({
+    id: 'batch-geometry',
+    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    indices: new Uint16Array([0, 1, 2]),
+  });
+  readonly material = new ICEBasicMaterial({ color: '#ffffff' });
+  readonly semanticIds = ['semantic:0'];
+  readonly semanticNodeIds = ['node:0'];
+  readonly semanticSelectionIds = ['device:0'];
+  readonly materialKey = '0';
+}
 
 it('collects visible box and indexed geometry meshes with stable IDs', () => {
   const material = new ICEBasicMaterial({ color: '#ffffff' });
@@ -61,6 +84,18 @@ it('reuses a caller-provided renderable buffer', () => {
 
   expect(collectRenderables(scene, output)).toBe(output);
   expect(output).toHaveLength(1);
+});
+
+it('collects visible render batches without traversing device meshes', () => {
+  const batch = new TestBatchNode('batch');
+  const hidden = new TestBatchNode('hidden-batch');
+  hidden.visible = false;
+  const scene = new ICEScene({ id: 'scene' });
+  scene.addChild(batch);
+  scene.addChild(hidden);
+
+  expect(collectRenderBatches(scene).map((draw) => draw.id))
+    .toEqual(['batch']);
 });
 
 it('uses the declared equipment identity for rendering selection', () => {
