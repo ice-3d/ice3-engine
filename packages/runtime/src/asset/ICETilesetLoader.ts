@@ -272,6 +272,11 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     for (const waiter of this.idleWaiters.splice(0)) waiter.resolve();
     this.resident.clear();
     this.residentBytes = 0;
+    const sceneIds = new Set<string>();
+    collectNodeIDs(this.scene, sceneIds);
+    if (this.engine.getSelection().some((id) => sceneIds.has(id))) {
+      this.engine.setSelection([]);
+    }
     this.scene.dispose();
     this.assetLoader.clear();
     this.removeAllListeners();
@@ -311,7 +316,10 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       viewport.height,
       ...viewProjection.elements,
     ].join(':');
-    if (signature === this.lastSignature) return;
+    if (signature === this.lastSignature) {
+      this.settleIdleWaiters();
+      return;
+    }
     this.lastSignature = signature;
     const workSet = this.scheduler.update({
       assetBounds: this.bounds,
@@ -332,18 +340,23 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       if (!workSet.retainIds.has(id)) this.discardCandidate(id);
     }
 
-    const budgetExceeded = this.resident.size > this.scheduler.residentTileLimit
-      || this.residentBytes > this.scheduler.residentByteLimit;
-    const desired = budgetExceeded
+    this.enforceResidentBudget();
+    const desired = this.residentBudgetReached()
       ? workSet.visible
       : workSet.ordered;
     const desiredIds = new Set(desired.map((tile) => tile.id));
     const pending: ICETilesetTile[] = [];
     for (const tile of this.snapshot.tiles) {
+      if (this.activeIds.has(tile.id)) {
+        this.states.set(
+          tile.id,
+          desiredIds.has(tile.id) ? 'loading' : 'evicted',
+        );
+        continue;
+      }
       if (
         this.resident.has(tile.id)
         || this.candidates.has(tile.id)
-        || this.activeIds.has(tile.id)
       ) {
         continue;
       }
@@ -385,6 +398,13 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     ) {
       const tile = this.requestQueue.shift()!;
       if (this.states.get(tile.id) !== 'pending') continue;
+      const visible = this.workSet?.visible.some(
+        (entry) => entry.id === tile.id,
+      ) ?? false;
+      if (!visible && this.residentBudgetReached()) {
+        this.states.set(tile.id, 'evicted');
+        continue;
+      }
       this.activeIds.add(tile.id);
       this.activeRequests += 1;
       this.states.set(tile.id, 'loading');
@@ -486,6 +506,14 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         this.states.set(tileId, 'evicted');
         continue;
       }
+      const visible = this.workSet.visible.some(
+        (tile) => tile.id === tileId,
+      );
+      if (!visible && !this.canCommitWithinBudget(candidate)) {
+        this.discardCandidateRecord(candidate);
+        this.states.set(tileId, 'evicted');
+        continue;
+      }
       committed += 1;
       try {
         if (this.scene.findByID(candidate.container.id)) {
@@ -524,6 +552,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         this.rejectReadyIfVisibleSetFailed();
       }
     }
+    this.enforceResidentBudget();
     this.updateBudgetWarning();
     this.scheduleCommit();
     this.settleIdleWaiters();
@@ -573,16 +602,44 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   }
 
   private updateBudgetWarning(): void {
-    const exceeded = this.resident.size > this.scheduler.residentTileLimit
-      || this.residentBytes > this.scheduler.residentByteLimit;
+    const exceeded = this.residentBudgetExceeded();
     if (exceeded && !this.budgetWarningActive) {
       this.engine.reportDiagnostic(
         'ICE3_TILESET_RESIDENT_BUDGET_EXCEEDED',
-        'Visible Tileset partitions exceed the soft resident budget',
+        'Tileset residency exceeds the soft resident budget',
         'warning',
       );
     }
     this.budgetWarningActive = exceeded;
+  }
+
+  private residentBudgetReached(): boolean {
+    return this.resident.size >= this.scheduler.residentTileLimit
+      || this.residentBytes >= this.scheduler.residentByteLimit;
+  }
+
+  private residentBudgetExceeded(): boolean {
+    return this.resident.size > this.scheduler.residentTileLimit
+      || this.residentBytes > this.scheduler.residentByteLimit;
+  }
+
+  private canCommitWithinBudget(candidate: ICETileCandidate): boolean {
+    return this.resident.size < this.scheduler.residentTileLimit
+      && this.residentBytes + candidate.bytes
+        <= this.scheduler.residentByteLimit;
+  }
+
+  private enforceResidentBudget(): void {
+    if (!this.residentBudgetExceeded()) return;
+    const visibleIds = new Set(
+      this.workSet?.visible.map((tile) => tile.id) ?? [],
+    );
+    for (const id of [...this.resident.keys()]) {
+      if (!visibleIds.has(id)) this.unloadTile(id);
+    }
+    for (const id of [...this.candidates.keys()]) {
+      if (!visibleIds.has(id)) this.discardCandidate(id);
+    }
   }
 
   private settleIdleWaiters(): void {
