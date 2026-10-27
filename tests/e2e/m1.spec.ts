@@ -72,10 +72,29 @@ test('moves the camera with WASD and arrow keys', async ({ page }) => {
   ).not.toEqual(before);
   await page.keyboard.up('w');
   const afterLetter = await page.evaluate(() => window.__ice3M1.cameraPosition());
+  const targetBeforeArrow = await page.evaluate(
+    () => window.__ice3M1.cameraTarget(),
+  );
 
   await page.keyboard.down('ArrowUp');
   await expect.poll(
     () => page.evaluate(() => window.__ice3M1.cameraPosition()),
   ).not.toEqual(afterLetter);
   await page.keyboard.up('ArrowUp');
+  const afterArrow = await page.evaluate(() => window.__ice3M1.cameraPosition());
+  const targetAfterArrow = await page.evaluate(
+    () => window.__ice3M1.cameraTarget(),
+  );
+  const distance = (
+    left: readonly number[],
+    right: readonly number[],
+  ): number => Math.hypot(
+    left[0]! - right[0]!,
+    left[1]! - right[1]!,
+    left[2]! - right[2]!,
+  );
+  expect(distance(afterArrow, targetAfterArrow)).toBeCloseTo(
+    distance(afterLetter, targetBeforeArrow),
+    5,
+  );
 });

@@ -119,6 +119,7 @@ window.__ice3M1 = {
   projection: (): ICEProjectedPoint => engine.project([0, 0, 0]),
   assetCenter: () => engine.project(assetCenter),
   cameraPosition: () => camera.getPosition().toArray(),
+  cameraTarget: () => camera.getTarget().toArray(),
   scenePixelAtProjection,
   selectedIds: () => engine.getSelection(),
   disposeAsset,

@@ -274,29 +274,30 @@ it('routes physical keyboard presses from the engine surface', () => {
   dispose();
 });
 
-it('maps the forward arrow key to the same movement as W', () => {
-  const letter = createMotionScenario();
-  const letterStart = letter.camera.getPosition().toArray();
-  letter.engine.trigger('KEY_DOWN', {
-    target: { kind: 'scene' },
-    event: { type: 'keydown', code: 'KeyW', key: 'w' },
-  });
-  letter.advanceFrame();
-  const letterEnd = letter.camera.getPosition().toArray();
-  letter.dispose();
-
-  const arrow = createMotionScenario();
-  const arrowStart = arrow.camera.getPosition().toArray();
-  arrow.engine.trigger('KEY_DOWN', {
+it('pans vertically with the up and down arrow keys without zooming', () => {
+  const upward = createMotionScenario();
+  upward.engine.trigger('KEY_DOWN', {
     target: { kind: 'scene' },
     event: { type: 'keydown', code: 'ArrowUp', key: 'ArrowUp' },
   });
-  arrow.advanceFrame();
-  const arrowEnd = arrow.camera.getPosition().toArray();
-  arrow.dispose();
+  upward.advanceFrame();
+  const upTarget = upward.camera.getTarget().toArray();
+  const upCamera = upward.camera.getPosition().toArray();
+  upward.dispose();
 
-  expect(letterEnd[2]).toBeLessThan(letterStart[2]);
-  expect(arrowEnd).toEqual(letterEnd);
+  const downward = createMotionScenario();
+  downward.engine.trigger('KEY_DOWN', {
+    target: { kind: 'scene' },
+    event: { type: 'keydown', code: 'ArrowDown', key: 'ArrowDown' },
+  });
+  downward.advanceFrame();
+  const downTarget = downward.camera.getTarget().toArray();
+  downward.dispose();
+
+  expect(upTarget[1]).toBeGreaterThan(0);
+  expect(upCamera[1]).toBeGreaterThan(0);
+  expect(upCamera[2]).toBeCloseTo(5, 5);
+  expect(downTarget[1]).toBeLessThan(0);
 });
 
 it('moves in view-relative directions from A, S, D, and arrow keys', () => {
@@ -313,7 +314,6 @@ it('moves in view-relative directions from A, S, D, and arrow keys', () => {
   };
 
   expect(positionAfterKey('KeyS')[2]).toBeGreaterThan(5);
-  expect(positionAfterKey('ArrowDown')[2]).toBeGreaterThan(5);
   expect(positionAfterKey('KeyA')[0]).toBeLessThan(0);
   expect(positionAfterKey('ArrowLeft')[0]).toBeLessThan(0);
   expect(positionAfterKey('KeyD')[0]).toBeGreaterThan(0);

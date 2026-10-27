@@ -295,26 +295,39 @@ export class ICEOrbitController {
 
   private applyKeyboardMovement(deltaMs: number): void {
     const forward = (
-      Number(this.pressedKeys.has('KeyW') || this.pressedKeys.has('ArrowUp'))
-      - Number(this.pressedKeys.has('KeyS') || this.pressedKeys.has('ArrowDown'))
+      Number(this.pressedKeys.has('KeyW'))
+      - Number(this.pressedKeys.has('KeyS'))
     );
     const right = (
       Number(this.pressedKeys.has('KeyD') || this.pressedKeys.has('ArrowRight'))
       - Number(this.pressedKeys.has('KeyA') || this.pressedKeys.has('ArrowLeft'))
     );
-    const magnitude = Math.hypot(forward, right);
+    const up = (
+      Number(this.pressedKeys.has('ArrowUp'))
+      - Number(this.pressedKeys.has('ArrowDown'))
+    );
+    const magnitude = Math.hypot(forward, right, up);
     if (magnitude === 0) {
       return;
     }
     const distance = this.distance * MOVE_SPEED_PER_DISTANCE
       * (deltaMs / 1000)
       / magnitude;
-    const normalizedForward = forward * distance;
-    const normalizedRight = right * distance;
     const sinYaw = Math.sin(this.yaw);
     const cosYaw = Math.cos(this.yaw);
-    this.target[0] += -sinYaw * normalizedForward + cosYaw * normalizedRight;
-    this.target[2] += -cosYaw * normalizedForward - sinYaw * normalizedRight;
+    const sinPitch = Math.sin(this.pitch);
+    const cosPitch = Math.cos(this.pitch);
+    this.target[0] += distance * (
+      -sinYaw * forward
+      + cosYaw * right
+      - sinYaw * sinPitch * up
+    );
+    this.target[1] += distance * cosPitch * up;
+    this.target[2] += distance * (
+      -cosYaw * forward
+      - sinYaw * right
+      - cosYaw * sinPitch * up
+    );
   }
 
   private prepareMotion(): void {
