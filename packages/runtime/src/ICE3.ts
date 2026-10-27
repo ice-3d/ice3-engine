@@ -1,6 +1,7 @@
 import {
   ICEEngineError,
   ICEEventDispatcher,
+  ICEMesh,
   ICEPerspectiveCamera,
   ICEScene,
   type ICEDiagnostic,
@@ -15,6 +16,11 @@ import { ICE2DCanvasPainter } from './layer/ICE2DCanvasPainter';
 import { ICE2DLayer } from './layer/ICE2DLayer';
 import { ICE2DLayerRouter } from './layer/ICE2DLayerRouter';
 import { ICEWorldLayer } from './layer/ICEWorldLayer';
+import {
+  ICEInputRouter,
+  type ICEInputEvent,
+  type ICEInputTarget,
+} from './input/ICEInputRouter';
 import { ICEInteractionState } from './ICEInteractionState';
 import { projectWorldPoint, type ICEProjectedPoint } from './ICEProjection';
 import {
@@ -60,6 +66,22 @@ export class ICE3 extends ICEEventDispatcher {
   private readonly layers: ICE2DLayer[] = [];
   private readonly layerRouter = new ICE2DLayerRouter(() => this.layers);
   private readonly layerPainter = new ICE2DCanvasPainter();
+  private readonly inputRouter = new ICEInputRouter({
+    hitTestLayer: (point): ICEInputTarget | undefined => {
+      const hit = this.layerRouter.hitTest(point);
+      return hit
+        ? { kind: 'layer', layerId: hit.layer.id, labelId: hit.label.id }
+        : undefined;
+    },
+    pickScene: (point) => {
+      const node = this.pickScene(point);
+      return {
+        kind: 'scene',
+        ...(node?.id ? { nodeId: node.id } : {}),
+      };
+    },
+    dispatch: (target, event) => this.dispatchInput(target, event),
+  });
   private state: EngineState = 'created';
   private host: HTMLElement | null = null;
   private baseCanvas: HTMLCanvasElement | null = null;
@@ -77,6 +99,7 @@ export class ICE3 extends ICEEventDispatcher {
   private cpuFrameTimeMs = 0;
   private contextLossCount = 0;
   private lastDiagnostic: ICEDiagnostic | undefined;
+  private readonly removeInputListeners: Array<() => void> = [];
 
   constructor(options: ICE3Options = {}) {
     super();
@@ -121,6 +144,7 @@ export class ICE3 extends ICEEventDispatcher {
         this.requestRender('context-restored');
       },
     });
+    this.installInputEvents();
     this.state = 'initialized';
     this.resize();
     return this;
@@ -262,6 +286,9 @@ export class ICE3 extends ICEEventDispatcher {
     for (const layer of this.layers.splice(0)) {
       layer.dispose();
     }
+    for (const remove of this.removeInputListeners.splice(0)) {
+      remove();
+    }
     this.backend.dispose();
     if (this.generatedOverlayCanvas) {
       this.overlayCanvas?.remove();
@@ -384,6 +411,126 @@ export class ICE3 extends ICEEventDispatcher {
     this.trigger('AFTER_RENDER');
   }
 
+  private installInputEvents(): void {
+    const overlay = this.overlayCanvas;
+    if (!overlay) {
+      return;
+    }
+    overlay.style.touchAction = 'none';
+
+    const listen = <K extends keyof HTMLElementEventMap>(
+      type: K,
+      handler: (event: HTMLElementEventMap[K]) => void,
+    ) => {
+      overlay.addEventListener(type, handler as EventListener);
+      this.removeInputListeners.push(() =>
+        overlay.removeEventListener(type, handler as EventListener),
+      );
+    };
+    const pointOf = (event: PointerEvent | WheelEvent) => {
+      const bounds = overlay.getBoundingClientRect();
+      return {
+        x: event.clientX - bounds.left,
+        y: event.clientY - bounds.top,
+      };
+    };
+
+    listen('pointerdown', (event) => {
+      overlay.setPointerCapture?.(event.pointerId);
+      this.inputRouter.pointerDown(pointOf(event), event.pointerId);
+    });
+    listen('pointermove', (event) => {
+      this.inputRouter.pointerMove(pointOf(event), event.pointerId);
+    });
+    listen('pointerup', (event) => {
+      this.inputRouter.pointerUp(pointOf(event), event.pointerId);
+      overlay.releasePointerCapture?.(event.pointerId);
+    });
+    listen('pointercancel', (event) => {
+      this.inputRouter.pointerCancel(event.pointerId);
+    });
+    listen('wheel', (event) => {
+      event.preventDefault();
+      this.inputRouter.wheel(event.deltaY, pointOf(event));
+    });
+  }
+
+  private dispatchInput(target: ICEInputTarget, event: ICEInputEvent): void {
+    if (event.type === 'pointerdown') {
+      this.setSelection(target.kind === 'scene' && target.nodeId ? [target.nodeId] : []);
+    }
+    const eventName = {
+      pointerdown: 'POINTER_DOWN',
+      pointermove: 'POINTER_MOVE',
+      pointerup: 'POINTER_UP',
+      pointercancel: 'POINTER_CANCEL',
+      wheel: 'WHEEL',
+    }[event.type];
+    this.trigger(eventName, { target, event });
+  }
+
+  private pickScene(point: { readonly x: number; readonly y: number }): ICENode | undefined {
+    if (!this.scene || !this.camera) {
+      return undefined;
+    }
+    const eye = this.camera.getPosition();
+    const target = this.camera.getTarget();
+    const forward = normalize([
+      target.x - eye.x,
+      target.y - eye.y,
+      target.z - eye.z,
+    ]);
+    const right = normalize(cross(forward, [0, 1, 0]));
+    const up = normalize(cross(right, forward));
+    const aspect = this.viewport.width / Math.max(this.viewport.height, 1);
+    const tan = Math.tan((this.camera.fov * Math.PI) / 360);
+    const ndcX = (point.x / this.viewport.width) * 2 - 1;
+    const ndcY = 1 - (point.y / this.viewport.height) * 2;
+    const direction = normalize([
+      forward[0] + right[0] * ndcX * aspect * tan + up[0] * ndcY * tan,
+      forward[1] + right[1] * ndcX * aspect * tan + up[1] * ndcY * tan,
+      forward[2] + right[2] * ndcX * aspect * tan + up[2] * ndcY * tan,
+    ]);
+
+    let nearest: ICENode | undefined;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    const visit = (node: ICENode, parentVisible: boolean) => {
+      const visible = parentVisible && node.visible;
+      if (!visible) {
+        return;
+      }
+      if (node instanceof ICEMesh) {
+        const center = node.getWorldPosition().toArray();
+        const halfX = node.geometry.width / 2;
+        const halfY = node.geometry.height / 2;
+        const halfZ = node.geometry.depth / 2;
+        const distance = rayBoxDistance(
+          eye.toArray(),
+          direction,
+          [
+            center[0] - halfX,
+            center[1] - halfY,
+            center[2] - halfZ,
+          ],
+          [
+            center[0] + halfX,
+            center[1] + halfY,
+            center[2] + halfZ,
+          ],
+        );
+        if (distance !== undefined && distance < nearestDistance) {
+          nearest = node;
+          nearestDistance = distance;
+        }
+      }
+      for (const child of node.children) {
+        visit(child, visible);
+      }
+    };
+    visit(this.scene, true);
+    return nearest;
+  }
+
   private assertActive(): void {
     if (this.state === 'destroyed') {
       throw new ICEEngineError('ICE3_ENGINE_DESTROYED', 'ICE3 engine is destroyed');
@@ -399,4 +546,47 @@ export class ICE3 extends ICEEventDispatcher {
 const countNodes = (node: ICENode): number =>
   1 + node.children.reduce((total, child) => total + countNodes(child), 0);
 
-export { ICE2DLayerRouter };
+const normalize = (
+  value: readonly [number, number, number],
+): [number, number, number] => {
+  const length = Math.hypot(...value);
+  return length > 0
+    ? [value[0] / length, value[1] / length, value[2] / length]
+    : [0, 0, 0];
+};
+
+const cross = (
+  left: readonly [number, number, number],
+  right: readonly [number, number, number],
+): [number, number, number] => [
+  left[1] * right[2] - left[2] * right[1],
+  left[2] * right[0] - left[0] * right[2],
+  left[0] * right[1] - left[1] * right[0],
+];
+
+const rayBoxDistance = (
+  origin: readonly [number, number, number],
+  direction: readonly [number, number, number],
+  min: readonly [number, number, number],
+  max: readonly [number, number, number],
+): number | undefined => {
+  let near = -Number.POSITIVE_INFINITY;
+  let far = Number.POSITIVE_INFINITY;
+  for (let axis = 0; axis < 3; axis += 1) {
+    const value = direction[axis]!;
+    if (Math.abs(value) < 1e-9) {
+      if (origin[axis]! < min[axis]! || origin[axis]! > max[axis]!) {
+        return undefined;
+      }
+      continue;
+    }
+    const first = (min[axis]! - origin[axis]!) / value;
+    const second = (max[axis]! - origin[axis]!) / value;
+    near = Math.max(near, Math.min(first, second));
+    far = Math.min(far, Math.max(first, second));
+    if (far < near || far < 0) {
+      return undefined;
+    }
+  }
+  return near >= 0 ? near : far >= 0 ? far : undefined;
+};

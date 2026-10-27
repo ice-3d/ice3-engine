@@ -18,3 +18,6 @@ export type { ICEProjectedPoint } from './ICEProjection';
 export { ICEInteractionState } from './ICEInteractionState';
 export { BrowserRenderScheduler } from './ICERenderScheduler';
 export type { ICERenderScheduler } from './ICERenderScheduler';
+export { ICEInputRouter } from './input/ICEInputRouter';
+export type { ICEInputEvent, ICEInputTarget } from './input/ICEInputRouter';
+export { ICEOrbitController } from './input/ICEOrbitController';
