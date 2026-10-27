@@ -28,6 +28,38 @@ export function validatePreparedProfile(
       'required glTF extensions are unsupported',
     );
   }
+  const contractVersion = profile.contractVersion;
+  if (contractVersion !== undefined) {
+    if (
+      typeof contractVersion !== 'string'
+      || !/^1(?:\.\d+){1,2}$/.test(contractVersion)
+    ) {
+      throw assetError(
+        'ICE3_ASSET_CONTRACT_UNSUPPORTED',
+        `unsupported asset contract version: ${String(contractVersion)}`,
+      );
+    }
+    const preparation = record(profile.preparation);
+    if (preparation?.runtimeConversionRequired !== false) {
+      throw assetError(
+        'ICE3_TOOL_RUNTIME_CONVERSION_REQUIRED',
+        'asset requires unsupported runtime conversion',
+      );
+    }
+    const budget = record(profile.budget);
+    if (
+      !budget
+      || typeof budget.profile !== 'string'
+      || !['pass', 'warning', 'error'].includes(String(budget.status))
+      || !nonNegativeInteger(budget.warningCount)
+      || !nonNegativeInteger(budget.errorCount)
+    ) {
+      throw assetError(
+        'ICE3_ASSET_CONTRACT_UNSUPPORTED',
+        'asset contract budget is invalid',
+      );
+    }
+  }
   for (const field of [
     'animations',
     'skins',
@@ -160,7 +192,84 @@ export function validatePreparedProfile(
       }
     }
   }
+  if (contractVersion !== undefined) {
+    validatePreparedStats(json, profile);
+  }
   return { json, binary, profile };
+}
+
+function validatePreparedStats(json: JSONRecord, profile: JSONRecord): void {
+  const stats = record(profile.stats);
+  const nodes = records(json.nodes);
+  const meshes = records(json.meshes);
+  const accessors = records(json.accessors);
+  let primitiveCount = 0;
+  let triangleCount = 0;
+  let edgeSegmentCount = 0;
+  const selectionNodes = new Set<number>();
+  for (const [nodeIndex, node] of nodes.entries()) {
+    if (node.mesh === undefined) continue;
+    const mesh = meshes[Number(node.mesh)];
+    if (!mesh) continue;
+    for (const primitive of records(mesh.primitives)) {
+      primitiveCount += 1;
+      const mode = Number(primitive.mode ?? 4);
+      const accessor = accessors[Number(primitive.indices)];
+      if (mode === 4) {
+        const count = Number(accessor?.count);
+        if (Number.isInteger(count) && count >= 0) triangleCount += count / 3;
+        selectionNodes.add(nodeIndex);
+      } else if (mode === 1) {
+        const count = Number(accessor?.count);
+        if (Number.isInteger(count) && count >= 0) edgeSegmentCount += count / 2;
+      }
+    }
+  }
+  const expected = {
+    nodeCount: nodes.length,
+    maxNodeDepth: sceneDepth(json),
+    meshCount: meshes.length,
+    primitiveCount,
+    triangleCount,
+    edgeSegmentCount,
+    materialCount: records(json.materials).length,
+    selectionGroupCount: selectionNodes.size,
+  };
+  for (const [key, value] of Object.entries(expected)) {
+    if (stats?.[key] !== value) {
+      throw assetError(
+        'ICE3_ASSET_STATS_MISMATCH',
+        `asset stat ${key} does not match prepared data`,
+      );
+    }
+  }
+}
+
+function sceneDepth(json: JSONRecord): number {
+  const nodes = records(json.nodes);
+  const scenes = records(json.scenes);
+  const visit = (index: number, visiting = new Set<number>()): number => {
+    if (visiting.has(index)) return 0;
+    const next = new Set(visiting).add(index);
+    const children = Array.isArray(nodes[index]?.children)
+      ? nodes[index]!.children as number[]
+      : [];
+    return children.length === 0
+      ? 0
+      : 1 + Math.max(...children.map((child) => visit(Number(child), next)));
+  };
+  const roots = Array.isArray(scenes[0]?.nodes)
+    ? scenes[0]!.nodes as number[]
+    : [];
+  return roots.length === 0
+    ? 0
+    : Math.max(...roots.map((root) => visit(Number(root))));
+}
+
+function nonNegativeInteger(value: unknown): value is number {
+  return typeof value === 'number'
+    && Number.isInteger(value)
+    && value >= 0;
 }
 
 export function records(value: unknown): JSONRecord[] {

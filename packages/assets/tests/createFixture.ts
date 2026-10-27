@@ -11,11 +11,13 @@ type FixtureOptions = {
   readonly invalidPrimitiveMode?: boolean;
   readonly floatOffset4?: boolean;
   readonly withVertexColors?: boolean;
+  readonly contract?: 'active' | 'legacy' | 'unsupported' | 'conversion';
 };
 
 export function createMinimalPreparedGLB(
   options: FixtureOptions = {},
 ): ArrayBuffer {
+  const contractMode = options.contract ?? 'active';
   const positions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]);
   const indices = new Uint16Array([0, 1, 2]);
   const edges = new Uint16Array([0, 1, 1, 2, 2, 0]);
@@ -46,6 +48,27 @@ export function createMinimalPreparedGLB(
             ice3: {
               profile: 'ice3-prepared',
               profileVersion: '1.0',
+              ...(contractMode === 'legacy'
+                ? {}
+                : {
+                    contractVersion: contractMode === 'unsupported' ? '2.0' : '1.0',
+                    preparation: {
+                      runtimeConversionRequired: contractMode === 'conversion',
+                      sourceFormat: 'gltf-2.0',
+                      unitsNormalized: true,
+                      matrixTransformsBaked: true,
+                      requiredCompressionDecoded: true,
+                      edgesPrepared: true,
+                      selectionGroupsPrepared: true,
+                      options: { creaseAngleDegrees: 30, edges: true },
+                    },
+                    budget: {
+                      profile: 'interactive-desktop-v1',
+                      status: 'pass',
+                      warningCount: 0,
+                      errorCount: 0,
+                    },
+                  }),
               assetId: 'fixture',
               contentDigest: {
                 algorithm: 'sha256',
@@ -60,9 +83,13 @@ export function createMinimalPreparedGLB(
               bounds: { min: [0, 0, 0], max: [1, 1, 0] },
               stats: {
                 nodeCount: 1,
+                maxNodeDepth: 0,
                 meshCount: 1,
+                primitiveCount: 2,
                 triangleCount: 1,
                 edgeSegmentCount: 3,
+                materialCount: 3,
+                selectionGroupCount: 1,
               },
             },
           },

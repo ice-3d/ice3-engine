@@ -33,14 +33,42 @@ export interface ICEPreparedMesh {
   readonly material: number;
 }
 
+export interface ICEPreparedStats {
+  readonly nodeCount: number;
+  readonly maxNodeDepth: number;
+  readonly meshCount: number;
+  readonly primitiveCount: number;
+  readonly triangleCount: number;
+  readonly edgeSegmentCount: number;
+  readonly materialCount: number;
+  readonly selectionGroupCount: number;
+}
+
+export interface ICEPreparedContract {
+  readonly status: 'active' | 'legacy';
+  readonly version?: string;
+  readonly preparation?: Readonly<{
+    runtimeConversionRequired: false;
+    sourceFormat: 'gltf-2.0';
+    unitsNormalized: true;
+    matrixTransformsBaked: true;
+    requiredCompressionDecoded: true;
+    edgesPrepared: boolean;
+    selectionGroupsPrepared: true;
+  }>;
+  readonly budget?: Readonly<{
+    profile: string;
+    status: 'pass' | 'warning' | 'error';
+    warningCount: number;
+    errorCount: number;
+  }>;
+}
+
 export interface ICEPreparedAssetSnapshot {
   readonly assetId: string;
   readonly bounds: ICEGeometryBounds;
-  readonly stats: Readonly<{
-    nodeCount: number;
-    meshCount: number;
-    triangleCount: number;
-  }>;
+  readonly stats: ICEPreparedStats;
+  readonly contract: ICEPreparedContract;
   readonly nodes: readonly ICEPreparedNode[];
   readonly geometries: readonly ICEPreparedGeometry[];
   readonly materials: readonly ICEPreparedMaterial[];

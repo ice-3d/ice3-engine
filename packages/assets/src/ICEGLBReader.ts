@@ -24,6 +24,8 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
   const sourceNodes = records(json.nodes);
   const sourceMeshes = records(json.meshes);
   const sourceMaterials = records(json.materials);
+  const activeScene = records(json.scenes)[Number(json.scene ?? 0)];
+  const sceneRoots = integers(activeScene?.nodes);
   const parents = new Array<number | null>(sourceNodes.length).fill(null);
   for (const [index, node] of sourceNodes.entries()) {
     for (const child of integers(node.children)) {
@@ -51,6 +53,10 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
   const geometries: ICEPreparedGeometry[] = [];
   const materials: ICEPreparedMaterial[] = [];
   const meshes: ICEPreparedMesh[] = [];
+  const selectionNodes = new Set<number>();
+  let primitiveCount = 0;
+  let triangleCount = 0;
+  let edgeSegmentCount = 0;
   for (const [meshIndex, mesh] of sourceMeshes.entries()) {
     const meshId = record(record(mesh.extras)?.ice3)?.id;
     if (typeof meshId !== 'string') {
@@ -61,6 +67,7 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
       .map((node, index) => ({ node, index }))
       .filter((entry) => Number(entry.node.mesh) === meshIndex);
     for (const [primitiveIndex, primitive] of primitives.entries()) {
+      primitiveCount += 1;
       if (Number(primitive.mode ?? 4) !== 4) continue;
       const positionIndex = Number(record(primitive.attributes)?.POSITION);
       const triangleIndex = Number(primitive.indices);
@@ -83,6 +90,7 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
         views,
         accessors[triangleIndex],
       );
+      triangleCount += indices.length / 3;
       validateIndexRange(indices, positions.length / 3);
       const edgePrimitive = primitives.find((candidate) => (
         Number(candidate.mode) === 1
@@ -92,6 +100,7 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
         ? readIndexAccessor(binary, views, accessors[Number(edgePrimitive.indices)])
         : undefined;
       if (edgeIndices) validateIndexRange(edgeIndices, positions.length / 3);
+      edgeSegmentCount += (edgeIndices?.length ?? 0) / 2;
       const baseMaterial = sourceMaterials[Number(primitive.material)];
       const edgeMaterial = edgePrimitive
         ? sourceMaterials[Number(edgePrimitive.material)]
@@ -113,6 +122,7 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
         bounds,
       });
       for (const entry of nodesForMesh) {
+        selectionNodes.add(entry.index);
         meshes.push({
           id: `${meshId}/primitive/${primitiveIndex}/${entry.index}`,
           node: entry.index,
@@ -122,20 +132,90 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
       }
     }
   }
+  const stats = {
+    nodeCount: sourceNodes.length,
+    maxNodeDepth: preparedNodeDepth(sourceNodes, sceneRoots),
+    meshCount: sourceMeshes.length,
+    primitiveCount,
+    triangleCount,
+    edgeSegmentCount,
+    materialCount: sourceMaterials.length,
+    selectionGroupCount: selectionNodes.size,
+  };
+  const contract = preparedContract(profile);
 
   return {
     assetId: String(profile.assetId),
     bounds: boundsFromProfile(profile.bounds),
-    stats: {
-      nodeCount: Number(record(profile.stats)?.nodeCount ?? nodes.length),
-      meshCount: Number(record(profile.stats)?.meshCount ?? sourceMeshes.length),
-      triangleCount: Number(record(profile.stats)?.triangleCount ?? 0),
-    },
+    stats,
+    contract,
     nodes,
     geometries,
     materials,
     meshes,
   };
+}
+
+function preparedContract(profile: JSONRecord): {
+  status: 'active' | 'legacy';
+  version?: string;
+  preparation?: {
+    runtimeConversionRequired: false;
+    sourceFormat: 'gltf-2.0';
+    unitsNormalized: true;
+    matrixTransformsBaked: true;
+    requiredCompressionDecoded: true;
+    edgesPrepared: boolean;
+    selectionGroupsPrepared: true;
+  };
+  budget?: {
+    profile: string;
+    status: 'pass' | 'warning' | 'error';
+    warningCount: number;
+    errorCount: number;
+  };
+} {
+  if (profile.contractVersion === undefined) {
+    return { status: 'legacy' };
+  }
+  const preparation = record(profile.preparation)!;
+  const budget = record(profile.budget)!;
+  return {
+    status: 'active',
+    version: String(profile.contractVersion),
+    preparation: {
+      runtimeConversionRequired: false,
+      sourceFormat: 'gltf-2.0',
+      unitsNormalized: true,
+      matrixTransformsBaked: true,
+      requiredCompressionDecoded: true,
+      edgesPrepared: Boolean(preparation.edgesPrepared),
+      selectionGroupsPrepared: true,
+    },
+    budget: {
+      profile: String(budget.profile),
+      status: budget.status as 'pass' | 'warning' | 'error',
+      warningCount: Number(budget.warningCount),
+      errorCount: Number(budget.errorCount),
+    },
+  };
+}
+
+function preparedNodeDepth(
+  nodes: readonly JSONRecord[],
+  roots: readonly number[],
+): number {
+  const depth = (index: number, visiting = new Set<number>()): number => {
+    if (visiting.has(index)) return 0;
+    const next = new Set(visiting).add(index);
+    const children = integers(nodes[index]?.children);
+    return children.length === 0
+      ? 0
+      : 1 + Math.max(...children.map((child) => depth(child, next)));
+  };
+  return roots.length === 0
+    ? 0
+    : Math.max(...roots.map((root) => depth(root)));
 }
 
 export async function verifyPreparedGLBIntegrity(
