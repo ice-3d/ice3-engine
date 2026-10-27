@@ -36,6 +36,13 @@ import {
   type ICERenderScheduler,
 } from './ICERenderScheduler.js';
 import type { ICEVector3Tuple } from '@ice3/core';
+import {
+  collectSceneItems,
+  raycastSceneNode,
+  type ICERay,
+  type ICESceneItem,
+  type ICESceneQuery,
+} from './query/ICESceneQuery.js';
 
 export type ICE3Options = {
   readonly backend?: ICERendererBackend;
@@ -320,6 +327,22 @@ export class ICE3 extends ICEEventDispatcher {
     return this.interaction.getSelection();
   }
 
+  queryScene(query?: ICESceneQuery): readonly ICESceneItem[] {
+    this.assertActive();
+    return this.scene ? collectSceneItems(this.scene, query) : Object.freeze([]);
+  }
+
+  findBySelectionId(selectionId: string): ICENode | undefined {
+    const item = this.queryScene({ selectionIds: [selectionId], limit: 1 })[0];
+    return item ? this.scene?.findByID(item.nodeId) : undefined;
+  }
+
+  raycast(ray: ICERay): ICESceneItem | undefined {
+    this.assertActive();
+    const node = this.scene ? raycastSceneNode(this.scene, ray) : undefined;
+    return node ? this.queryScene({ ids: [node.id], limit: 1 })[0] : undefined;
+  }
+
   setSelection(ids: readonly string[]): this {
     this.interaction.setSelection(ids);
     this.trigger('SELECTION_CHANGE', { selection: this.getSelection() });
@@ -330,6 +353,13 @@ export class ICE3 extends ICEEventDispatcher {
   pick(point: ICEScreenPoint): ICENode | undefined {
     const result = this.samplePick(point);
     return result.kind === 'hit' ? result.node : undefined;
+  }
+
+  pickItem(point: ICEScreenPoint): { readonly item?: ICESceneItem } {
+    const node = this.pick(point);
+    if (!node) return Object.freeze({});
+    const item = this.queryScene({ ids: [node.id], limit: 1 })[0];
+    return Object.freeze(item ? { item } : {});
   }
 
   getDiagnostics(): Readonly<ICEEngineDiagnostics> {

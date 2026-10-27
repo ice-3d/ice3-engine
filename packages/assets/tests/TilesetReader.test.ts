@@ -110,7 +110,36 @@ test('rejects a tile whose error is above its parent', () => {
   )).toThrow(/ICE3_TILESET_INVALID/);
 });
 
-test('rejects unsupported viewer volumes and multi-content tiles', () => {
+test('parses multiple tile contents in stable order', () => {
+  const value = JSON.parse(tileset());
+  delete value.root.content;
+  value.root.contents = [
+    { uri: 'parts/part-001.glb' },
+    { uri: 'parts/part-000.glb' },
+  ];
+  const snapshot = readTileset(
+    JSON.stringify(value),
+    'https://example.test/scene/tileset.json',
+  );
+
+  expect(snapshot.root.contentUris).toEqual([
+    'https://example.test/scene/parts/part-001.glb',
+    'https://example.test/scene/parts/part-000.glb',
+  ]);
+  expect(snapshot.root.contentUri).toBeUndefined();
+});
+
+test('rejects content and contents on the same tile', () => {
+  const value = JSON.parse(tileset());
+  value.root.contents = [{ uri: 'parts/part-001.glb' }];
+
+  expect(() => readTileset(
+    JSON.stringify(value),
+    'https://example.test/scene/tileset.json',
+  )).toThrow(/ICE3_TILESET_CONTENTS_INVALID/);
+});
+
+test('rejects unsupported viewer volumes and empty contents', () => {
   const viewer = JSON.parse(tileset());
   viewer.root.viewerRequestVolume = {
     box: [1, -2, 0.5, 1, 0, 0, 0, 2, 0, 0, 0, 0.5],
@@ -120,7 +149,7 @@ test('rejects unsupported viewer volumes and multi-content tiles', () => {
 
   const contents = JSON.parse(tileset());
   delete contents.root.content;
-  contents.root.contents = [{ uri: 'parts/part-000.glb' }];
+  contents.root.contents = [];
   expect(() => readTileset(JSON.stringify(contents), 'https://x.test/'))
-    .toThrow(/ICE3_TILESET_UNSUPPORTED/);
+    .toThrow(/ICE3_TILESET_CONTENTS_INVALID/);
 });

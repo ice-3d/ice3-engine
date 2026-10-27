@@ -88,7 +88,7 @@ test('keeps coarse coverage when focused fine content fails', async ({ page }) =
   await page.evaluate(() => window.__ice3M1.focusLodBranch());
 
   await expect(page.locator('[data-role="status"]'))
-    .toContainText('当前显示粗模回退');
+    .toContainText('部分分区加载失败');
   await expect(page.locator('[data-role="stage"]'))
     .toHaveAttribute('aria-busy', 'false');
   expect(await page.evaluate(
@@ -237,8 +237,8 @@ test('loads and renders the prepared industrial asset', async ({ page }) => {
     () => window.__ice3M1.diagnostics().backend.picking,
   )).toBe(true);
   expect(await page.evaluate(() => window.__ice3M1.assetStats())).toEqual({
-    nodeCount: 5,
-    maxNodeDepth: 1,
+    nodeCount: 6,
+    maxNodeDepth: 2,
     meshCount: 4,
     primitiveCount: 8,
     triangleCount: 64,

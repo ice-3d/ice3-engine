@@ -17,6 +17,7 @@ export interface ICELodSelectionInput {
 
 export interface ICELodSelection {
   readonly target: readonly ICETilesetTile[];
+  readonly prefetch: readonly ICETilesetTile[];
   readonly fallbackByTargetId: ReadonlyMap<string, string>;
 }
 
@@ -78,8 +79,32 @@ export class ICELodSelector {
     };
 
     visit(input.root);
+    const targetIds = new Set(targets.keys());
+    const prefetch = new Map<string, ICETilesetTile>();
+    const addPrefetch = (tile: ICETilesetTile): void => {
+      if (targetIds.has(tile.id) || input.residentIds.has(tile.id)) return;
+      prefetch.set(tile.id, tile);
+    };
+    for (const tile of targets.values()) {
+      for (const child of tile.children) {
+        if (child.contentUris?.length > 0 || child.contentUri) {
+          addPrefetch(child);
+        } else {
+          for (const descendant of child.children) {
+            if (descendant.contentUris?.length > 0 || descendant.contentUri) {
+              addPrefetch(descendant);
+            }
+          }
+        }
+      }
+    }
     return {
       target: Object.freeze([...targets.values()]),
+      prefetch: Object.freeze(
+        [...prefetch.values()].sort((left, right) => (
+          left.id.localeCompare(right.id, 'en')
+        )),
+      ),
       fallbackByTargetId,
     };
   }
