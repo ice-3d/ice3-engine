@@ -53,6 +53,11 @@ export {
   type ICETilesetWorkSet,
   type ICETilesetWorkSetInput,
 } from './asset/ICETilesetScheduler.js';
+export {
+  ICELodSelector,
+  type ICELodSelection,
+  type ICELodSelectionInput,
+} from './asset/ICELodSelector.js';
 export type {
   ICEPreparedContract,
   ICEPreparedStats,
