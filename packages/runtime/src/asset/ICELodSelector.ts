@@ -12,6 +12,7 @@ export interface ICELodSelectionInput {
   readonly viewport: ICEViewport;
   readonly residentIds: ReadonlySet<string>;
   readonly failedIds: ReadonlySet<string>;
+  readonly previousTargetIds?: ReadonlySet<string>;
   readonly maxScreenSpaceErrorPixels: number;
 }
 
@@ -35,6 +36,14 @@ export class ICELodSelector {
     const frustum = ICEFrustum.fromViewProjection(
       input.camera.getViewProjectionMatrix(aspect),
     );
+    const parentByChild = new Map<string, string>();
+    const indexParents = (tile: ICETilesetTile): void => {
+      for (const child of tile.children) {
+        parentByChild.set(child.id, tile.id);
+        indexParents(child);
+      }
+    };
+    indexParents(input.root);
     const targets = new Map<string, ICETilesetTile>();
     const fallbackByTargetId = new Map<string, string>();
     const visit = (
@@ -45,13 +54,20 @@ export class ICELodSelector {
       const hasContent = (tile.contentUris?.length ?? 0) > 0
         || Boolean(tile.contentUri);
       const contentAncestor = hasContent ? tile : nearestContent;
+      const previouslyRefined = input.previousTargetIds
+        ? [...input.previousTargetIds].some((id) => (
+          isDescendant(id, tile.id, parentByChild)
+        ))
+        : false;
+      const threshold = input.maxScreenSpaceErrorPixels
+        * (previouslyRefined ? LOD_HYSTERESIS_RATIO : 1);
       const shouldRefine = tile.children.length > 0
         && tile.geometricError > 0
         && screenSpaceError(
           tile,
           input.camera,
           input.viewport,
-        ) > input.maxScreenSpaceErrorPixels;
+        ) > threshold;
       if (shouldRefine) {
         const before = targets.size;
         for (const child of tile.children) visit(child, contentAncestor);
@@ -81,13 +97,17 @@ export class ICELodSelector {
     };
 
     visit(input.root);
-    const targetIds = new Set(targets.keys());
+    const visibleTargets = collapseNestedTargets(input.root, targets);
+    const targetIds = new Set(visibleTargets.keys());
+    for (const id of [...fallbackByTargetId.keys()]) {
+      if (!targetIds.has(id)) fallbackByTargetId.delete(id);
+    }
     const prefetch = new Map<string, ICETilesetTile>();
     const addPrefetch = (tile: ICETilesetTile): void => {
       if (targetIds.has(tile.id) || input.residentIds.has(tile.id)) return;
       prefetch.set(tile.id, tile);
     };
-    for (const tile of targets.values()) {
+    for (const tile of visibleTargets.values()) {
       for (const child of tile.children) {
         if (child.contentUris?.length > 0 || child.contentUri) {
           addPrefetch(child);
@@ -101,7 +121,7 @@ export class ICELodSelector {
       }
     }
     return {
-      target: Object.freeze([...targets.values()]),
+      target: Object.freeze([...visibleTargets.values()]),
       prefetch: Object.freeze(
         [...prefetch.values()].sort((left, right) => (
           left.id.localeCompare(right.id, 'en')
@@ -110,6 +130,37 @@ export class ICELodSelector {
       fallbackByTargetId,
     };
   }
+}
+
+const LOD_HYSTERESIS_RATIO = 0.75;
+
+function collapseNestedTargets(
+  root: ICETilesetTile,
+  targets: ReadonlyMap<string, ICETilesetTile>,
+): Map<string, ICETilesetTile> {
+  const visible = new Map<string, ICETilesetTile>();
+  const visit = (tile: ICETilesetTile): void => {
+    if (targets.has(tile.id)) {
+      visible.set(tile.id, tile);
+      return;
+    }
+    for (const child of tile.children) visit(child);
+  };
+  visit(root);
+  return visible;
+}
+
+function isDescendant(
+  candidateId: string,
+  ancestorId: string,
+  parentByChild: ReadonlyMap<string, string>,
+): boolean {
+  let current = parentByChild.get(candidateId);
+  while (current !== undefined) {
+    if (current === ancestorId) return true;
+    current = parentByChild.get(current);
+  }
+  return false;
 }
 
 function screenSpaceError(
