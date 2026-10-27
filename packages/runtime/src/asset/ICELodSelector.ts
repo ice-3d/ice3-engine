@@ -42,7 +42,9 @@ export class ICELodSelector {
       nearestContent?: ICETilesetTile,
     ): void => {
       if (!frustum.intersectsBounds(tile.bounds)) return;
-      const contentAncestor = tile.contentUri ? tile : nearestContent;
+      const hasContent = (tile.contentUris?.length ?? 0) > 0
+        || Boolean(tile.contentUri);
+      const contentAncestor = hasContent ? tile : nearestContent;
       const shouldRefine = tile.children.length > 0
         && tile.geometricError > 0
         && screenSpaceError(
@@ -53,12 +55,12 @@ export class ICELodSelector {
       if (shouldRefine) {
         const before = targets.size;
         for (const child of tile.children) visit(child, contentAncestor);
-        if (targets.size === before && tile.contentUri) {
+        if (targets.size === before && hasContent) {
           addTarget(tile, nearestContent);
         }
         return;
       }
-      if (tile.contentUri) {
+      if (hasContent) {
         addTarget(tile, nearestContent);
         return;
       }

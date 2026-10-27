@@ -363,9 +363,13 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       const deepestResident = ancestors.findLastIndex((tile) => (
         this.resident.has(tile.id)
       ));
-      const next = deepestResident < 0
-        ? ancestors[0] ?? target
-        : ancestors[deepestResident + 1] ?? target;
+      const next = [
+        ...(deepestResident < 0
+          ? ancestors
+          : ancestors.slice(deepestResident + 1)),
+        target,
+      ].find((tile) => this.states.get(tile.id) !== 'failed');
+      if (!next) continue;
       if (
         this.residentBudgetReached()
         && this.lodCoverageId(target)
@@ -602,7 +606,11 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       }
     }
     for (const tileId of this.activeIds) {
-      if (!desiredIds.has(tileId) && !workSet.retainIds.has(tileId)) {
+      if (
+        this.states.get(tileId) !== 'failed'
+        && !desiredIds.has(tileId)
+        && !workSet.retainIds.has(tileId)
+      ) {
         this.states.set(tileId, 'evicted');
       }
     }

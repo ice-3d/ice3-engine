@@ -1,4 +1,25 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+async function waitForAssetProjectionToSettle(page: Page): Promise<void> {
+  await page.waitForFunction(() => new Promise<boolean>((resolve) => {
+    const read = () => window.__ice3M1.assetCenter();
+    const first = read();
+    requestAnimationFrame(() => {
+      const second = read();
+      requestAnimationFrame(() => {
+        const third = read();
+        const delta = (
+          left: ReturnType<typeof read>,
+          right: ReturnType<typeof read>,
+        ) => Math.hypot(left.x - right.x, left.y - right.y);
+        resolve(
+          delta(first, second) < 0.01
+          && delta(second, third) < 0.01,
+        );
+      });
+    });
+  }));
+}
 
 test('shows compact camera hints after the asset is ready', async ({ page }) => {
   await page.route('**/assets/hierarchical-demo/tileset.json', async (route) => {
@@ -423,12 +444,13 @@ test('clears selection on empty click and does not select while dragging', async
   await page.mouse.up();
   expect(await page.evaluate(() => window.__ice3M1.selectedIds())).toEqual([]);
 
-  const centerAfterDrag = await page.evaluate(
+  await waitForAssetProjectionToSettle(page);
+  const settledCenter = await page.evaluate(
     () => window.__ice3M1.assetCenter(),
   );
   await page.mouse.click(
-    stage.x + centerAfterDrag.x,
-    stage.y + centerAfterDrag.y,
+    stage.x + settledCenter.x,
+    stage.y + settledCenter.y,
   );
   await expect.poll(
     () => page.evaluate(() => window.__ice3M1.selectedIds().length),

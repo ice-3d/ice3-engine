@@ -232,6 +232,43 @@ it('eases camera rotation across rendered frames', () => {
   dispose();
 });
 
+it('focuses item bounds while preserving the current view direction', () => {
+  const { camera, controller, dispose } = createMotionScenario();
+  const direction = (): readonly number[] => {
+    const position = camera.getPosition().toArray();
+    const target = camera.getTarget().toArray();
+    const delta = position.map((value, axis) => value - target[axis]!);
+    const length = Math.hypot(...delta);
+    return delta.map((value) => value / length);
+  };
+  const directionBefore = direction();
+
+  controller.focus({
+    bounds: {
+      min: [-1, -1, -1],
+      max: [1, 1, 1],
+    },
+  }, { animate: false });
+  const directionAfter = direction();
+
+  expect(camera.getTarget().toArray()).toEqual([0, 0, 0]);
+  expect(directionAfter).toEqual(directionBefore);
+  expect(Math.hypot(...camera.getPosition().toArray())).toBeGreaterThan(2);
+  dispose();
+});
+
+it('rejects invalid focus padding', () => {
+  const { controller, dispose } = createMotionScenario();
+
+  expect(() => controller.focus({
+    bounds: {
+      min: [0, 0, 0],
+      max: [0, 0, 0],
+    },
+  }, { padding: 0 })).toThrow(/ICE3_CAMERA_FOCUS_INVALID/);
+  dispose();
+});
+
 it('maps W and S to the same view-plane pan as the up and down arrows', () => {
   const positionAfterKey = (code: string): readonly number[] => {
     const scenario = createMotionScenario();

@@ -28,6 +28,29 @@ const overviewCamera = () => new ICEPerspectiveCamera({
   position: [15, 0, 50],
   target: [15, 0, 0],
 });
+const multiContentTileset = (): string => JSON.stringify({
+  asset: {
+    version: '1.1',
+    extras: {
+      ice3: {
+        assetId: 'multi-content-demo',
+        contractVersion: '1.0',
+      },
+    },
+  },
+  geometricError: 10,
+  root: {
+    boundingVolume: {
+      box: [15.5, 0, 0.5, 15.5, 0, 0, 0, 0, 0.5, 0, 0, 0],
+    },
+    geometricError: 0,
+    refine: 'REPLACE',
+    contents: [
+      { uri: 'parts/part-000.glb' },
+      { uri: 'parts/part-001.glb' },
+    ],
+  },
+});
 
 it('opens before all tiles finish and commits completed tiles progressively', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
@@ -383,13 +406,7 @@ it('commits one logical container after all tile contents finish', async () => {
   const fetch = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
-      const value = JSON.parse(fixture('tileset.json').toString('utf8'));
-      delete value.root.content;
-      value.root.contents = [
-        { uri: 'parts/part-000.glb' },
-        { uri: 'parts/part-001.glb' },
-      ];
-      return new Response(JSON.stringify(value));
+      return new Response(multiContentTileset());
     }
     return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
   });
@@ -403,6 +420,71 @@ it('commits one logical container after all tile contents finish', async () => {
   expect(tileset.scene.children[0]!.children).toHaveLength(2);
   expect(tileset.stats.resident).toBe(1);
   expect(tileset.stats.residentContents).toBe(2);
+});
+
+it('discards every staged chunk when one logical tile content fails', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('tileset.json')) {
+      return new Response(multiContentTileset());
+    }
+    if (url.endsWith('part-001.glb')) {
+      return new Response('unavailable', { status: 500 });
+    }
+    return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
+  });
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch,
+    camera: overviewCamera(),
+  }).open('https://example.test/spatial-demo/tileset.json');
+
+  engine.trigger('AFTER_RENDER');
+  await expect.poll(() => fetch.mock.calls.length).toBeGreaterThan(2);
+  await expect.poll(() => tileset.tileState('root')).toBe('failed');
+  await tileset.whenIdle();
+
+  expect(
+    tileset.scene.findByID('multi-content-demo:tile:root'),
+  ).toBeUndefined();
+  expect(tileset.stats.failed).toBe(1);
+  expect(tileset.stats.loadingContents).toBe(0);
+});
+
+it('clears every chunk URL before reloading a logical tile', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const orbitCamera = overviewCamera();
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('tileset.json')) {
+      return new Response(multiContentTileset());
+    }
+    return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
+  });
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch,
+    camera: orbitCamera,
+  }).open('https://example.test/spatial-demo/tileset.json');
+  engine.trigger('AFTER_RENDER');
+  await expect.poll(() => fetch.mock.calls.length).toBeGreaterThan(1);
+  await tileset.whenIdle();
+  const requestsFor = (path: string): number => fetch.mock.calls.filter(
+    ([input]) => String(input).endsWith(path),
+  ).length;
+  expect(requestsFor('part-000.glb')).toBe(1);
+  expect(requestsFor('part-001.glb')).toBe(1);
+
+  orbitCamera.setPosition([1015, 0, 50]).setTarget([1000, 0, 0]);
+  engine.trigger('AFTER_RENDER');
+  await tileset.whenIdle();
+  await expect.poll(() => tileset.scene.children.length).toBe(0);
+
+  orbitCamera.setPosition([15, 0, 50]).setTarget([15, 0, 0]);
+  engine.trigger('AFTER_RENDER');
+  await expect.poll(() => tileset.stats.residentContents).toBe(2);
+
+  expect(requestsFor('part-000.glb')).toBe(2);
+  expect(requestsFor('part-001.glb')).toBe(2);
 });
 
 it('does not retain offscreen prefetch beyond the resident tile budget', async () => {

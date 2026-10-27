@@ -162,3 +162,64 @@ it('keeps coarse coverage and stops optional refinement at the budget', async ()
   expect(tileset.stats.lod.fallback).toBeGreaterThan(0);
   expect(tileset.stats.lod.transitioning).toBe(0);
 });
+
+it('keeps whenIdle independent from delayed background prefetch', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const delayed: Array<(response: Response) => void> = [];
+  const fetch = vi.fn((input: RequestInfo | URL) => {
+    const path = relative(input);
+    if (path === 'coarse/group-root-0.glb' || path === 'coarse/group-root-1.glb') {
+      return new Promise<Response>((resolve) => {
+        delayed.push(resolve);
+      });
+    }
+    return Promise.resolve(new Response(fixture(path)));
+  });
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch,
+    camera: camera(),
+  }).open('https://example.test/hierarchical-demo/tileset.json');
+
+  await tileset.whenReady();
+  await expect.poll(() => tileset.stats.loadingContents).toBeGreaterThan(0);
+  const outcome = await Promise.race([
+    tileset.whenIdle().then(() => 'idle' as const),
+    new Promise<'timeout'>((resolve) => {
+      setTimeout(() => resolve('timeout'), 100);
+    }),
+  ]);
+
+  expect(outcome).toBe('idle');
+  expect(tileset.stats.loadingContents).toBeGreaterThan(0);
+  for (const resolve of delayed.splice(0)) {
+    resolve(new Response(fixture('coarse/group-root-0.glb')));
+  }
+  tileset.dispose();
+});
+
+it('isolates prefetch failures from visible load failures', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const failedEvents: string[] = [];
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const path = relative(input);
+    if (path === 'coarse/group-root-0.glb' || path === 'coarse/group-root-1.glb') {
+      return new Response('unavailable', { status: 500 });
+    }
+    return new Response(fixture(path));
+  });
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch,
+    camera: camera(),
+  }).open('https://example.test/hierarchical-demo/tileset.json');
+  tileset.on('TILESET_TILE_FAILED', (event) => {
+    if (event.param) failedEvents.push(event.param);
+  });
+
+  await tileset.whenReady();
+  await tileset.whenIdle();
+  await expect.poll(() => tileset.stats.loadingContents).toBe(0);
+
+  expect(tileset.stats.resident).toBeGreaterThan(0);
+  expect(tileset.stats.failed).toBe(0);
+  expect(failedEvents).toEqual([]);
+});
