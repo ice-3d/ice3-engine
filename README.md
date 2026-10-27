@@ -48,6 +48,8 @@ npm run dev:example:m1
 
 Open <http://127.0.0.1:8103> for the programmatic M0 scene and
 <http://127.0.0.1:8104> for the incrementally loaded tiled asset.
+Open <http://127.0.0.1:8104/?demo=adaptive> for the idle-time Worker batching
+demo.
 
 ## Verification
 
