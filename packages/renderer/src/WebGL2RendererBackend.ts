@@ -41,6 +41,13 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   };
   private readonly handleContextRestored = (): void => {
     if (this.gl) {
+      this.gl.enable(this.gl.DEPTH_TEST);
+      this.gl.viewport(
+        this.viewport.x * this.dpr,
+        this.viewport.y * this.dpr,
+        this.viewport.width * this.dpr,
+        this.viewport.height * this.dpr,
+      );
       this.createGeometry(this.gl);
     }
     this.onContextRestored?.();
