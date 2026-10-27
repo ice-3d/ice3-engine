@@ -1,0 +1,22 @@
+{
+  "name": "ice3",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@ice3/core": "0.0.0",
+    "@ice3/renderer": "0.0.0",
+    "@ice3/runtime": "0.0.0"
+  }
+}

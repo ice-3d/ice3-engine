@@ -1,0 +1,17 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/renderer"
+    },
+    {
+      "path": "./packages/runtime"
+    },
+    {
+      "path": "./packages/ice3"
+    }
+  ]
+}
