@@ -1,7 +1,10 @@
 import type {
   ICEPreparedAssetSnapshot,
 } from '@ice3/assets';
-import { readPreparedGLB } from '@ice3/assets';
+import {
+  readPreparedGLB,
+  verifyPreparedGLBIntegrity,
+} from '@ice3/assets';
 import type { ICEGeometryBounds, ICEScene } from '@ice3/core';
 import type { ICE3 } from '../ICE3.js';
 import { buildAssetScene } from './ICEAssetSceneBuilder.js';
@@ -29,14 +32,18 @@ export interface ICEAssetHandle {
 
 export class ICEAssetLoader {
   private readonly fetcher: typeof globalThis.fetch;
-  private readonly cache = new Map<string, Promise<ICEPreparedAssetSnapshot>>();
+  private readonly verifyIntegrity: boolean;
+  private readonly cache = new Map<string, Promise<{
+    readonly bytes: ArrayBuffer;
+    readonly snapshot: ICEPreparedAssetSnapshot;
+  }>>();
 
   constructor(
     private readonly engine: ICE3,
     options: ICEAssetLoaderOptions = {},
   ) {
     this.fetcher = options.fetch ?? globalThis.fetch.bind(globalThis);
-    void options.verifyIntegrity;
+    this.verifyIntegrity = options.verifyIntegrity ?? false;
   }
 
   async load(
@@ -54,12 +61,19 @@ export class ICEAssetLoader {
         }
       });
     }
-    const snapshot = await pending;
+    const cached = await pending;
     assertNotAborted(options.signal);
-    const built = buildAssetScene(snapshot);
+    if (
+      this.verifyIntegrity
+      && !await verifyPreparedGLBIntegrity(cached.bytes)
+    ) {
+      throw new Error('ICE3_ASSET_INTEGRITY_FAILED: BIN digest does not match');
+    }
+    assertNotAborted(options.signal);
+    const built = buildAssetScene(cached.snapshot);
     let disposed = false;
     return {
-      id: snapshot.assetId,
+      id: cached.snapshot.assetId,
       scene: built.scene,
       bounds: built.bounds,
       stats: built.stats,
@@ -79,7 +93,10 @@ export class ICEAssetLoader {
   private async fetchSnapshot(
     url: string,
     signal?: AbortSignal,
-  ): Promise<ICEPreparedAssetSnapshot> {
+  ): Promise<{
+    readonly bytes: ArrayBuffer;
+    readonly snapshot: ICEPreparedAssetSnapshot;
+  }> {
     let response: Response;
     try {
       response = await this.fetcher(url, signal ? { signal } : undefined);
@@ -99,7 +116,7 @@ export class ICEAssetLoader {
     assertNotAborted(signal);
     const snapshot = readPreparedGLB(bytes);
     assertNotAborted(signal);
-    return snapshot;
+    return { bytes, snapshot };
   }
 }
 

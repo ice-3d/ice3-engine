@@ -24,6 +24,18 @@ Diagnostics use stable codes. Callers should branch on `code`, not on message te
 | `ICE3_UNKNOWN_TYPE` | Deserialization finds an unregistered type ID | Register the type before loading |
 | `ICE3_INVALID_NODE_DATA` | Deserialization finds malformed data for a registered node type | Repair the snapshot or migrate it to the current schema |
 
+## Assets
+
+| Code | Trigger | Caller action |
+| --- | --- | --- |
+| `ICE3_ASSET_FETCH_FAILED` | Asset network request fails | Check the URL, network, and permissions |
+| `ICE3_ASSET_ABORTED` | The supplied abort signal cancels loading | Retry only if the caller starts a new request |
+| `ICE3_ASSET_INVALID_GLB` | GLB framing, scene graph, or required profile fields are invalid | Regenerate the asset with the toolchain |
+| `ICE3_ASSET_PROFILE_UNSUPPORTED` | GLB is not a supported ICE3 prepared profile | Process the source model with the toolchain |
+| `ICE3_ASSET_ACCESSOR_INVALID` | Accessor type, alignment, range, or indices violate the profile | Regenerate the prepared GLB |
+| `ICE3_ASSET_DUPLICATE_ID` | Node or mesh semantic IDs collide | Regenerate deterministic IDs with the toolchain |
+| `ICE3_ASSET_INTEGRITY_FAILED` | Explicit BIN digest verification fails | Rebuild or redownload the asset |
+
 ## Rendering
 
 | Code | Trigger | Caller action |

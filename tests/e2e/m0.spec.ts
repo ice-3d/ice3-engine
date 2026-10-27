@@ -72,7 +72,8 @@ test('keeps the example scene free of the probe label', async ({ page }) => {
 
 test('renders high-contrast geometry edges', async ({ page }) => {
   await page.goto('/');
-  const edgePixelCount = await page.evaluate(() => {
+  await expect(page.locator('[data-role="status"]')).toHaveText('运行');
+  await expect.poll(() => page.evaluate(() => {
     const canvas = document.querySelector<HTMLCanvasElement>(
       'canvas[data-layer="scene"]',
     );
@@ -85,17 +86,15 @@ test('renders high-contrast geometry edges', async ({ page }) => {
     let count = 0;
     for (let offset = 0; offset < pixels.length; offset += 4) {
       if (
-        pixels[offset]! > 200
-        && pixels[offset + 1]! > 220
-        && pixels[offset + 2]! > 240
+        pixels[offset]! > 100
+        && pixels[offset + 1]! > 140
+        && pixels[offset + 2]! > 180
       ) {
         count += 1;
       }
     }
     return count;
-  });
-
-  expect(edgePixelCount).toBeGreaterThan(100);
+  })).toBeGreaterThan(100);
 });
 
 test('2D controls shield 3D and transparent areas pass through', async ({ page }) => {

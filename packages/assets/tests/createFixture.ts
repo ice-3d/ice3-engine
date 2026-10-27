@@ -4,6 +4,7 @@ type FixtureOptions = {
   readonly profile?: boolean;
   readonly outOfRange?: boolean;
   readonly trsNode?: boolean;
+  readonly badDigest?: boolean;
 };
 
 export function createMinimalPreparedGLB(
@@ -30,7 +31,7 @@ export function createMinimalPreparedGLB(
               assetId: 'fixture',
               contentDigest: {
                 algorithm: 'sha256',
-                value: digest,
+                value: options.badDigest ? '0'.repeat(64) : digest,
                 covers: 'binary-chunk',
               },
               coordinateSystem: {
@@ -118,6 +119,10 @@ export function createOutOfRangeAccessorGLB(): ArrayBuffer {
 
 export function createTRSNodeGLB(): ArrayBuffer {
   return createMinimalPreparedGLB({ trsNode: true });
+}
+
+export function createBadDigestGLB(): ArrayBuffer {
+  return createMinimalPreparedGLB({ badDigest: true });
 }
 
 function packGLB(json: unknown, binary: Buffer): ArrayBuffer {

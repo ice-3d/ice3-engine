@@ -128,6 +128,25 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
   };
 }
 
+export async function verifyPreparedGLBIntegrity(
+  bytes: ArrayBuffer,
+): Promise<boolean> {
+  const { binary, profile } = parseGLB(bytes);
+  const digest = record(profile.contentDigest);
+  if (
+    digest?.algorithm !== 'sha256'
+    || digest.covers !== 'binary-chunk'
+    || typeof digest.value !== 'string'
+  ) {
+    return false;
+  }
+  const hashed = await crypto.subtle.digest('SHA-256', Uint8Array.from(binary));
+  const value = [...new Uint8Array(hashed)]
+    .map((part) => part.toString(16).padStart(2, '0'))
+    .join('');
+  return value === digest.value.toLowerCase();
+}
+
 function parseGLB(bytes: ArrayBuffer): ReturnType<typeof validatePreparedProfile> {
   const view = new DataView(bytes);
   if (

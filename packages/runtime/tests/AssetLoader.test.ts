@@ -2,7 +2,10 @@ import { FakeRendererBackend } from '@ice3/renderer';
 import { expect, it, vi } from 'node-test';
 import { ICE3 } from '../src/index';
 import { ICEAssetLoader } from '../src/asset/ICEAssetLoader';
-import { createMinimalPreparedGLB } from '../../assets/tests/createFixture';
+import {
+  createBadDigestGLB,
+  createMinimalPreparedGLB,
+} from '../../assets/tests/createFixture';
 
 const fixtureBytes = createMinimalPreparedGLB();
 
@@ -54,4 +57,21 @@ it('does not share mutable scene instances through the URL cache', async () => {
   first.scene.children[0]!.visible = false;
 
   expect(second.scene.children[0]!.visible).toBe(true);
+});
+
+it('verifies the BIN digest only when explicitly requested', async () => {
+  const bytes = createBadDigestGLB();
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const defaultLoader = new ICEAssetLoader(engine, {
+    fetch: vi.fn(async () => new Response(bytes.slice(0))),
+  });
+  const verifiedLoader = new ICEAssetLoader(engine, {
+    fetch: vi.fn(async () => new Response(bytes.slice(0))),
+    verifyIntegrity: true,
+  });
+
+  await expect(defaultLoader.load('/asset.glb')).resolves.toBeDefined();
+  await expect(verifiedLoader.load('/asset.glb')).rejects.toThrow(
+    /ICE3_ASSET_INTEGRITY_FAILED/,
+  );
 });

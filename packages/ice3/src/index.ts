@@ -1,6 +1,7 @@
 export {
   ICEBasicMaterial,
   ICEBoxGeometry,
+  ICEIndexedGeometry,
   ICEEngineError,
   ICEAssetLoader,
   ICELabel,
@@ -29,4 +30,8 @@ export type {
   ICEAssetLoaderOptions,
   ICEAssetLoadOptions,
   ICESerializedScene,
+  ICEGeometry,
+  ICEGeometryBounds,
+  ICEIndexedGeometryOptions,
+  ICEMatrix4Tuple,
 } from '@ice3/runtime';

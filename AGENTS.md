@@ -3,9 +3,10 @@
 ## Architecture
 
 - Public consumers import only from `ice3`.
-- Dependency direction is `@ice3/core` ← `@ice3/renderer` ← `@ice3/runtime` ← `ice3`.
+- Dependency direction is `@ice3/core` ← `@ice3/assets` ← `@ice3/runtime` ← `ice3`, with `@ice3/core` ← `@ice3/renderer` also feeding runtime.
 - `@ice3/core` must remain independent of DOM, Canvas, GPU, and sibling packages.
 - Renderer implementations must not leak GPU objects through public APIs.
+- Runtime accepts only ICE3 Prepared GLB Profile assets; source-format parsing and heavy geometry conversion stay in `ice3-toolchain`.
 - Applications, scripts, tests, editors, and external adapters use the same public semantic API.
 
 ## Delivery
@@ -13,8 +14,8 @@
 - Develop on a feature branch; merge to `main` only after the full verification gate passes.
 - Every behavioral change starts with a failing test and ends with the full suite green.
 - Add no runtime dependency without an explicit design ruling.
-- Keep M0 scope free of unrelated rendering or industrial features.
-- Use the Node version from `.nvmrc`; current M0 verification runs on Node 24 LTS.
+- Keep M1 free of generic format compatibility, animation, textures, LOD, and industrial business features.
+- Use the Node version from `.nvmrc`; current verification runs on Node 24 LTS.
 
 ## Naming and legal boundary
 

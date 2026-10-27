@@ -1,5 +1,6 @@
 export {
   readPreparedGLB,
+  verifyPreparedGLBIntegrity,
 } from './ICEGLBReader.js';
 export type {
   ICEPreparedAssetSnapshot,
