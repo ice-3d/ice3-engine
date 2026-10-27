@@ -22,6 +22,90 @@ export interface ICESceneItem {
   readonly visible: boolean;
 }
 
+export interface ICERay {
+  readonly origin: readonly [number, number, number];
+  readonly direction: readonly [number, number, number];
+  readonly maxDistance?: number;
+}
+
+export function raycastSceneNode(
+  scene: ICEScene,
+  ray: ICERay,
+): ICENode | undefined {
+  const values = [...ray.origin, ...ray.direction];
+  const length = Math.hypot(...ray.direction);
+  if (values.some((value) => !Number.isFinite(value)) || length === 0
+    || (ray.maxDistance !== undefined && (!Number.isFinite(ray.maxDistance) || ray.maxDistance <= 0))) {
+    throw new Error('ICE3_SCENE_QUERY_INVALID: ray is invalid');
+  }
+  const direction = ray.direction.map((value) => value / length);
+  const maxDistance = ray.maxDistance ?? Infinity;
+  let nearest = maxDistance;
+  let hit: ICEMesh | undefined;
+  const visit = (node: ICENode): void => {
+    if (!node.visible) return;
+    if (node instanceof ICEMesh) {
+      const matrix = node.updateWorldMatrix().elements;
+      const transform = (index: number): readonly [number, number, number] => {
+        const x = node.geometry.positions[index * 3]!;
+        const y = node.geometry.positions[index * 3 + 1]!;
+        const z = node.geometry.positions[index * 3 + 2]!;
+        return [
+          matrix[0]! * x + matrix[4]! * y + matrix[8]! * z + matrix[12]!,
+          matrix[1]! * x + matrix[5]! * y + matrix[9]! * z + matrix[13]!,
+          matrix[2]! * x + matrix[6]! * y + matrix[10]! * z + matrix[14]!,
+        ];
+      };
+      for (let i = 0; i < node.geometry.indices.length; i += 3) {
+        const distance = intersectTriangle(
+          ray.origin,
+          direction,
+          transform(node.geometry.indices[i]!),
+          transform(node.geometry.indices[i + 1]!),
+          transform(node.geometry.indices[i + 2]!),
+        );
+        if (distance >= 0 && distance < nearest) {
+          nearest = distance;
+          hit = node;
+        }
+      }
+    }
+    for (const child of node.children) visit(child);
+  };
+  visit(scene);
+  return hit;
+}
+
+function intersectTriangle(
+  origin: readonly number[],
+  direction: readonly number[],
+  a: readonly number[],
+  b: readonly number[],
+  c: readonly number[],
+): number {
+  const edge1 = [b[0]! - a[0]!, b[1]! - a[1]!, b[2]! - a[2]!];
+  const edge2 = [c[0]! - a[0]!, c[1]! - a[1]!, c[2]! - a[2]!];
+  const p = [
+    direction[1]! * edge2[2]! - direction[2]! * edge2[1]!,
+    direction[2]! * edge2[0]! - direction[0]! * edge2[2]!,
+    direction[0]! * edge2[1]! - direction[1]! * edge2[0]!,
+  ];
+  const determinant = edge1[0]! * p[0]! + edge1[1]! * p[1]! + edge1[2]! * p[2]!;
+  if (Math.abs(determinant) < 1e-9) return -1;
+  const inverse = 1 / determinant;
+  const t = [origin[0]! - a[0]!, origin[1]! - a[1]!, origin[2]! - a[2]!];
+  const u = (t[0]! * p[0]! + t[1]! * p[1]! + t[2]! * p[2]!) * inverse;
+  if (u < 0 || u > 1) return -1;
+  const q = [
+    t[1]! * edge1[2]! - t[2]! * edge1[1]!,
+    t[2]! * edge1[0]! - t[0]! * edge1[2]!,
+    t[0]! * edge1[1]! - t[1]! * edge1[0]!,
+  ];
+  const v = (direction[0]! * q[0]! + direction[1]! * q[1]! + direction[2]! * q[2]!) * inverse;
+  if (v < 0 || u + v > 1) return -1;
+  return (edge2[0]! * q[0]! + edge2[1]! * q[1]! + edge2[2]! * q[2]!) * inverse;
+}
+
 export function collectSceneItems(
   scene: ICEScene,
   query: ICESceneQuery = {},

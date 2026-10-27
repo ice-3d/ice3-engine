@@ -38,6 +38,8 @@ import {
 import type { ICEVector3Tuple } from '@ice3/core';
 import {
   collectSceneItems,
+  raycastSceneNode,
+  type ICERay,
   type ICESceneItem,
   type ICESceneQuery,
 } from './query/ICESceneQuery.js';
@@ -333,6 +335,12 @@ export class ICE3 extends ICEEventDispatcher {
   findBySelectionId(selectionId: string): ICENode | undefined {
     const item = this.queryScene({ selectionIds: [selectionId], limit: 1 })[0];
     return item ? this.scene?.findByID(item.nodeId) : undefined;
+  }
+
+  raycast(ray: ICERay): ICESceneItem | undefined {
+    this.assertActive();
+    const node = this.scene ? raycastSceneNode(this.scene, ray) : undefined;
+    return node ? this.queryScene({ ids: [node.id], limit: 1 })[0] : undefined;
   }
 
   setSelection(ids: readonly string[]): this {

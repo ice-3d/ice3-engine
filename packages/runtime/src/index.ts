@@ -61,6 +61,8 @@ export {
 export type { ICELodStats } from './asset/ICETilesetLoader.js';
 export {
   collectSceneItems,
+  raycastSceneNode,
+  type ICERay,
   type ICESceneItem,
   type ICESceneQuery,
 } from './query/ICESceneQuery.js';
