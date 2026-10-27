@@ -12,6 +12,10 @@ declare global {
       assetCenter(): ICEProjectedPoint;
       cameraPosition(): readonly [number, number, number];
       cameraTarget(): readonly [number, number, number];
+      setCameraPose(
+        position: readonly [number, number, number],
+        target: readonly [number, number, number],
+      ): void;
       scenePixelAtProjection(): readonly [number, number, number, number];
       selectedIds(): readonly string[];
       disposeAsset(): void;

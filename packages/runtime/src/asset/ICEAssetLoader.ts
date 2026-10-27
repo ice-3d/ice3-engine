@@ -98,9 +98,14 @@ export class ICEAssetLoader {
     };
   }
 
-  clear(): void {
-    this.cache.clear();
-    this.legacyWarnings.clear();
+  clear(url?: string): void {
+    if (url === undefined) {
+      this.cache.clear();
+      this.legacyWarnings.clear();
+      return;
+    }
+    this.cache.delete(url);
+    this.legacyWarnings.delete(url);
   }
 
   private async fetchSnapshot(
