@@ -271,6 +271,14 @@ function parseTransform(value: unknown): Matrix {
   if (value === undefined) return IDENTITY;
   const matrix = numbers(value, 16);
   if (!matrix) throw invalid('transform must contain 16 finite numbers');
+  if (
+    Math.abs(matrix[3]!) > EPSILON
+    || Math.abs(matrix[7]!) > EPSILON
+    || Math.abs(matrix[11]!) > EPSILON
+    || Math.abs(matrix[15]! - 1) > EPSILON
+  ) {
+    throw invalid('transform must be affine');
+  }
   return matrix as unknown as Matrix;
 }
 

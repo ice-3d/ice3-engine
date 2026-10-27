@@ -55,3 +55,16 @@ test('rejects region and implicit tiling before fetching tile content', () => {
   expect(() => readTileset(JSON.stringify(withImplicit), 'https://x.test/'))
     .toThrow(/ICE3_TILESET_UNSUPPORTED/);
 });
+
+test('rejects transforms that are not affine', () => {
+  const invalid = JSON.parse(tileset());
+  invalid.root.transform = [
+    1, 0, 0, 1,
+    0, 1, 0, 2,
+    0, 0, 1, 3,
+    0, 0, 0, 2,
+  ];
+
+  expect(() => readTileset(JSON.stringify(invalid), 'https://x.test/'))
+    .toThrow(/ICE3_TILESET_INVALID/);
+});
