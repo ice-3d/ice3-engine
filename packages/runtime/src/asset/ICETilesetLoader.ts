@@ -1246,11 +1246,22 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         batch,
       ] as const),
     );
+    this.adaptiveAbortController?.abort();
+    const controller = new AbortController();
+    this.adaptiveAbortController = controller;
     const materialByKey = new Map<string, ICEBasicMaterial>();
     const groups = new Map<string, ICEBatchWorkerSource[]>();
     for (const id of request.plan.sourceBatchIds) {
       const batch = sourceById.get(id);
       if (!batch) continue;
+      await yieldMainThread();
+      if (controller.signal.aborted) {
+        return {
+          kind: 'failed',
+          reason: 'worker',
+          error: new DOMException('Adaptive source staging aborted', 'AbortError'),
+        };
+      }
       materialByKey.set(batch.materialKey, batch.material);
       const group = groups.get(batch.materialKey) ?? [];
       group.push(workerSource(batch));
@@ -1263,9 +1274,6 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         error: new Error('ICE3_RENDER_BATCH_ADAPTIVE_EMPTY'),
       };
     }
-    this.adaptiveAbortController?.abort();
-    const controller = new AbortController();
-    this.adaptiveAbortController = controller;
     let responses;
     try {
       responses = await Promise.all(
@@ -1562,6 +1570,10 @@ function uploadBuffer(
       + indices.byteLength
       + semanticIndices.byteLength,
   };
+}
+
+function yieldMainThread(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 interface ICETileCandidate extends Omit<ICEResidentTile, 'tile'> {
