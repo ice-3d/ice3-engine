@@ -50,6 +50,7 @@ let orbit: ICEOrbitController | null = null;
 let selectedNode: ICENode | null = null;
 let assetReleased = false;
 let loadFinished = false;
+let viewUpdating = false;
 let sceneRevealed = false;
 let assetCenter: readonly [number, number, number] = [0, 0, 0];
 
@@ -75,6 +76,10 @@ function updateStatus(): void {
     status.textContent = '资产已释放';
     return;
   }
+  if (viewUpdating) {
+    status.textContent = '正在更新当前视角';
+    return;
+  }
   if (!loadFinished) {
     status.textContent = '正在加载分区';
     return;
@@ -82,19 +87,36 @@ function updateStatus(): void {
   const stats = handle?.stats;
   status.textContent = stats && stats.failed > 0
     ? `部分分区加载失败（${stats.failed}/${stats.total}）`
-    : '资产已加载';
+    : '当前视角已就绪';
 }
 
 function updateTilesetProgress(stats: ICETilesetStats): void {
-  tilesetProgress.textContent = `分区 ${stats.loaded}/${stats.total}`;
+  tilesetProgress.textContent = [
+    `驻留 ${stats.resident}`,
+    `可见 ${stats.visible}`,
+    `加载中 ${stats.loading}`,
+    `总计 ${stats.total}`,
+  ].join(' · ');
   tilesetProgress.dataset.state = stats.failed > 0 ? 'partial' : 'active';
 }
 
-function onTilesetEvent(event: ICETilesetEvent | undefined): void {
+function onTilesetEvent(
+  type: string,
+  event: ICETilesetEvent | undefined,
+): void {
   const stats = event?.stats;
   if (!stats) return;
+  if (type === 'TILESET_TILE_LOADING' || type === 'TILESET_TILE_UNLOADED') {
+    viewUpdating = true;
+    loadFinished = false;
+  }
+  if (type === 'TILESET_IDLE') {
+    viewUpdating = false;
+    loadFinished = true;
+  }
+  if (type === 'TILESET_READY' || stats.loaded > 0) revealScene();
   updateTilesetProgress(stats);
-  if (stats.loaded > 0) revealScene();
+  updateStatus();
 }
 
 function revealScene(): void {
@@ -225,10 +247,13 @@ async function start(): Promise<void> {
       'TILESET_TILE_LOADING',
       'TILESET_TILE_LOADED',
       'TILESET_TILE_FAILED',
+      'TILESET_TILE_UNLOADED',
       'TILESET_READY',
-      'TILESET_COMPLETE',
+      'TILESET_IDLE',
     ]) {
-      handle.on<ICETilesetEvent>(type, (event) => onTilesetEvent(event.param));
+      handle.on<ICETilesetEvent>(type, (event) => (
+        onTilesetEvent(type, event.param)
+      ));
     }
     void handle.whenReady().then(revealScene, () => {});
     await handle.whenIdle();
@@ -323,6 +348,12 @@ window.__ice3M1 = {
   assetCenter: () => engine.project(selectedScenePoint()),
   cameraPosition: () => camera.getPosition().toArray(),
   cameraTarget: () => camera.getTarget().toArray(),
+  setCameraPose: (position, target) => {
+    camera.setPosition(position).setTarget(target);
+    viewUpdating = true;
+    updateStatus();
+    engine.requestRender('test-camera-pose');
+  },
   scenePixelAtProjection,
   selectedIds: () => engine.getSelection(),
   disposeAsset,

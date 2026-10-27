@@ -72,11 +72,11 @@ body {
 }
 
 .tileset-progress {
-  min-width: 74px;
   color: var(--ice-color-accent);
   font-size: var(--ice-font-caption);
   font-variant-numeric: tabular-nums;
   text-align: right;
+  white-space: nowrap;
 }
 
 .tileset-progress[data-state="partial"] {

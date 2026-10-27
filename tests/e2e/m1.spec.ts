@@ -10,7 +10,7 @@ test('shows compact camera hints after the asset is ready', async ({ page }) => 
   const hint = page.locator('[data-role="controls-hint"]');
 
   await expect(hint).toBeHidden();
-  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   await expect(hint).toBeVisible();
   await expect(hint).toContainText('操作提示');
   await expect(hint).toContainText('WASD');
@@ -62,20 +62,20 @@ test('shows completed partitions before all tile requests finish', async ({ page
     const name = route.request().url().split('/').at(-1)!;
     await new Promise((resolve) => setTimeout(
       resolve,
-      name === 'part-000.glb' ? 0 : 500,
+      name === 'part-000.glb' ? 0 : 1500,
     ));
     await route.continue();
   });
   await page.goto('http://127.0.0.1:8104/');
 
   const progress = page.locator('[data-role="tileset-progress"]');
-  await expect(progress).toContainText(/分区 [1-3]\/4/);
+  await expect(progress).toHaveText('驻留 1 · 可见 4 · 加载中 2 · 总计 4');
   await expect(page.locator('[data-role="stage"]')).toHaveAttribute(
     'aria-busy',
     'false',
   );
-  await expect(progress).toHaveText('分区 4/4');
-  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  await expect(progress).toHaveText('驻留 4 · 可见 4 · 加载中 0 · 总计 4');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
 });
 
 test('keeps completed partitions visible when one partition fails', async ({ page }) => {
@@ -89,13 +89,56 @@ test('keeps completed partitions visible when one partition fails', async ({ pag
   await page.goto('http://127.0.0.1:8104/');
 
   await expect(page.locator('[data-role="tileset-progress"]'))
-    .toHaveText('分区 3/4');
+    .toHaveText('驻留 3 · 可见 4 · 加载中 0 · 总计 4');
   await expect(page.locator('[data-role="status"]'))
     .toHaveText('部分分区加载失败（1/4）');
   await expect(page.locator('[data-role="stage"]'))
     .toHaveAttribute('aria-busy', 'false');
   expect(await page.evaluate(() => window.__ice3M1.assetStats().meshCount))
     .toBe(3);
+});
+
+test('loads and unloads with the visible work set', async ({ page }) => {
+  await page.goto('http://127.0.0.1:8104/');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
+
+  await page.evaluate(() => window.__ice3M1.setCameraPose([0, 0, 8], [0, 0, 0]));
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.tilesetStats().resident),
+  ).toBeLessThan(4);
+  const firstResident = await page.evaluate(
+    () => window.__ice3M1.tilesetStats().resident,
+  );
+
+  await page.evaluate(() => window.__ice3M1.setCameraPose([12, 0, 8], [12, 0, 0]));
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.tilesetStats().evicted),
+  ).toBeGreaterThan(0);
+  expect(await page.evaluate(
+    () => window.__ice3M1.tilesetStats().resident,
+  )).toBeGreaterThan(0);
+  expect(firstResident).toBeLessThan(4);
+});
+
+test('clears selection when its visible partition is unloaded', async ({ page }) => {
+  await page.goto('http://127.0.0.1:8104/');
+  await page.evaluate(() => window.__ice3M1.setCameraPose([0, 0, 8], [0, 0, 0]));
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.tilesetStats().resident),
+  ).toBeGreaterThan(0);
+  const center = await page.evaluate(() => window.__ice3M1.assetCenter());
+  const stage = await page.locator('[data-role="stage"]').boundingBox();
+  if (!stage) throw new Error('Stage bounds missing');
+  await page.mouse.click(stage.x + center.x, stage.y + center.y);
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.selectedIds().length),
+  ).toBe(1);
+
+  await page.evaluate(() => window.__ice3M1.setCameraPose([12, 0, 8], [12, 0, 0]));
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.selectedIds().length),
+  ).toBe(0);
+  await expect(page.locator('[data-role="selection-info"]')).toBeHidden();
 });
 
 test('keeps a visible error state when model loading fails', async ({ page }) => {
@@ -153,7 +196,7 @@ test('fits loading and control hints within a narrow viewport', async ({ page })
   expect(layout.contentLeft).toBeGreaterThanOrEqual(0);
   expect(layout.contentRight).toBeLessThanOrEqual(layout.viewportWidth);
 
-  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   const hint = page.locator('[data-role="controls-hint"]');
   await expect(hint).toBeVisible();
   const hintBox = await hint.boundingBox();
@@ -178,7 +221,7 @@ test('loads and renders the prepared industrial asset', async ({ page }) => {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('http://127.0.0.1:8104/');
 
-  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   await expect
     .poll(() => page.evaluate(() => window.__ice3M1.scenePixelAtProjection()))
     .toEqual(expect.arrayContaining([
@@ -193,8 +236,8 @@ test('loads and renders the prepared industrial asset', async ({ page }) => {
     () => window.__ice3M1.diagnostics().backend.picking,
   )).toBe(true);
   expect(await page.evaluate(() => window.__ice3M1.assetStats())).toEqual({
-    nodeCount: 4,
-    maxNodeDepth: 0,
+    nodeCount: 8,
+    maxNodeDepth: 1,
     meshCount: 4,
     primitiveCount: 8,
     triangleCount: 48,
@@ -215,7 +258,7 @@ test('loads and renders the prepared industrial asset', async ({ page }) => {
 
 test('disposes the asset exactly once', async ({ page }) => {
   await page.goto('http://127.0.0.1:8104/');
-  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
 
   await page.getByRole('button', { name: '释放资产' }).click();
   await expect(page.locator('[data-role="status"]')).toHaveText('资产已释放');
@@ -225,7 +268,7 @@ test('disposes the asset exactly once', async ({ page }) => {
 
 test('uses a black background with material contrast', async ({ page }) => {
   await page.goto('http://127.0.0.1:8104/');
-  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   const background = await page.evaluate(() => {
     const canvas = document.querySelector<HTMLCanvasElement>(
       'canvas[data-layer="scene"]',
@@ -244,7 +287,7 @@ test('uses a black background with material contrast', async ({ page }) => {
 
 test('moves the camera with WASD and arrow keys', async ({ page }) => {
   await page.goto('http://127.0.0.1:8104/');
-  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   const before = await page.evaluate(() => window.__ice3M1.cameraPosition());
   const targetBeforeLetter = await page.evaluate(
     () => window.__ice3M1.cameraTarget(),
@@ -292,7 +335,7 @@ test('moves the camera with WASD and arrow keys', async ({ page }) => {
 
 test('selects one equipment unit with a yellow highlight and info panel', async ({ page }) => {
   await page.goto('http://127.0.0.1:8104/');
-  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   const center = await page.evaluate(() => window.__ice3M1.assetCenter());
   const stage = await page.locator('[data-role="stage"]').boundingBox();
   if (!stage) throw new Error('Stage bounds missing');
@@ -357,7 +400,7 @@ test('selects one equipment unit with a yellow highlight and info panel', async 
 
 test('clears selection on empty click and does not select while dragging', async ({ page }) => {
   await page.goto('http://127.0.0.1:8104/');
-  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   const center = await page.evaluate(() => window.__ice3M1.assetCenter());
   const stage = await page.locator('[data-role="stage"]').boundingBox();
   if (!stage) throw new Error('Stage bounds missing');
@@ -392,7 +435,7 @@ test('clears selection on empty click and does not select while dragging', async
 
 test('does not select during a two-pointer pinch gesture', async ({ page }) => {
   await page.goto('http://127.0.0.1:8104/');
-  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
 
   await page.evaluate(() => {
     const overlay = document.querySelector<HTMLCanvasElement>(
