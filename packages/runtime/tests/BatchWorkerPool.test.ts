@@ -109,6 +109,31 @@ test('does not exceed the configured worker concurrency', async () => {
   pool.dispose();
 });
 
+test('keeps concurrent material jobs for one generation bounded', async () => {
+  const workers: FakeWorker[] = [];
+  const pool = new ICEBatchWorkerPool({
+    maxWorkers: 2,
+    workerFactory: () => {
+      const worker = new FakeWorker();
+      workers.push(worker);
+      return worker;
+    },
+  });
+
+  const first = pool.run(request(4), new AbortController().signal);
+  const second = pool.run(request(4), new AbortController().signal);
+  const third = pool.run(request(4), new AbortController().signal);
+
+  expect(workers).toHaveLength(2);
+  workers[0]!.respond({ type: 'built', generation: 4, batches: [] });
+  workers[1]!.respond({ type: 'built', generation: 4, batches: [] });
+  await Promise.all([first, second]);
+  expect(workers).toHaveLength(3);
+  workers[2]!.respond({ type: 'built', generation: 4, batches: [] });
+  await third;
+  pool.dispose();
+});
+
 test('transfers every source buffer once', async () => {
   const worker = new FakeWorker();
   const pool = new ICEBatchWorkerPool({

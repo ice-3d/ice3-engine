@@ -23,6 +23,7 @@ export interface ICEBatchWorkerPoolOptions {
 }
 
 interface WorkerJob {
+  readonly id: number;
   readonly request: ICEBatchWorkerRequest;
   readonly signal: AbortSignal;
   readonly resolve: (response: ICEBatchWorkerResponse) => void;
@@ -38,6 +39,7 @@ export class ICEBatchWorkerPool {
   private readonly queue: WorkerJob[] = [];
   private readonly active = new Map<number, WorkerJob>();
   private disposed = false;
+  private nextJobId = 1;
 
   constructor(options: ICEBatchWorkerPoolOptions = {}) {
     const requested = options.maxWorkers ?? defaultConcurrency();
@@ -60,6 +62,7 @@ export class ICEBatchWorkerPool {
     if (signal.aborted) return Promise.reject(abortError());
     return new Promise((resolve, reject) => {
       const job: WorkerJob = {
+        id: this.nextJobId,
         request,
         signal,
         resolve,
@@ -67,6 +70,7 @@ export class ICEBatchWorkerPool {
         abort: () => this.cancel(job),
         settled: false,
       };
+      this.nextJobId += 1;
       signal.addEventListener('abort', job.abort, { once: true });
       this.queue.push(job);
       this.pump();
@@ -110,7 +114,7 @@ export class ICEBatchWorkerPool {
       return;
     }
     job.worker = worker;
-    this.active.set(job.request.generation, job);
+    this.active.set(job.id, job);
     const onMessage = (event: MessageEvent | ErrorEvent): void => {
       const response = (event as MessageEvent).data as
         | ICEBatchWorkerResponse
@@ -157,8 +161,8 @@ export class ICEBatchWorkerPool {
     job.settled = true;
     job.signal.removeEventListener('abort', job.abort);
     job.worker?.terminate();
-    const activeJob = this.active.get(job.request.generation);
-    if (activeJob === job) this.active.delete(job.request.generation);
+    const activeJob = this.active.get(job.id);
+    if (activeJob === job) this.active.delete(job.id);
     job.resolve(response);
     this.pump();
   }
@@ -170,8 +174,8 @@ export class ICEBatchWorkerPool {
     const queuedIndex = this.queue.indexOf(job);
     if (queuedIndex >= 0) this.queue.splice(queuedIndex, 1);
     job.worker?.terminate();
-    const activeJob = this.active.get(job.request.generation);
-    if (activeJob === job) this.active.delete(job.request.generation);
+    const activeJob = this.active.get(job.id);
+    if (activeJob === job) this.active.delete(job.id);
     job.reject(abortError());
     this.pump();
   }
