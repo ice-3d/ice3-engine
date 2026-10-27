@@ -52,10 +52,16 @@ it('keeps coarse parent coverage until focused fine content commits', async () =
   engine.trigger('AFTER_RENDER');
   await expect.poll(() => tileset.stats.lod.transitioning).toBeGreaterThan(0);
   await expect.poll(() => tileset.stats.lod.coarseResident).toBeGreaterThan(0);
+  let idleSettled = false;
+  const idle = tileset.whenIdle().then(() => {
+    idleSettled = true;
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(idleSettled).toBe(false);
   await expect.poll(() => tileset.stats.lod.fineResident)
     .toBeGreaterThan(0);
   await expect.poll(() => tileset.stats.lod.coarseResident).toBe(0);
-  await tileset.whenIdle();
+  await idle;
 
   expect(tileset.stats.lod.coarseResident).toBe(0);
   expect(tileset.stats.lod.fineResident).toBeGreaterThan(0);

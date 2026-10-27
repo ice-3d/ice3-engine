@@ -365,6 +365,19 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     return [...output.values()];
   }
 
+  private lodUnsettledIds(): string[] {
+    const targets = (this.lodSelection?.target ?? []).filter((tile) => (
+      !this.resident.has(tile.id)
+      && this.states.get(tile.id) !== 'failed'
+    ));
+    const next = this.lodNextTiles(targets);
+    if (next.length === 0) return [];
+    return [...new Set([
+      ...next.map((tile) => tile.id),
+      ...targets.map((tile) => tile.id),
+    ])];
+  }
+
   private recordLodFailure(tileId: string): void {
     const coverage = this.lodCoverageId(this.tilesById.get(tileId));
     if (coverage && !this.failedLodFallbacks.has(coverage)) {
@@ -389,6 +402,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     const pending = new Set([
       ...this.requestQueue.map((tile) => tile.id),
       ...this.commitQueue,
+      ...this.lodUnsettledIds(),
       ...[...this.states]
         .filter(([, state]) => state === 'pending' || state === 'loading')
         .map(([id]) => id),
@@ -850,6 +864,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     const unsettled = new Set([
       ...this.requestQueue.map((tile) => tile.id),
       ...this.commitQueue,
+      ...this.lodUnsettledIds(),
       ...[...this.states]
         .filter(([, state]) => state === 'pending' || state === 'loading')
         .map(([id]) => id),
