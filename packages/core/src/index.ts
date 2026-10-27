@@ -12,6 +12,7 @@ export { ICEBasicMaterial } from './material/ICEBasicMaterial.js';
 export type { ICEBasicMaterialOptions } from './material/ICEBasicMaterial.js';
 export { ICEPerspectiveCamera } from './camera/ICEPerspectiveCamera.js';
 export type { ICEPerspectiveCameraOptions } from './camera/ICEPerspectiveCamera.js';
+export { ICEFrustum } from './culling/ICEFrustum.js';
 export { ICENode } from './scene/ICENode.js';
 export type {
   ICEMatrix4Tuple,
