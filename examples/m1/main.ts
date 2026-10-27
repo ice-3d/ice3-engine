@@ -27,9 +27,13 @@ const camera = new ICEPerspectiveCamera({
   position: [3.2, 2.4, 4.5],
   target: [0, 0, 0],
 });
-const orbit = new ICEOrbitController(engine, camera).start();
 const loader = new ICEAssetLoader(engine);
 let handle: Awaited<ReturnType<ICEAssetLoader['load']>> | null = null;
+let orbit: ICEOrbitController | null = null;
+let assetCenter: readonly [number, number, number] = [0, 0, 0];
+const requestedAsset = new URLSearchParams(window.location.search).get('asset')
+  ?? 'prepared-cube.glb';
+const assetName = requestedAsset.replace(/[^a-zA-Z0-9._-]/g, '');
 
 engine.on<{ selection: readonly string[] }>('SELECTION_CHANGE', (event) => {
   const selection = event.param?.selection ?? [];
@@ -43,7 +47,7 @@ engine.on<{ target: ICEInputTarget; event: ICEInputEvent }>(
 );
 
 function scenePixelAtProjection(): readonly [number, number, number, number] {
-  const point = engine.project([0, 0, 0]);
+  const point = engine.project(assetCenter);
   const canvas = document.querySelector<HTMLCanvasElement>(
     'canvas[data-layer="scene"]',
   );
@@ -65,6 +69,8 @@ function scenePixelAtProjection(): readonly [number, number, number, number] {
 
 function disposeAsset(): void {
   if (!handle) return;
+  orbit?.dispose();
+  orbit = null;
   handle.dispose();
   handle = null;
   status.textContent = '资产已释放';
@@ -72,7 +78,30 @@ function disposeAsset(): void {
 
 async function start(): Promise<void> {
   try {
-    handle = await loader.load('/assets/prepared-cube.glb');
+    handle = await loader.load(`/assets/${assetName}`);
+    const { min, max } = handle.bounds;
+    assetCenter = [
+      (min[0] + max[0]) / 2,
+      (min[1] + max[1]) / 2,
+      (min[2] + max[2]) / 2,
+    ];
+    const radius = Math.max(
+      0.1,
+      Math.hypot(
+        max[0] - min[0],
+        max[1] - min[1],
+        max[2] - min[2],
+      ) / 2,
+    );
+    const distance = radius / Math.sin((camera.fov * Math.PI) / 360) * 1.15;
+    const directionLength = Math.hypot(1, 0.7, 1.2);
+    camera.setTarget(assetCenter);
+    camera.setPosition([
+      assetCenter[0] + distance * (1 / directionLength),
+      assetCenter[1] + distance * (0.7 / directionLength),
+      assetCenter[2] + distance * (1.2 / directionLength),
+    ]);
+    orbit = new ICEOrbitController(engine, camera).start();
     engine.setScene(handle.scene).setCamera(camera).start();
     status.textContent = '资产已加载';
   } catch (error) {
@@ -87,6 +116,7 @@ disposeButton.addEventListener('click', disposeAsset);
 window.__ice3M1 = {
   diagnostics: (): Readonly<ICEEngineDiagnostics> => engine.getDiagnostics(),
   projection: (): ICEProjectedPoint => engine.project([0, 0, 0]),
+  assetCenter: () => engine.project(assetCenter),
   scenePixelAtProjection,
   selectedIds: () => engine.getSelection(),
   disposeAsset,

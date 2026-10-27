@@ -22,7 +22,7 @@ test('loads and renders the prepared industrial asset', async ({ page }) => {
     triangleCount: 12,
   });
 
-  const center = await page.evaluate(() => window.__ice3M1.projection());
+  const center = await page.evaluate(() => window.__ice3M1.assetCenter());
   const stage = await page.locator('[data-role="stage"]').boundingBox();
   if (!stage) throw new Error('Stage bounds missing');
   await page.mouse.click(stage.x + center.x, stage.y + center.y);

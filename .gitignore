@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-example/
 dist-example-m1/
+examples/m1/assets/*.local.glb
 coverage/
 .superpowers/
 .worktrees/

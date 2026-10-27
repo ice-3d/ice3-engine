@@ -9,6 +9,7 @@ declare global {
     __ice3M1: {
       diagnostics(): Readonly<ICEEngineDiagnostics>;
       projection(): ICEProjectedPoint;
+      assetCenter(): ICEProjectedPoint;
       scenePixelAtProjection(): readonly [number, number, number, number];
       selectedIds(): readonly string[];
       disposeAsset(): void;
