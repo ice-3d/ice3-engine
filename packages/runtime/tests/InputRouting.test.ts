@@ -1,6 +1,7 @@
 import { expect, it } from 'node-test';
 import {
   ICEInputRouter,
+  type ICEInputEvent,
   type ICEInputTarget,
 } from '../src/index';
 
@@ -54,4 +55,24 @@ it('releases capture after pointer cancellation', () => {
   router.pointerCancel(2);
   secondMoveUsedLayer = true;
   expect(router.pointerMove({ x: 20, y: 20 }, 2)?.kind).toBe('scene');
+});
+
+it('preserves the wheel delta unit while routing', () => {
+  let received: ICEInputEvent | undefined;
+  const router = new ICEInputRouter({
+    hitTestLayer: () => undefined,
+    pickScene: () => ({ kind: 'scene' }),
+    dispatch: (_target, event) => {
+      received = event;
+    },
+  });
+
+  router.wheel(3, { x: 10, y: 10 }, 1);
+
+  expect(received).toEqual({
+    type: 'wheel',
+    point: { x: 10, y: 10 },
+    deltaY: 3,
+    deltaMode: 1,
+  });
 });

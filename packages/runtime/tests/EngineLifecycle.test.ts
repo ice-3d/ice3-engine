@@ -94,3 +94,50 @@ it('removes generated canvases when backend initialization fails', () => {
   expect(host.children).toHaveLength(0);
   expect(engine.getDiagnostics().canvas).toEqual({ width: 0, height: 0 });
 });
+
+it('waits for context restoration before rendering', () => {
+  const backend = new FakeRendererBackend();
+  let loseContext: (() => void) | undefined;
+  let restoreContext: (() => void) | undefined;
+  backend.initialize = (options) => {
+    loseContext = options.onContextLost;
+    restoreContext = options.onContextRestored;
+  };
+  const callbacks: FrameRequestCallback[] = [];
+  const scheduler: ICERenderScheduler = {
+    request: (callback) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    },
+    cancelAll: () => {
+      callbacks.length = 0;
+    },
+    flushForTest: () => {
+      const pending = callbacks.shift();
+      pending?.(0);
+      return pending !== undefined;
+    },
+    pendingCount: () => callbacks.length,
+  };
+  const engine = new ICE3({ backend, scheduler }).init(createHost());
+  engine.setScene(new ICEScene({ id: 'scene' })).setCamera(
+    new ICEPerspectiveCamera({
+      id: 'camera',
+      fov: 45,
+      near: 0.1,
+      far: 100,
+      position: [0, 0, 5],
+      target: [0, 0, 0],
+    }),
+  );
+  engine.start();
+
+  loseContext?.();
+  scheduler.flushForTest();
+  expect(backend.frames).toHaveLength(0);
+
+  restoreContext?.();
+  scheduler.flushForTest();
+  expect(backend.frames).toHaveLength(1);
+  engine.destroy();
+});

@@ -97,6 +97,7 @@ export class ICE3 extends ICEEventDispatcher {
   private lastFrameAt = 0;
   private fps = 0;
   private cpuFrameTimeMs = 0;
+  private contextLost = false;
   private contextLossCount = 0;
   private lastDiagnostic: ICEDiagnostic | undefined;
   private readonly removeInputListeners: Array<() => void> = [];
@@ -140,6 +141,9 @@ export class ICE3 extends ICEEventDispatcher {
       this.backend.initialize({
         canvas,
         onContextLost: () => {
+          this.contextLost = true;
+          this.scheduler.cancelAll();
+          this.renderPending = false;
           this.contextLossCount += 1;
           this.recordDiagnostic(
             'ICE3_CONTEXT_LOST',
@@ -149,6 +153,7 @@ export class ICE3 extends ICEEventDispatcher {
           this.trigger('CONTEXT_LOST');
         },
         onContextRestored: () => {
+          this.contextLost = false;
           this.recordDiagnostic(
             'ICE3_CONTEXT_RESTORED',
             'The GPU context was restored',
@@ -242,7 +247,7 @@ export class ICE3 extends ICEEventDispatcher {
 
   requestRender(_reason = 'requested'): this {
     this.assertActive();
-    if (this.state !== 'running') {
+    if (this.state !== 'running' || this.contextLost) {
       return this;
     }
     if (!this.scene || !this.camera) {
@@ -407,7 +412,12 @@ export class ICE3 extends ICEEventDispatcher {
   }
 
   private renderFrame(): void {
-    if (this.state !== 'running' || !this.scene || !this.camera) {
+    if (
+      this.state !== 'running'
+      || this.contextLost
+      || !this.scene
+      || !this.camera
+    ) {
       return;
     }
     const startedAt = performance.now();
@@ -494,7 +504,7 @@ export class ICE3 extends ICEEventDispatcher {
     });
     listen('wheel', (event) => {
       event.preventDefault();
-      this.inputRouter.wheel(event.deltaY, pointOf(event));
+      this.inputRouter.wheel(event.deltaY, pointOf(event), event.deltaMode);
     });
   }
 

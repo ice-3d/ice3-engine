@@ -41,12 +41,50 @@ test('2D controls shield 3D and transparent areas pass through', async ({ page }
   await expect(page.locator('[data-role="status"]')).toHaveText('已选中 demo-block');
 });
 
+test('mouse drag and wheel animate the camera smoothly', async ({ page }) => {
+  await page.goto('/');
+  const center = await page.evaluate(() => window.__ice3M0.projection());
+  const stage = await page.locator('[data-role="stage"]').boundingBox();
+  if (!stage) throw new Error('Stage bounds missing');
+  const beforeDrag = await page.evaluate(
+    () => window.__ice3M0.diagnostics().frameId,
+  );
+
+  await page.mouse.move(stage.x + center.x, stage.y + center.y);
+  await page.mouse.down();
+  await page.mouse.move(
+    stage.x + center.x + 160,
+    stage.y + center.y + 48,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await expect(page.locator('[data-role="status"]')).toHaveText(
+    '已选中 demo-block',
+  );
+  await expect
+    .poll(() => page.evaluate(() => window.__ice3M0.diagnostics().frameId))
+    .toBeGreaterThan(beforeDrag + 4);
+
+  await page.waitForTimeout(400);
+  const beforeWheel = await page.evaluate(
+    () => window.__ice3M0.diagnostics().frameId,
+  );
+  await page.mouse.wheel(0, 600);
+  await expect
+    .poll(() => page.evaluate(() => window.__ice3M0.diagnostics().frameId))
+    .toBeGreaterThan(beforeWheel + 4);
+});
+
 test('world label remains aligned after viewport and DPR changes', async ({ page }) => {
   await page.goto('/');
   await page.setViewportSize({ width: 1100, height: 700 });
-  const result = await page.evaluate(() => window.__ice3M0.measureWorldLabelOffset());
-  expect(Math.abs(result.screenX - result.labelX)).toBeLessThanOrEqual(1);
-  expect(Math.abs(result.screenY - result.labelY)).toBeLessThanOrEqual(1);
+  await expect.poll(() => page.evaluate(() => {
+    const result = window.__ice3M0.measureWorldLabelOffset();
+    return Math.max(
+      Math.abs(result.screenX - result.labelX),
+      Math.abs(result.screenY - result.labelY),
+    );
+  })).toBeLessThanOrEqual(1);
 });
 
 test('recovers after context loss', async ({ page }) => {
@@ -64,7 +102,9 @@ test('recovers after context loss', async ({ page }) => {
   await expect
     .poll(() => page.evaluate(() => window.__ice3M0.diagnostics().frameId))
     .toBeGreaterThan(before);
-  const pixel = await page.evaluate(() => window.__ice3M0.scenePixelAtProjection());
-  expect(pixel[2]).toBeGreaterThan(pixel[0]);
+  await expect.poll(() => page.evaluate(() => {
+    const pixel = window.__ice3M0.scenePixelAtProjection();
+    return pixel[2] - pixel[0];
+  })).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });

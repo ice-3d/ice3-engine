@@ -11,11 +11,21 @@ type DispatchEvent = ICEEvent<{
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
 
+const MOTION_TIME_CONSTANT_MS = 55;
+const MAX_FRAME_DELTA_MS = 64;
+const SETTLE_EPSILON = 1e-5;
+const WHEEL_LINE_HEIGHT_PX = 16;
+const MAX_WHEEL_STEP_PX = 240;
+
 export class ICEOrbitController {
   private readonly target: readonly [number, number, number];
   private yaw: number;
   private pitch: number;
   private distance: number;
+  private targetYaw: number;
+  private targetPitch: number;
+  private targetDistance: number;
+  private lastMotionAt = performance.now();
   private draggingPointer: number | null = null;
   private lastPoint: readonly [number, number] = [0, 0];
   private readonly activePointers = new Map<
@@ -30,7 +40,7 @@ export class ICEOrbitController {
     if (!input || input.pointerId === undefined) {
       return;
     }
-    if (target?.kind === 'scene' && !target.nodeId) {
+    if (target?.kind === 'scene') {
       this.activePointers.set(input.pointerId, { ...input.point });
       if (this.activePointers.size === 1) {
         this.draggingPointer = input.pointerId;
@@ -89,7 +99,43 @@ export class ICEOrbitController {
   private readonly onWheel = (event: DispatchEvent): void => {
     const param = event.param;
     if (param?.target.kind === 'scene' && param.event.deltaY !== undefined) {
-      this.zoomBy(param.event.deltaY);
+      const deltaMode = param.event.deltaMode ?? 0;
+      const scale = deltaMode === 1
+        ? WHEEL_LINE_HEIGHT_PX
+        : deltaMode === 2
+          ? this.engine.getDiagnostics().viewport.height
+          : 1;
+      this.zoomBy(
+        clamp(
+          param.event.deltaY * Math.max(1, scale),
+          -MAX_WHEEL_STEP_PX,
+          MAX_WHEEL_STEP_PX,
+        ),
+      );
+    }
+  };
+  private readonly onBeforeRender = (): void => {
+    if (this.motionSettled()) {
+      return;
+    }
+    const now = performance.now();
+    const deltaMs = clamp(now - this.lastMotionAt, 0, MAX_FRAME_DELTA_MS);
+    this.lastMotionAt = now;
+    const alpha = 1 - Math.exp(-deltaMs / MOTION_TIME_CONSTANT_MS);
+    this.yaw += (this.targetYaw - this.yaw) * alpha;
+    this.pitch += (this.targetPitch - this.pitch) * alpha;
+    this.distance = Math.exp(
+      Math.log(this.distance)
+        + (Math.log(this.targetDistance) - Math.log(this.distance)) * alpha,
+    );
+    if (this.motionSettled()) {
+      this.yaw = this.targetYaw;
+      this.pitch = this.targetPitch;
+      this.distance = this.targetDistance;
+    }
+    this.applyPosition();
+    if (!this.motionSettled()) {
+      this.engine.requestRender('orbit-smoothing');
     }
   };
 
@@ -106,20 +152,33 @@ export class ICEOrbitController {
     this.distance = Math.max(0.2, Math.hypot(offsetX, offsetY, offsetZ));
     this.yaw = Math.atan2(offsetX, offsetZ);
     this.pitch = Math.asin(clamp(offsetY / this.distance, -1, 1));
+    this.targetYaw = this.yaw;
+    this.targetPitch = this.pitch;
+    this.targetDistance = this.distance;
   }
 
   rotateBy(deltaX: number, deltaY: number): this {
     this.assertActive();
-    this.yaw -= deltaX * 0.005;
-    this.pitch = clamp(this.pitch + deltaY * 0.005, -1.45, 1.45);
-    this.applyPosition();
+    this.prepareMotion();
+    this.targetYaw -= deltaX * 0.005;
+    this.targetPitch = clamp(
+      this.targetPitch + deltaY * 0.005,
+      -1.45,
+      1.45,
+    );
+    this.engine.requestRender('camera-rotation');
     return this;
   }
 
   zoomBy(delta: number): this {
     this.assertActive();
-    this.distance = clamp(this.distance * Math.exp(delta * 0.001), 0.2, 100);
-    this.applyPosition();
+    this.prepareMotion();
+    this.targetDistance = clamp(
+      this.targetDistance * Math.exp(delta * 0.001),
+      0.2,
+      100,
+    );
+    this.engine.requestRender('camera-zoom');
     return this;
   }
 
@@ -133,7 +192,8 @@ export class ICEOrbitController {
       .on('POINTER_MOVE', this.onPointerMove)
       .on('POINTER_UP', this.onPointerUp)
       .on('POINTER_CANCEL', this.onPointerUp)
-      .on('WHEEL', this.onWheel);
+      .on('WHEEL', this.onWheel)
+      .on('BEFORE_RENDER', this.onBeforeRender);
     this.started = true;
     return this;
   }
@@ -147,7 +207,8 @@ export class ICEOrbitController {
       .off('POINTER_MOVE', this.onPointerMove)
       .off('POINTER_UP', this.onPointerUp)
       .off('POINTER_CANCEL', this.onPointerUp)
-      .off('WHEEL', this.onWheel);
+      .off('WHEEL', this.onWheel)
+      .off('BEFORE_RENDER', this.onBeforeRender);
     this.started = false;
     this.draggingPointer = null;
     this.activePointers.clear();
@@ -168,7 +229,21 @@ export class ICEOrbitController {
       targetY + Math.sin(this.pitch) * this.distance,
       targetZ + Math.cos(this.yaw) * horizontal,
     ]);
-    this.engine.requestRender('camera-control');
+  }
+
+  private prepareMotion(): void {
+    if (this.motionSettled()) {
+      this.lastMotionAt = performance.now();
+    }
+  }
+
+  private motionSettled(): boolean {
+    return (
+      Math.abs(this.targetYaw - this.yaw) <= SETTLE_EPSILON
+      && Math.abs(this.targetPitch - this.pitch) <= SETTLE_EPSILON
+      && Math.abs(Math.log(this.targetDistance / this.distance))
+        <= SETTLE_EPSILON
+    );
   }
 
   private assertActive(): void {

@@ -7,6 +7,7 @@ export type ICEInputEvent = {
   readonly point: Readonly<{ x: number; y: number }>;
   readonly pointerId?: number;
   readonly deltaY?: number;
+  readonly deltaMode?: number;
 };
 
 export interface ICEInputRouterOptions {
@@ -86,6 +87,7 @@ export class ICEInputRouter {
   wheel(
     deltaY: number,
     point: { x: number; y: number },
+    deltaMode = 0,
   ): ICEInputTarget | undefined {
     const target = this.route(point);
     if (target) {
@@ -93,6 +95,7 @@ export class ICEInputRouter {
         type: 'wheel',
         point: { ...point },
         deltaY,
+        deltaMode,
       });
     }
     return target;
