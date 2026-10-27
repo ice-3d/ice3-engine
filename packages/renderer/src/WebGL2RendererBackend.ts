@@ -500,8 +500,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     gl.bindVertexArray(null);
     this.geometryCache.endFrame();
     this.instanceCache!.endFrame();
-    this.frameStats.instancingFallbacks =
-      this.instanceCache!.fallbackCount > 0 ? 1 : 0;
+    this.frameStats.instancingFallbacks = this.instanceCache!.fallbackCount;
     this.frameStats.gpuBytes = this.geometryCache.totalBytes
       + this.instanceCache!.totalBytes;
   }

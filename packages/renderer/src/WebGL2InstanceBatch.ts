@@ -27,7 +27,7 @@ export interface WebGL2InstanceEntry {
   readonly edgeIndexBuffer: WebGLBuffer | null;
   readonly triangleCount: number;
   readonly edgeCount: number;
-  readonly instanceCount: number;
+  instanceCount: number;
   readonly bytes: number;
 }
 
@@ -60,6 +60,7 @@ export class WebGL2InstanceCache {
         gl.DYNAMIC_DRAW,
       );
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
+      existing.instanceCount = batch.semanticIds.length;
       return existing;
     }
 
