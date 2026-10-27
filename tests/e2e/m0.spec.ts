@@ -23,6 +23,44 @@ test('renders the scene and keeps layer interaction separate', async ({ page }) 
   expect(errors).toEqual([]);
 });
 
+test('renders the example with a uniform flat base color', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('[data-role="status"]')).toHaveText('运行');
+  const samples = await page.evaluate(() => {
+    const point = window.__ice3M0.projection();
+    const canvas = document.querySelector<HTMLCanvasElement>(
+      'canvas[data-layer="scene"]',
+    );
+    const gl = canvas?.getContext('webgl2');
+    if (!canvas || !gl) throw new Error('WebGL2 canvas missing');
+    const read = (deltaX: number, deltaY: number): number[] => {
+      const pixel = new Uint8Array(4);
+      const dpr = window.__ice3M0.diagnostics().dpr;
+      gl.readPixels(
+        Math.round((point.x + deltaX) * dpr),
+        Math.round((canvas.clientHeight - point.y - deltaY) * dpr),
+        1,
+        1,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        pixel,
+      );
+      return [...pixel];
+    };
+    return [
+      read(0, 0),
+      read(-60, 0),
+      read(60, 0),
+      read(0, -60),
+      read(0, 60),
+    ];
+  });
+
+  for (const sample of samples) {
+    expect(sample).toEqual(samples[0]);
+  }
+});
+
 test('2D controls shield 3D and transparent areas pass through', async ({ page }) => {
   await page.goto('/');
   const center = await page.evaluate(() => window.__ice3M0.projection());

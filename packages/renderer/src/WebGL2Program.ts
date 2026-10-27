@@ -16,12 +16,9 @@ void main() {
 const FRAGMENT_SOURCE = `
 precision mediump float;
 uniform vec4 u_color;
-varying vec3 v_normal;
 
 void main() {
-  vec3 normal = normalize(v_normal);
-  float light = 0.35 + max(dot(normal, normalize(vec3(0.4, 0.8, 0.6))), 0.0) * 0.65;
-  gl_FragColor = vec4(u_color.rgb * light, u_color.a);
+  gl_FragColor = u_color;
 }
 `;
 
