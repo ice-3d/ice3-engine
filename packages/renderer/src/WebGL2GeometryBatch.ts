@@ -31,3 +31,5 @@ export function collectRenderables(
   visit(scene, true, output);
   return output;
 }
+
+export const selectionIdentity = (mesh: ICEMesh): string => mesh.selectionId;

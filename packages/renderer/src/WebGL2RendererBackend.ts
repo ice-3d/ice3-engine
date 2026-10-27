@@ -1,5 +1,8 @@
 import { ICEEngineError, ICEMatrix4 } from '@ice3/core';
-import { collectRenderables } from './WebGL2GeometryBatch.js';
+import {
+  collectRenderables,
+  selectionIdentity,
+} from './WebGL2GeometryBatch.js';
 import { WebGL2GeometryCache } from './WebGL2GeometryCache.js';
 import { WebGL2Picker } from './WebGL2Picker.js';
 import { WebGL2Program } from './WebGL2Program.js';
@@ -162,7 +165,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     const world = new ICEMatrix4();
     const clipPixelX = 2 / Math.max(1, frame.viewport.width * frame.dpr);
     const clipPixelY = 2 / Math.max(1, frame.viewport.height * frame.dpr);
-    for (const renderable of collectRenderables(frame.scene)) {
+    const renderables = collectRenderables(frame.scene);
+    for (const renderable of renderables) {
       this.program.setClipOffset(0, 0);
       mvp.elements.set(viewProjection.elements);
       world.elements.set(renderable.worldMatrix);
@@ -205,6 +209,59 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         }
       }
       this.frameStats.renderedMeshes += 1;
+    }
+    if (frame.selection.length > 0) {
+      const selected = new Set(frame.selection);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.depthMask(false);
+      this.program.setVertexColors(false);
+      this.program.setColor([99 / 255, 215 / 255, 1, 0.16]);
+      for (const renderable of renderables) {
+        if (!selected.has(selectionIdentity(renderable.mesh))) continue;
+        mvp.elements.set(viewProjection.elements);
+        world.elements.set(renderable.worldMatrix);
+        mvp.multiply(world);
+        this.program.setMatrix(mvp);
+        this.program.setClipOffset(0, 0);
+        const geometry = this.geometryCache.retain(gl, renderable.mesh.geometry);
+        gl.bindVertexArray(geometry.vertexArray);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
+        gl.drawElements(
+          gl.TRIANGLES,
+          geometry.triangleCount,
+          renderable.mesh.geometry.indices instanceof Uint16Array
+            ? gl.UNSIGNED_SHORT
+            : gl.UNSIGNED_INT,
+          0,
+        );
+      }
+      this.program.setColor([99 / 255, 215 / 255, 1, 1]);
+      for (const renderable of renderables) {
+        if (!selected.has(selectionIdentity(renderable.mesh))) continue;
+        const geometry = this.geometryCache.retain(gl, renderable.mesh.geometry);
+        if (!geometry.edgeIndexBuffer || !renderable.mesh.geometry.edgeIndices) {
+          continue;
+        }
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.edgeIndexBuffer);
+        for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
+          this.program.setClipOffset(
+            offsetX * clipPixelX,
+            offsetY * clipPixelY,
+          );
+          gl.drawElements(
+            gl.LINES,
+            geometry.edgeCount,
+            renderable.mesh.geometry.edgeIndices instanceof Uint16Array
+              ? gl.UNSIGNED_SHORT
+              : gl.UNSIGNED_INT,
+            0,
+          );
+        }
+      }
+      gl.depthMask(true);
+      gl.disable(gl.BLEND);
+      this.program.setClipOffset(0, 0);
     }
     gl.bindVertexArray(null);
     this.geometryCache.endFrame();
