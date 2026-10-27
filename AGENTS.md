@@ -14,6 +14,7 @@
 - Every behavioral change starts with a failing test and ends with the full suite green.
 - Add no runtime dependency without an explicit design ruling.
 - Keep M0 scope free of unrelated rendering or industrial features.
+- Use the Node version from `.nvmrc`; current M0 verification runs on Node 24 LTS.
 
 ## Naming and legal boundary
 

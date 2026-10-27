@@ -32,10 +32,11 @@ Consumers import only from `ice3`. Internal package paths are private.
 
 Requirements:
 
-- Node.js 24 or newer
+- Node.js 24 LTS or 26+
 - npm 11 or newer
 
 ```bash
+nvm use
 npm install
 npm run dev:example
 ```
@@ -53,7 +54,7 @@ npm run test:e2e
 npm run verify
 ```
 
-The browser matrix covers current Chromium, Firefox, and WebKit. The example server always uses port `8103`, and Playwright does not reuse an existing server.
+The browser matrix covers current Chromium and WebKit. The example server always uses port `8103`, and Playwright does not reuse an existing server.
 
 ## M0 boundaries
 
