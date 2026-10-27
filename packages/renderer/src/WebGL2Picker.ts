@@ -1,6 +1,10 @@
 import { ICEEngineError, ICEMatrix4 } from '@ice3/core';
 import type { ICEGeometryRenderable } from './WebGL2GeometryBatch.js';
 import type { WebGL2GeometryCache } from './WebGL2GeometryCache.js';
+import type {
+  ICEInstanceBatch,
+  WebGL2InstanceCache,
+} from './WebGL2InstanceBatch.js';
 import {
   decodeSelectionIndex,
   encodeSelectionIndex,
@@ -33,6 +37,8 @@ export class WebGL2Picker {
     cache: WebGL2GeometryCache,
     renderables: readonly ICEGeometryRenderable[],
     batches: readonly ICERenderBatchDraw[] = [],
+    instances: readonly ICEInstanceBatch[] = [],
+    instanceCache: WebGL2InstanceCache | null = null,
   ): string | undefined {
     const pickIds = new Map<number, string>();
     const selectionIds = new Map<string, number>();
@@ -64,11 +70,21 @@ export class WebGL2Picker {
     gl.disable(gl.BLEND);
     this.program.use();
     this.program.setClipOffset(0, 0);
+    this.program.setInstancing(false);
     const aspect = frame.viewport.width / Math.max(frame.viewport.height, 1);
     const viewProjection = frame.camera.getViewProjectionMatrix(aspect);
     const mvp = new ICEMatrix4();
     const world = new ICEMatrix4();
+    const instancedMeshIds = new Set<string>();
+    if (instanceCache) {
+      for (const batch of instances) {
+        if (instanceCache.retain(gl, cache, batch)) {
+          for (const id of batch.meshIds) instancedMeshIds.add(id);
+        }
+      }
+    }
     for (const renderable of renderables) {
+      if (instancedMeshIds.has(renderable.id)) continue;
       const selectionIndex = selectionIds.get(renderable.mesh.selectionId)!;
       const color = encodeSelectionIndex(selectionIndex);
       this.program.setColor([
@@ -96,6 +112,38 @@ export class WebGL2Picker {
     }
     this.semanticProgram.use();
     let nextPickId = selectionIds.size + 1;
+    if (instanceCache) {
+      this.semanticProgram.setInstancing(true);
+      mvp.elements.set(viewProjection.elements);
+      this.semanticProgram.setMatrix(mvp);
+      for (const batch of instances) {
+        const instance = instanceCache.retain(gl, cache, batch);
+        if (!instance) continue;
+        const base = nextPickId - 1;
+        for (const id of batch.semanticIds) {
+          if (nextPickId > 0xffffff) {
+            throw new ICEEngineError(
+              'ICE3_PICK_CAPACITY',
+              'ICE3_PICK_CAPACITY: too many selectable instances',
+            );
+          }
+          pickIds.set(nextPickId, id);
+          nextPickId += 1;
+        }
+        this.semanticProgram.setPick(base);
+        gl.bindVertexArray(instance.vertexArray);
+        gl.drawElementsInstanced(
+          gl.TRIANGLES,
+          instance.triangleCount,
+          batch.geometry.indices instanceof Uint16Array
+            ? gl.UNSIGNED_SHORT
+            : gl.UNSIGNED_INT,
+          0,
+          instance.instanceCount,
+        );
+      }
+    }
+    this.semanticProgram.setInstancing(false);
     for (const draw of batches) {
       const base = nextPickId - 1;
       for (const id of draw.batch.semanticSelectionIds) {

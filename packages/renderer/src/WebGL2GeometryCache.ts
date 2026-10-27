@@ -1,7 +1,7 @@
 import type { ICEGeometry } from '@ice3/core';
 import { WebGL2Program } from './WebGL2Program.js';
 
-interface GeometryEntry {
+export interface GeometryEntry {
   readonly vertexArray: WebGLVertexArrayObject;
   readonly positionBuffer: WebGLBuffer;
   readonly triangleIndexBuffer: WebGLBuffer;

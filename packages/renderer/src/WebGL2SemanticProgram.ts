@@ -4,12 +4,31 @@ import type { ICEMatrix4 } from '@ice3/core';
 const VERTEX_SOURCE = `#version 300 es
 layout(location = 0) in vec3 a_position;
 layout(location = 2) in float a_semantic;
+layout(location = 3) in vec4 a_instanceColumn0;
+layout(location = 4) in vec4 a_instanceColumn1;
+layout(location = 5) in vec4 a_instanceColumn2;
+layout(location = 6) in vec4 a_instanceColumn3;
+layout(location = 7) in float a_instanceSemantic;
 uniform mat4 u_worldViewProjection;
+uniform float u_useInstancing;
 flat out int v_semantic;
 
 void main() {
-  gl_Position = u_worldViewProjection * vec4(a_position, 1.0);
-  v_semantic = int(a_semantic + 0.5);
+  mat4 instanceMatrix = mat4(
+    a_instanceColumn0,
+    a_instanceColumn1,
+    a_instanceColumn2,
+    a_instanceColumn3
+  );
+  vec4 localPosition = vec4(a_position, 1.0);
+  vec4 position = mix(
+    localPosition,
+    instanceMatrix * localPosition,
+    u_useInstancing
+  );
+  gl_Position = u_worldViewProjection * position;
+  float semantic = mix(a_semantic, a_instanceSemantic, u_useInstancing);
+  v_semantic = int(semantic + 0.5);
 }
 `;
 
@@ -45,6 +64,7 @@ export class WebGL2SemanticProgram {
   private readonly pickBaseLocation: WebGLUniformLocation;
   private readonly highlightLocation: WebGLUniformLocation;
   private readonly colorLocation: WebGLUniformLocation;
+  private readonly instancingLocation: WebGLUniformLocation;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     const program = this.createProgram(VERTEX_SOURCE, FRAGMENT_SOURCE);
@@ -53,12 +73,14 @@ export class WebGL2SemanticProgram {
     const pickBaseLocation = gl.getUniformLocation(program, 'u_pickBase');
     const highlightLocation = gl.getUniformLocation(program, 'u_highlightSemantic');
     const colorLocation = gl.getUniformLocation(program, 'u_color');
+    const instancingLocation = gl.getUniformLocation(program, 'u_useInstancing');
     if (
       !matrixLocation
       || !pickModeLocation
       || !pickBaseLocation
       || !highlightLocation
       || !colorLocation
+      || !instancingLocation
     ) {
       gl.deleteProgram(program);
       throw new ICEEngineError(
@@ -72,6 +94,7 @@ export class WebGL2SemanticProgram {
     this.pickBaseLocation = pickBaseLocation;
     this.highlightLocation = highlightLocation;
     this.colorLocation = colorLocation;
+    this.instancingLocation = instancingLocation;
   }
 
   use(): void {
@@ -91,6 +114,10 @@ export class WebGL2SemanticProgram {
     this.gl.uniform1f(this.pickModeLocation, 0);
     this.gl.uniform1f(this.highlightLocation, semanticIndex);
     this.gl.uniform4f(this.colorLocation, 1, 208 / 255, 0, 0.72);
+  }
+
+  setInstancing(enabled: boolean): void {
+    this.gl.uniform1f(this.instancingLocation, enabled ? 1 : 0);
   }
 
   dispose(): void {

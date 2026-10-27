@@ -169,6 +169,7 @@ it('reports renderer metrics alongside engine frame metrics', () => {
         drawCalls: 3,
         renderedMeshes: 1,
         renderedBatches: 0,
+        instancingFallbacks: 0,
         gpuBytes: 2048,
       },
     }),
@@ -178,6 +179,7 @@ it('reports renderer metrics alongside engine frame metrics', () => {
     drawCalls: 3,
     renderedMeshes: 1,
     renderedBatches: 0,
+    instancingFallbacks: 0,
     gpuBytes: 2048,
   });
 });
