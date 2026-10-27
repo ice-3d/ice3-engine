@@ -13,12 +13,6 @@ declare global {
         height: number;
       }>;
       getSelection(): readonly string[];
-      measureWorldLabelOffset(): {
-        screenX: number;
-        screenY: number;
-        labelX: number;
-        labelY: number;
-      };
       loseContext(): void;
       restoreContext(): void;
     };

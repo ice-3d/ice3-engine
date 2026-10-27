@@ -61,6 +61,43 @@ test('renders the example with a uniform flat base color', async ({ page }) => {
   }
 });
 
+test('keeps the example scene free of the probe label', async ({ page }) => {
+  await page.goto('/');
+  const labelIds = await page.evaluate(
+    () => window.__ice3M0.diagnostics().labels.map((label) => label.id),
+  );
+
+  expect(labelIds).toEqual(['hud-status']);
+});
+
+test('renders high-contrast geometry edges', async ({ page }) => {
+  await page.goto('/');
+  const edgePixelCount = await page.evaluate(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>(
+      'canvas[data-layer="scene"]',
+    );
+    const gl = canvas?.getContext('webgl2');
+    if (!canvas || !gl) throw new Error('WebGL2 canvas missing');
+    const width = gl.drawingBufferWidth;
+    const height = gl.drawingBufferHeight;
+    const pixels = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    let count = 0;
+    for (let offset = 0; offset < pixels.length; offset += 4) {
+      if (
+        pixels[offset]! > 200
+        && pixels[offset + 1]! > 220
+        && pixels[offset + 2]! > 240
+      ) {
+        count += 1;
+      }
+    }
+    return count;
+  });
+
+  expect(edgePixelCount).toBeGreaterThan(100);
+});
+
 test('2D controls shield 3D and transparent areas pass through', async ({ page }) => {
   await page.goto('/');
   const center = await page.evaluate(() => window.__ice3M0.projection());
@@ -111,18 +148,6 @@ test('mouse drag and wheel animate the camera smoothly', async ({ page }) => {
   await expect
     .poll(() => page.evaluate(() => window.__ice3M0.diagnostics().frameId))
     .toBeGreaterThan(beforeWheel + 4);
-});
-
-test('world label remains aligned after viewport and DPR changes', async ({ page }) => {
-  await page.goto('/');
-  await page.setViewportSize({ width: 1100, height: 700 });
-  await expect.poll(() => page.evaluate(() => {
-    const result = window.__ice3M0.measureWorldLabelOffset();
-    return Math.max(
-      Math.abs(result.screenX - result.labelX),
-      Math.abs(result.screenY - result.labelY),
-    );
-  })).toBeLessThanOrEqual(1);
 });
 
 test('recovers after context loss', async ({ page }) => {

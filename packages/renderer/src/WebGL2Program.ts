@@ -5,10 +5,12 @@ const VERTEX_SOURCE = `
 attribute vec3 a_position;
 attribute vec3 a_normal;
 uniform mat4 u_worldViewProjection;
+uniform vec2 u_clipOffset;
 varying vec3 v_normal;
 
 void main() {
   gl_Position = u_worldViewProjection * vec4(a_position, 1.0);
+  gl_Position.xy += u_clipOffset * gl_Position.w;
   v_normal = a_normal;
 }
 `;
@@ -26,6 +28,7 @@ export class WebGL2Program {
   readonly program: WebGLProgram;
   private readonly matrixLocation: WebGLUniformLocation;
   private readonly colorLocation: WebGLUniformLocation;
+  private readonly clipOffsetLocation: WebGLUniformLocation;
 
   constructor(
     private readonly gl: WebGL2RenderingContext,
@@ -35,7 +38,8 @@ export class WebGL2Program {
     const program = this.createProgram(VERTEX_SOURCE, FRAGMENT_SOURCE);
     const matrixLocation = gl.getUniformLocation(program, 'u_worldViewProjection');
     const colorLocation = gl.getUniformLocation(program, 'u_color');
-    if (!matrixLocation || !colorLocation) {
+    const clipOffsetLocation = gl.getUniformLocation(program, 'u_clipOffset');
+    if (!matrixLocation || !colorLocation || !clipOffsetLocation) {
       gl.deleteProgram(program);
       throw new ICEEngineError(
         'ICE3_SHADER_LINK_FAILED',
@@ -45,6 +49,7 @@ export class WebGL2Program {
     this.program = program;
     this.matrixLocation = matrixLocation;
     this.colorLocation = colorLocation;
+    this.clipOffsetLocation = clipOffsetLocation;
   }
 
   use(): void {
@@ -57,6 +62,10 @@ export class WebGL2Program {
 
   setColor(color: readonly [number, number, number, number]): void {
     this.gl.uniform4f(this.colorLocation, ...color);
+  }
+
+  setClipOffset(x: number, y: number): void {
+    this.gl.uniform2f(this.clipOffsetLocation, x, y);
   }
 
   dispose(): void {

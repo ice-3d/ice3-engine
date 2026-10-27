@@ -61,6 +61,12 @@ export const BOX_INDICES = new Uint16Array([
   4, 5, 1, 4, 1, 0,
 ]);
 
+export const BOX_EDGE_INDICES = new Uint16Array([
+  0, 1, 1, 2, 2, 3, 3, 0,
+  4, 5, 5, 6, 6, 7, 7, 4,
+  0, 4, 1, 5, 2, 6, 3, 7,
+]);
+
 export function colorToRgba(color: string): [number, number, number, number] {
   const normalized = color.startsWith('#') ? color.slice(1) : color;
   const expanded = normalized.length === 3

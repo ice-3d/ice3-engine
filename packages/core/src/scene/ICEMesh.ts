@@ -46,7 +46,12 @@ export class ICEMesh extends ICENode {
         height: Number(geometry.height),
         depth: Number(geometry.depth),
       }),
-      material: new BasicMaterial({ color: String(material.color) }),
+      material: new BasicMaterial({
+        color: String(material.color),
+        ...(typeof material.edgeColor === 'string'
+          ? { edgeColor: material.edgeColor }
+          : {}),
+      }),
     });
   }
 }

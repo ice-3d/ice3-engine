@@ -8,7 +8,6 @@ import {
   ICEPerspectiveCamera,
   ICEScene,
   ICEScreenLayer,
-  ICEWorldLayer,
   type ICEEngineDiagnostics,
   type ICEInputEvent,
   type ICEInputTarget,
@@ -30,27 +29,6 @@ const rebuild = required<HTMLButtonElement>('#rebuild');
 let engine: ICE3;
 let orbit: ICEOrbitController;
 let loseContextExtension: WEBGL_lose_context | null = null;
-
-function measureWorldLabelOffset(current: ICE3): {
-  screenX: number;
-  screenY: number;
-  labelX: number;
-  labelY: number;
-} {
-  const projection = current.project([0, 0, 0]);
-  const label = current
-    .getDiagnostics()
-    .labels.find((item) => item.id === 'demo-block-label');
-  if (!label) {
-    throw new Error('World label diagnostics missing');
-  }
-  return {
-    screenX: projection.x,
-    screenY: projection.y,
-    labelX: label.rect.x + label.rect.width / 2,
-    labelY: label.rect.y + label.rect.height / 2,
-  };
-}
 
 function mount(rebuilt: boolean): void {
   orbit?.dispose();
@@ -74,18 +52,12 @@ function mount(rebuilt: boolean): void {
   const block = new ICEMesh({
     id: 'demo-block',
     geometry: new ICEBoxGeometry({ width: 1.5, height: 1.5, depth: 1.5 }),
-    material: new ICEBasicMaterial({ color: '#2f81f7' }),
+    material: new ICEBasicMaterial({
+      color: '#2f81f7',
+      edgeColor: '#e6f2ff',
+    }),
   });
   scene.addChild(block);
-
-  const worldLayer = new ICEWorldLayer({ id: 'world-layer', order: 0 });
-  worldLayer.addChild(
-    new ICELabel({
-      id: 'demo-block-label',
-      anchorId: 'demo-block',
-      text: '示例设备',
-    }),
-  );
 
   const hudLayer = new ICEScreenLayer({ id: 'screen-layer', order: 10 });
   hudLayer.addChild(
@@ -100,7 +72,7 @@ function mount(rebuilt: boolean): void {
   );
 
   orbit = new ICEOrbitController(engine, camera).start();
-  engine.setScene(scene).setCamera(camera).addLayer(worldLayer).addLayer(hudLayer);
+  engine.setScene(scene).setCamera(camera).addLayer(hudLayer);
   engine.on<{ selection: readonly string[] }>('SELECTION_CHANGE', (event) => {
     const selection = event.param?.selection ?? [];
     status.textContent = selection.length > 0
@@ -154,7 +126,6 @@ window.__ice3M0 = {
     return rect;
   },
   getSelection: () => engine.getSelection(),
-  measureWorldLabelOffset: () => measureWorldLabelOffset(engine),
   loseContext: () => {
     if (!loseContextExtension) {
       throw new Error('Context-loss test extension unavailable');

@@ -1,5 +1,6 @@
 import { ICEEngineError, ICEMatrix4 } from '@ice3/core';
 import {
+  BOX_EDGE_INDICES,
   BOX_INDICES,
   BOX_NORMALS,
   BOX_POSITIONS,
@@ -13,6 +14,14 @@ import type {
   ICEFrame,
   ICEViewport,
 } from './types.js';
+
+const EDGE_PIXEL_OFFSETS = [
+  [0, 0],
+  [-1, 0],
+  [1, 0],
+  [0, -1],
+  [0, 1],
+] as const;
 
 export class WebGL2RendererBackend implements ICERendererBackend {
   capabilities: Readonly<ICERendererCapabilities> = {
@@ -29,6 +38,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private program: WebGL2Program | null = null;
   private vertexBuffer: WebGLBuffer | null = null;
   private indexBuffer: WebGLBuffer | null = null;
+  private edgeIndexBuffer: WebGLBuffer | null = null;
   private vertexArray: WebGLVertexArrayObject | null = null;
   private frameStats = { drawCalls: 0, renderedMeshes: 0, gpuBytes: 0 };
   private readonly handleContextLost = (event: Event): void => {
@@ -36,12 +46,16 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.program = null;
     this.vertexBuffer = null;
     this.indexBuffer = null;
+    this.edgeIndexBuffer = null;
     this.vertexArray = null;
     this.onContextLost?.();
   };
   private readonly handleContextRestored = (): void => {
     if (this.gl) {
       this.gl.enable(this.gl.DEPTH_TEST);
+      this.gl.depthFunc(this.gl.LEQUAL);
+      this.gl.enable(this.gl.POLYGON_OFFSET_FILL);
+      this.gl.polygonOffset(2, 4);
       this.gl.viewport(
         this.viewport.x * this.dpr,
         this.viewport.y * this.dpr,
@@ -80,6 +94,9 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE) as number,
     };
     gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    gl.enable(gl.POLYGON_OFFSET_FILL);
+    gl.polygonOffset(2, 4);
     this.createGeometry(gl);
     this.canvas.addEventListener('webglcontextlost', this.handleContextLost);
     this.canvas.addEventListener('webglcontextrestored', this.handleContextRestored);
@@ -102,7 +119,13 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   }
 
   render(frame: ICEFrame): void {
-    if (!this.gl || !this.program || !this.vertexArray) {
+    if (
+      !this.gl
+      || !this.program
+      || !this.vertexArray
+      || !this.indexBuffer
+      || !this.edgeIndexBuffer
+    ) {
       throw new ICEEngineError('ICE3_ENGINE_NOT_READY', 'Renderer is not initialized');
     }
     const gl = this.gl;
@@ -115,16 +138,40 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.frameStats = { drawCalls: 0, renderedMeshes: 0, gpuBytes: this.gpuBytes() };
 
     this.program.use();
+    this.program.setClipOffset(0, 0);
     gl.bindVertexArray(this.vertexArray);
     const world = new ICEMatrix4();
+    const clipPixelX = 2 / Math.max(1, frame.viewport.width * frame.dpr);
+    const clipPixelY = 2 / Math.max(1, frame.viewport.height * frame.dpr);
     for (const renderable of collectRenderables(frame.scene)) {
+      this.program.setClipOffset(0, 0);
       mvp.elements.set(viewProjection.elements);
       world.elements.set(renderable.worldMatrix);
       mvp.multiply(world);
       this.program.setMatrix(mvp);
       this.program.setColor(colorToRgba(renderable.mesh.material.color));
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
       gl.drawElements(gl.TRIANGLES, BOX_INDICES.length, gl.UNSIGNED_SHORT, 0);
       this.frameStats.drawCalls += 1;
+      if (renderable.mesh.material.edgeColor) {
+        this.program.setColor(
+          colorToRgba(renderable.mesh.material.edgeColor),
+        );
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.edgeIndexBuffer);
+        for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
+          this.program.setClipOffset(
+            offsetX * clipPixelX,
+            offsetY * clipPixelY,
+          );
+          gl.drawElements(
+            gl.LINES,
+            BOX_EDGE_INDICES.length,
+            gl.UNSIGNED_SHORT,
+            0,
+          );
+          this.frameStats.drawCalls += 1;
+        }
+      }
       this.frameStats.renderedMeshes += 1;
     }
     gl.bindVertexArray(null);
@@ -144,11 +191,13 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     if (this.gl) {
       this.gl.deleteBuffer(this.vertexBuffer);
       this.gl.deleteBuffer(this.indexBuffer);
+      this.gl.deleteBuffer(this.edgeIndexBuffer);
       this.gl.deleteVertexArray(this.vertexArray);
     }
     this.program = null;
     this.vertexBuffer = null;
     this.indexBuffer = null;
+    this.edgeIndexBuffer = null;
     this.vertexArray = null;
     this.canvas = null;
     this.gl = null;
@@ -172,12 +221,14 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     const vertexArray = gl.createVertexArray();
     const vertexBuffer = gl.createBuffer();
     const indexBuffer = gl.createBuffer();
+    const edgeIndexBuffer = gl.createBuffer();
     const program = new WebGL2Program(gl, 0, 1);
-    if (!vertexArray || !vertexBuffer || !indexBuffer) {
+    if (!vertexArray || !vertexBuffer || !indexBuffer || !edgeIndexBuffer) {
       program.dispose();
       gl.deleteVertexArray(vertexArray);
       gl.deleteBuffer(vertexBuffer);
       gl.deleteBuffer(indexBuffer);
+      gl.deleteBuffer(edgeIndexBuffer);
       throw new ICEEngineError(
         'ICE3_GPU_RESOURCE_FAILED',
         'ICE3_GPU_RESOURCE_FAILED: geometry allocation failed',
@@ -198,11 +249,16 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     gl.vertexAttribPointer(program.normalLocation, 3, gl.FLOAT, false, 24, 12);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, BOX_INDICES, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, edgeIndexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, BOX_EDGE_INDICES, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.lineWidth(2);
     gl.bindVertexArray(null);
 
     this.vertexArray = vertexArray;
     this.vertexBuffer = vertexBuffer;
     this.indexBuffer = indexBuffer;
+    this.edgeIndexBuffer = edgeIndexBuffer;
     this.program = program;
   }
 
@@ -211,6 +267,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       BOX_POSITIONS.byteLength
       + BOX_NORMALS.byteLength
       + BOX_INDICES.byteLength
+      + BOX_EDGE_INDICES.byteLength
     );
   }
 }

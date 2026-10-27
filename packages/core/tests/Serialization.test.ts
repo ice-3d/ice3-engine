@@ -102,3 +102,25 @@ it('reports malformed registered nodes without throwing', () => {
   );
   expect(restored.scene.findByID('broken')).toBeUndefined();
 });
+
+it('round-trips optional material edge color', () => {
+  const registry = new ICETypeRegistry();
+  registry.register('ice3:Mesh', ICEMesh);
+  const scene = new ICEScene({ id: 'scene' });
+  scene.addChild(
+    new ICEMesh({
+      id: 'block',
+      geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
+      material: new ICEBasicMaterial({
+        color: '#2f81f7',
+        edgeColor: '#e6f2ff',
+      }),
+    }),
+  );
+
+  const snapshot = serializeScene(scene);
+  const restored = deserializeScene(snapshot, registry);
+  const block = restored.scene.findByID('block') as ICEMesh;
+
+  expect(block.material.edgeColor).toBe('#e6f2ff');
+});
