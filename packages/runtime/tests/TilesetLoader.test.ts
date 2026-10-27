@@ -18,6 +18,14 @@ const camera = () => new ICEPerspectiveCamera({
   position: [0, 0, 20],
   target: [0, 0, 0],
 });
+const overviewCamera = () => new ICEPerspectiveCamera({
+  id: 'camera-overview',
+  fov: 60,
+  near: 0.1,
+  far: 1000,
+  position: [15, 0, 50],
+  target: [15, 0, 0],
+});
 
 it('opens before all tiles finish and commits completed tiles progressively', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
@@ -44,7 +52,8 @@ it('opens before all tiles finish and commits completed tiles progressively', as
   expect(tileset.stats.loaded).toBe(1);
   expect(tileset.stats.loaded).toBeLessThan(tileset.stats.total);
   await tileset.whenIdle();
-  expect(tileset.stats.loaded).toBe(tileset.stats.total);
+  expect(tileset.stats.loaded).toBeGreaterThanOrEqual(tileset.stats.visible);
+  expect(tileset.stats.loaded).toBeLessThan(tileset.stats.total);
   expect(tileset.scene.children.length).toBeGreaterThan(0);
   tileset.dispose();
   expect(tileset.scene.children).toHaveLength(0);
@@ -64,7 +73,7 @@ it('keeps successful tiles after one tile fails', async () => {
   });
   const tileset = await new ICETilesetLoader(engine, {
     fetch,
-    camera: camera(),
+    camera: overviewCamera(),
   })
     .open('https://example.test/spatial-demo/tileset.json');
 
@@ -88,7 +97,7 @@ it('rejects duplicate node IDs from a later tile without removing earlier tiles'
   });
   const tileset = await new ICETilesetLoader(engine, {
     fetch,
-    camera: camera(),
+    camera: overviewCamera(),
   })
     .open('https://example.test/spatial-demo/tileset.json');
 
@@ -120,7 +129,7 @@ it('starts no more than two tile requests before a response settles', async () =
   }));
   const tileset = await new ICETilesetLoader(engine, {
     fetch,
-    camera: camera(),
+    camera: overviewCamera(),
   })
     .open('https://example.test/spatial-demo/tileset.json');
 
@@ -201,4 +210,142 @@ it('uses one removable container per committed partition', async () => {
   expect(tileset.scene.children.every((node) => (
     node.id.startsWith('spatial-demo:tile:')
   ))).toBe(true);
+});
+
+it('unloads a partition after the camera leaves it', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const orbitCamera = new ICEPerspectiveCamera({
+    id: 'camera',
+    fov: 25,
+    near: 0.1,
+    far: 1000,
+    position: [0, 0, 8],
+    target: [0, 0, 0],
+  });
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('tileset.json')) {
+      return new Response(fixture('tileset.json'));
+    }
+    return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
+  });
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch,
+    camera: orbitCamera,
+    maxConcurrentTiles: 1,
+    maxResidentTiles: 2,
+  }).open('https://example.test/spatial-demo/tileset.json');
+  await tileset.whenIdle();
+  const initialIds = [...tileset.scene.children].map((node) => node.id);
+
+  orbitCamera.setTarget([12, 0, 0]).setPosition([12, 0, 8]);
+  engine.trigger('AFTER_RENDER');
+  await tileset.whenIdle();
+
+  expect([...tileset.scene.children].map((node) => node.id))
+    .not.toEqual(initialIds);
+  expect(tileset.stats.evicted).toBeGreaterThan(0);
+});
+
+it('does not extend an older idle wait after the camera changes', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const orbitCamera = new ICEPerspectiveCamera({
+    id: 'camera',
+    fov: 25,
+    near: 0.1,
+    far: 1000,
+    position: [0, 0, 8],
+    target: [0, 0, 0],
+  });
+  const fetch = vi.fn((input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('tileset.json')) {
+      return Promise.resolve(new Response(fixture('tileset.json')));
+    }
+    return new Promise<Response>(() => {});
+  });
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch,
+    camera: orbitCamera,
+    maxConcurrentTiles: 1,
+  }).open('https://example.test/spatial-demo/tileset.json');
+  await expect.poll(() => tileset.stats.loading).toBe(1);
+  const oldIdle = tileset.whenIdle();
+
+  orbitCamera.setTarget([30, 0, 0]).setPosition([30, 0, 8]);
+  engine.trigger('AFTER_RENDER');
+
+  await expect(oldIdle).resolves.toBeUndefined();
+  tileset.dispose();
+});
+
+it('keeps all visible tiles when the soft resident budget is exceeded', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const orbitCamera = new ICEPerspectiveCamera({
+    id: 'camera',
+    fov: 60,
+    near: 0.1,
+    far: 1000,
+    position: [15, 0, 50],
+    target: [15, 0, 0],
+  });
+  const diagnostics: string[] = [];
+  engine.on<{ code: string }>('DIAGNOSTIC', (event) => {
+    if (event.param) diagnostics.push(event.param.code);
+  });
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('tileset.json')) {
+      return new Response(fixture('tileset.json'));
+    }
+    return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
+  });
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch,
+    camera: orbitCamera,
+    maxResidentTiles: 1,
+  }).open('https://example.test/spatial-demo/tileset.json');
+
+  await tileset.whenIdle();
+  expect(tileset.stats.visible).toBe(4);
+  expect(tileset.stats.resident).toBe(4);
+  expect(diagnostics).toContain('ICE3_TILESET_RESIDENT_BUDGET_EXCEEDED');
+});
+
+it('keeps an offscreen prefetch failure local to that tile', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const orbitCamera = new ICEPerspectiveCamera({
+    id: 'camera',
+    fov: 25,
+    near: 0.1,
+    far: 1000,
+    position: [0, 0, 8],
+    target: [0, 0, 0],
+  });
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('tileset.json')) {
+      return new Response(fixture('tileset.json'));
+    }
+    if (url.endsWith('part-001.glb')) {
+      return new Response('unavailable', { status: 500 });
+    }
+    return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
+  });
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch,
+    camera: orbitCamera,
+    prefetchMarginRatio: 0.8,
+    unloadMarginRatio: 0.9,
+  }).open('https://example.test/spatial-demo/tileset.json');
+
+  await tileset.whenIdle();
+  expect(tileset.stats.loaded).toBeGreaterThan(0);
+  expect(tileset.stats.failed).toBe(1);
+  const glbRequests = fetch.mock.calls.filter(([input]) => (
+    !String(input).endsWith('tileset.json')
+  ));
+  expect(glbRequests.length).toBeLessThanOrEqual(2);
+  expect(engine.getDiagnostics().lastDiagnostic?.code)
+    .toBe('ICE3_TILESET_TILE_FAILED');
 });

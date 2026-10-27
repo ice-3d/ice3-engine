@@ -62,6 +62,14 @@ export class ICETilesetScheduler {
     this.unloadMarginRatio = options.unloadMarginRatio;
   }
 
+  get residentTileLimit(): number {
+    return this.maxResidentTiles;
+  }
+
+  get residentByteLimit(): number {
+    return this.maxResidentBytes;
+  }
+
   update(input: ICETilesetWorkSetInput): ICETilesetWorkSet {
     const aspect = input.viewport.width / Math.max(1, input.viewport.height);
     const viewProjection = input.camera.getViewProjectionMatrix(aspect);

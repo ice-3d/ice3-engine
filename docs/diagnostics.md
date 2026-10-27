@@ -50,6 +50,8 @@ Diagnostics use stable codes. Callers should branch on `code`, not on message te
 | `ICE3_TILESET_TILE_FAILED` | One partition fails request, profile validation, or scene merge | Inspect the tile ID and retain successfully loaded partitions |
 | `ICE3_TILESET_DUPLICATE_ID` | A partition reuses a scene ID already present in another loaded partition | Regenerate stable unique IDs with the toolchain |
 | `ICE3_TILESET_ABORTED` | The caller signal or Tileset disposal cancels loading | Start a new load if the Tileset is still needed |
+| `ICE3_TILESET_CAMERA_REQUIRED` | Tileset work-set scheduling is created without a camera | Pass the active perspective camera |
+| `ICE3_TILESET_RESIDENT_BUDGET_EXCEEDED` | Visible partitions exceed the soft memory or tile budget | Expect a larger visible working set or reduce partition sizes |
 
 ## Rendering
 
