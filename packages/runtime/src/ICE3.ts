@@ -530,10 +530,16 @@ export class ICE3 extends ICEEventDispatcher {
       const point = pointOf(event);
       const target = this.inputRouter.pointerDown(point, event.pointerId);
       if (target && event.button === 0) {
+        const multiplePointers = this.pointerGestures.size > 0;
+        if (multiplePointers) {
+          for (const gesture of this.pointerGestures.values()) {
+            gesture.dragged = true;
+          }
+        }
         this.pointerGestures.set(event.pointerId, {
           start: { ...point },
           target,
-          dragged: false,
+          dragged: multiplePointers,
         });
       }
     });

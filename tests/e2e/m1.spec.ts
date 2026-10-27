@@ -300,3 +300,40 @@ test('clears selection on empty click and does not select while dragging', async
   expect(await page.evaluate(() => window.__ice3M1.selectedLabelText()))
     .toBeUndefined();
 });
+
+test('does not select during a two-pointer pinch gesture', async ({ page }) => {
+  await page.goto('http://127.0.0.1:8104/');
+  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+
+  await page.evaluate(() => {
+    const overlay = document.querySelector<HTMLCanvasElement>(
+      'canvas[data-layer="overlay"]',
+    )!;
+    overlay.setPointerCapture = () => {};
+    overlay.releasePointerCapture = () => {};
+    const bounds = overlay.getBoundingClientRect();
+    const centerX = bounds.left + bounds.width / 2;
+    const centerY = bounds.top + bounds.height / 2;
+    const dispatch = (
+      type: string,
+      pointerId: number,
+      clientX: number,
+      clientY: number,
+    ) => overlay.dispatchEvent(new PointerEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      pointerId,
+      pointerType: 'touch',
+      button: 0,
+      clientX,
+      clientY,
+    }));
+    dispatch('pointerdown', 11, centerX, centerY);
+    dispatch('pointerdown', 12, centerX + 20, centerY);
+    dispatch('pointermove', 12, centerX + 80, centerY);
+    dispatch('pointerup', 11, centerX, centerY);
+    dispatch('pointerup', 12, centerX + 80, centerY);
+  });
+
+  expect(await page.evaluate(() => window.__ice3M1.selectedIds())).toEqual([]);
+});
