@@ -4,6 +4,8 @@ export {
 } from './ICEGLBReader.js';
 export type {
   ICEPreparedAssetSnapshot,
+  ICEPreparedBatch,
+  ICEPreparedBatching,
   ICEPreparedContract,
   ICEPreparedGeometry,
   ICEPreparedMaterial,
