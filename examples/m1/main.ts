@@ -18,6 +18,9 @@ const required = <T extends Element>(selector: string): T => {
 const stage = required<HTMLElement>('[data-role="stage"]');
 const status = required<HTMLOutputElement>('[data-role="status"]');
 const disposeButton = required<HTMLButtonElement>('#dispose');
+const loading = required<HTMLElement>('[data-role="loading"]');
+const loadingTitle = required<HTMLElement>('[data-role="loading-title"]');
+const loadingDetail = required<HTMLElement>('[data-role="loading-detail"]');
 const engine = new ICE3().init(stage);
 engine.setBackgroundColor('#000000');
 const camera = new ICEPerspectiveCamera({
@@ -80,6 +83,7 @@ function disposeAsset(): void {
 async function start(): Promise<void> {
   try {
     handle = await loader.load(`/assets/${assetName}`);
+    loadingDetail.textContent = '初始化场景视图';
     const { min, max } = handle.bounds;
     assetCenter = [
       (min[0] + max[0]) / 2,
@@ -104,8 +108,19 @@ async function start(): Promise<void> {
     ]);
     orbit = new ICEOrbitController(engine, camera).start();
     engine.setScene(handle.scene).setCamera(camera).start();
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
     status.textContent = '资产已加载';
+    stage.setAttribute('aria-busy', 'false');
+    disposeButton.disabled = false;
+    loading.dataset.state = 'ready';
   } catch (error) {
+    loading.dataset.state = 'error';
+    loading.setAttribute('aria-label', '工业模型加载失败');
+    loadingTitle.textContent = '模型加载失败';
+    loadingDetail.textContent = '请检查模型文件与网络连接';
+    stage.setAttribute('aria-busy', 'false');
     status.textContent = `加载失败: ${
       error instanceof Error ? error.message : String(error)
     }`;

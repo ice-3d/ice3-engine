@@ -1,5 +1,84 @@
 import { expect, test } from '@playwright/test';
 
+test('shows an accessible loading state until the asset is ready', async ({ page }) => {
+  await page.route('**/assets/prepared-cube.glb', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await route.continue();
+  });
+  await page.goto('http://127.0.0.1:8104/');
+
+  const loading = page.locator('[data-role="loading"]');
+  const stage = page.locator('[data-role="stage"]');
+  const dispose = page.getByRole('button', { name: '释放资产' });
+
+  await expect(loading).toBeVisible();
+  await expect(loading).toHaveAttribute('role', 'status');
+  await expect(loading).toHaveAttribute('aria-live', 'polite');
+  await expect(loading).toContainText('正在构建工业场景');
+  await expect(stage).toHaveAttribute('aria-busy', 'true');
+  await expect(dispose).toBeDisabled();
+
+  await expect(loading).toBeHidden();
+  await expect(stage).toHaveAttribute('aria-busy', 'false');
+  await expect(dispose).toBeEnabled();
+});
+
+test('keeps a visible error state when model loading fails', async ({ page }) => {
+  await page.route('**/assets/prepared-cube.glb', (route) => route.fulfill({
+    status: 500,
+    contentType: 'text/plain',
+    body: 'unavailable',
+  }));
+  await page.goto('http://127.0.0.1:8104/');
+
+  const loading = page.locator('[data-role="loading"]');
+
+  await expect(loading).toBeVisible();
+  await expect(loading).toHaveAttribute('data-state', 'error');
+  await expect(loading).toContainText('模型加载失败');
+  await expect(page.locator('[data-role="stage"]')).toHaveAttribute(
+    'aria-busy',
+    'false',
+  );
+  await expect(page.locator('[data-role="status"]')).toContainText('加载失败');
+  await expect(page.getByRole('button', { name: '释放资产' })).toBeDisabled();
+});
+
+test('fits the loading state within a narrow viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('**/assets/prepared-cube.glb', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await route.continue();
+  });
+  await page.goto('http://127.0.0.1:8104/');
+  await expect(page.locator('[data-role="loading"]')).toBeVisible();
+
+  const layout = await page.evaluate(() => {
+    const toolbar = document.querySelector<HTMLElement>('.toolbar')!;
+    const stage = document.querySelector<HTMLElement>('[data-role="stage"]')!;
+    const content = document.querySelector<HTMLElement>('.loading__content')!;
+    return {
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: document.documentElement.clientWidth,
+      toolbarBottom: toolbar.getBoundingClientRect().bottom,
+      toolbarContentBottom: Math.max(
+        ...Array.from(toolbar.children, (child) => (
+          child.getBoundingClientRect().bottom
+        )),
+      ),
+      stageTop: stage.getBoundingClientRect().top,
+      contentLeft: content.getBoundingClientRect().left,
+      contentRight: content.getBoundingClientRect().right,
+    };
+  });
+
+  expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
+  expect(layout.toolbarBottom).toBeLessThanOrEqual(layout.stageTop);
+  expect(layout.toolbarContentBottom).toBeLessThanOrEqual(layout.stageTop);
+  expect(layout.contentLeft).toBeGreaterThanOrEqual(0);
+  expect(layout.contentRight).toBeLessThanOrEqual(layout.viewportWidth);
+});
+
 test('loads and renders the prepared industrial asset', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));

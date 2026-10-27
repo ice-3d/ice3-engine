@@ -13,9 +13,29 @@
         <span>M1 prepared asset</span>
       </div>
       <output data-role="status">正在加载资产</output>
-      <button id="dispose" type="button">释放资产</button>
+      <button id="dispose" type="button" disabled>释放资产</button>
     </header>
-    <main id="stage" data-role="stage"></main>
+    <main id="stage" data-role="stage" aria-busy="true">
+      <section
+        class="loading"
+        data-role="loading"
+        data-state="loading"
+        role="status"
+        aria-live="polite"
+        aria-label="工业模型加载状态"
+      >
+        <div class="loading__content">
+          <span class="loading__eyebrow">ICE3 / SCENE PIPELINE</span>
+          <div class="loading__mark" aria-hidden="true">
+            <span></span>
+          </div>
+          <h1 data-role="loading-title">正在构建工业场景</h1>
+          <p class="loading__detail" data-role="loading-detail">读取模型数据</p>
+          <div class="loading__meter" aria-hidden="true"><span></span></div>
+          <span class="loading__hint">大型模型可能需要数秒</span>
+        </div>
+      </section>
+    </main>
     <script type="module" src="/main.js"></script>
   </body>
 </html>

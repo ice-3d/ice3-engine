@@ -66,6 +66,8 @@ reuse existing example servers.
 - Render prepared triangle and crease-edge buffers.
 - Cache immutable decoded bytes while creating independent scene instances.
 - Cancel loads, dispose assets idempotently, and release GPU buffers.
+- Show an accessible staging overlay while large prepared assets load and keep
+  actionable failure feedback in place when loading cannot complete.
 - Reject ordinary GLB or profile features that need runtime conversion.
 
 ## M0 boundaries
