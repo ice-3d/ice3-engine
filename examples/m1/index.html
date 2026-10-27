@@ -10,9 +10,15 @@
     <header class="toolbar">
       <div>
         <strong>ICE3 Engine</strong>
-        <span>M1 prepared asset</span>
+        <span>M1 tiled asset</span>
       </div>
       <output data-role="status">正在加载资产</output>
+      <output
+        class="tileset-progress"
+        data-role="tileset-progress"
+        data-state="loading"
+        aria-live="polite"
+      >分区 0/0</output>
       <button id="dispose" type="button" disabled>释放资产</button>
     </header>
     <main id="stage" data-role="stage" aria-busy="true">

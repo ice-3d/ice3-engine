@@ -70,10 +70,13 @@ export class ICETilesetLoader {
     options: ICETilesetOpenOptions = {},
   ): Promise<ICETilesetHandle> {
     throwIfAborted(options.signal);
+    const absoluteUrl = typeof globalThis.location === 'undefined'
+      ? url
+      : new URL(url, globalThis.location.href).href;
     let response: Response;
     try {
       response = await this.fetcher(
-        url,
+        absoluteUrl,
         options.signal ? { signal: options.signal } : {},
       );
     } catch (error) {
@@ -92,7 +95,7 @@ export class ICETilesetLoader {
     throwIfAborted(options.signal);
     const text = await response.text();
     throwIfAborted(options.signal);
-    const snapshot = readTileset(text, url);
+    const snapshot = readTileset(text, absoluteUrl);
     const tiles = prioritizeTiles(snapshot.tiles, this.camera);
     const handle = new ICETilesetHandle(
       this.engine,

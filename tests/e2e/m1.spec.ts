@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('shows compact camera hints after the asset is ready', async ({ page }) => {
-  await page.route('**/assets/prepared-cube.glb', async (route) => {
+  await page.route('**/assets/partitioned/tileset.json', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 600));
     await route.continue();
   });
@@ -35,7 +35,7 @@ test('shows compact camera hints after the asset is ready', async ({ page }) => 
 });
 
 test('shows an accessible loading state until the asset is ready', async ({ page }) => {
-  await page.route('**/assets/prepared-cube.glb', async (route) => {
+  await page.route('**/assets/partitioned/tileset.json', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 600));
     await route.continue();
   });
@@ -57,8 +57,29 @@ test('shows an accessible loading state until the asset is ready', async ({ page
   await expect(dispose).toBeEnabled();
 });
 
+test('shows completed partitions before all tile requests finish', async ({ page }) => {
+  await page.route('**/assets/partitioned/parts/part-*.glb', async (route) => {
+    const name = route.request().url().split('/').at(-1)!;
+    await new Promise((resolve) => setTimeout(
+      resolve,
+      name === 'part-000.glb' ? 0 : 500,
+    ));
+    await route.continue();
+  });
+  await page.goto('http://127.0.0.1:8104/');
+
+  const progress = page.locator('[data-role="tileset-progress"]');
+  await expect(progress).toContainText(/分区 [1-3]\/4/);
+  await expect(page.locator('[data-role="stage"]')).toHaveAttribute(
+    'aria-busy',
+    'false',
+  );
+  await expect(progress).toHaveText('分区 4/4');
+  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+});
+
 test('keeps a visible error state when model loading fails', async ({ page }) => {
-  await page.route('**/assets/prepared-cube.glb', (route) => route.fulfill({
+  await page.route('**/assets/partitioned/tileset.json', (route) => route.fulfill({
     status: 500,
     contentType: 'text/plain',
     body: 'unavailable',
@@ -80,7 +101,7 @@ test('keeps a visible error state when model loading fails', async ({ page }) =>
 
 test('fits loading and control hints within a narrow viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.route('**/assets/prepared-cube.glb', async (route) => {
+  await page.route('**/assets/partitioned/tileset.json', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 600));
     await route.continue();
   });
@@ -152,14 +173,14 @@ test('loads and renders the prepared industrial asset', async ({ page }) => {
     () => window.__ice3M1.diagnostics().backend.picking,
   )).toBe(true);
   expect(await page.evaluate(() => window.__ice3M1.assetStats())).toEqual({
-    nodeCount: 1,
+    nodeCount: 4,
     maxNodeDepth: 0,
-    meshCount: 1,
-    primitiveCount: 2,
-    triangleCount: 12,
-    edgeSegmentCount: 12,
-    materialCount: 5,
-    selectionGroupCount: 1,
+    meshCount: 4,
+    primitiveCount: 8,
+    triangleCount: 48,
+    edgeSegmentCount: 48,
+    materialCount: 4,
+    selectionGroupCount: 4,
   });
 
   const center = await page.evaluate(() => window.__ice3M1.assetCenter());

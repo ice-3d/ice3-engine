@@ -1,5 +1,4 @@
 import type {
-  ICEAssetHandle,
   ICEEngineDiagnostics,
   ICEProjectedPoint,
   ICETilesetStats,
@@ -16,7 +15,16 @@ declare global {
       scenePixelAtProjection(): readonly [number, number, number, number];
       selectedIds(): readonly string[];
       disposeAsset(): void;
-      assetStats(): ICEAssetHandle['stats'];
+      assetStats(): {
+        nodeCount: number;
+        maxNodeDepth: number;
+        meshCount: number;
+        primitiveCount: number;
+        triangleCount: number;
+        edgeSegmentCount: number;
+        materialCount: number;
+        selectionGroupCount: number;
+      };
       tilesetStats(): ICETilesetStats;
     };
   }
