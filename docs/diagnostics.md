@@ -1,4 +1,4 @@
-# ICE3 M0 Diagnostics
+# ICE3 Diagnostics
 
 Diagnostics use stable codes. Callers should branch on `code`, not on message text.
 
@@ -40,6 +40,16 @@ Diagnostics use stable codes. Callers should branch on `code`, not on message te
 | `ICE3_ASSET_CONTRACT_UNSUPPORTED` | Contract version or budget metadata is unsupported | Rebuild with a compatible toolchain/runtime pair |
 | `ICE3_ASSET_STATS_MISMATCH` | Embedded asset stats differ from the prepared structure | Rebuild the asset and inspect toolchain output |
 | `ICE3_TOOL_RUNTIME_CONVERSION_REQUIRED` | Asset declares that runtime conversion is required | Move conversion into the external toolchain |
+
+## Tilesets
+
+| Code | Trigger | Caller action |
+| --- | --- | --- |
+| `ICE3_TILESET_INVALID` | Tileset JSON, required identity, bounds, transform, or content reference is malformed | Regenerate the Tileset with the toolchain |
+| `ICE3_TILESET_UNSUPPORTED` | Tileset uses `region`, external tilesets, implicit tiling, unsupported content, or another unapproved feature | Export the supported local Cartesian explicit-tree subset |
+| `ICE3_TILESET_TILE_FAILED` | One partition fails request, profile validation, or scene merge | Inspect the tile ID and retain successfully loaded partitions |
+| `ICE3_TILESET_DUPLICATE_ID` | A partition reuses a scene ID already present in another loaded partition | Regenerate stable unique IDs with the toolchain |
+| `ICE3_TILESET_ABORTED` | The caller signal or Tileset disposal cancels loading | Start a new load if the Tileset is still needed |
 
 ## Rendering
 
