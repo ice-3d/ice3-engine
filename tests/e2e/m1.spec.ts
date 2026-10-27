@@ -78,6 +78,26 @@ test('shows completed partitions before all tile requests finish', async ({ page
   await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
 });
 
+test('keeps completed partitions visible when one partition fails', async ({ page }) => {
+  await page.route('**/assets/partitioned/parts/part-001.glb', (route) => (
+    route.fulfill({
+      status: 500,
+      contentType: 'text/plain',
+      body: 'unavailable',
+    })
+  ));
+  await page.goto('http://127.0.0.1:8104/');
+
+  await expect(page.locator('[data-role="tileset-progress"]'))
+    .toHaveText('分区 3/4');
+  await expect(page.locator('[data-role="status"]'))
+    .toHaveText('部分分区加载失败（1/4）');
+  await expect(page.locator('[data-role="stage"]'))
+    .toHaveAttribute('aria-busy', 'false');
+  expect(await page.evaluate(() => window.__ice3M1.assetStats().meshCount))
+    .toBe(3);
+});
+
 test('keeps a visible error state when model loading fails', async ({ page }) => {
   await page.route('**/assets/partitioned/tileset.json', (route) => route.fulfill({
     status: 500,
