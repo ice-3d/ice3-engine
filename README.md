@@ -21,8 +21,8 @@ Consumers import only from `ice3`. Internal package paths are private.
 - Draw visible boxes through a native WebGL2 backend.
 - Add world-anchored and screen-anchored Canvas2D labels.
 - Route pointer and wheel input from the top 2D layer to the 3D scene.
-- Rotate from geometry or empty space, zoom with damping, move with WASD, and
-  pan in the view plane with arrow keys through `ICEOrbitController`.
+- Rotate from geometry or empty space, zoom with damping, and pan in the view
+  plane with WASD or arrow keys through `ICEOrbitController`.
 - Resize with correct DPR handling.
 - Recover rendering resources after GPU context restoration.
 - Serialize and restore the M0 scene model.

@@ -232,32 +232,30 @@ it('eases camera rotation across rendered frames', () => {
   dispose();
 });
 
-it('moves the camera and target together from a held forward key', () => {
-  const { engine, camera, advanceFrame, dispose } = createMotionScenario();
-  const beforeCamera = camera.getPosition().toArray();
-  const beforeTarget = camera.getTarget().toArray();
-  const distance = Math.hypot(
-    beforeCamera[0] - beforeTarget[0],
-    beforeCamera[1] - beforeTarget[1],
-    beforeCamera[2] - beforeTarget[2],
-  );
+it('maps W and S to the same view-plane pan as the up and down arrows', () => {
+  const positionAfterKey = (code: string): readonly number[] => {
+    const scenario = createMotionScenario();
+    scenario.engine.trigger('KEY_DOWN', {
+      target: { kind: 'scene' },
+      event: { type: 'keydown', code, key: code },
+    });
+    scenario.advanceFrame();
+    const position = scenario.camera.getPosition().toArray();
+    scenario.dispose();
+    return position;
+  };
 
-  engine.trigger('KEY_DOWN', {
-    target: { kind: 'scene' },
-    event: { type: 'keydown', code: 'KeyW', key: 'w' },
-  });
-  advanceFrame();
+  const up = positionAfterKey('ArrowUp');
+  const w = positionAfterKey('KeyW');
+  const down = positionAfterKey('ArrowDown');
+  const s = positionAfterKey('KeyS');
 
-  expect(camera.getPosition().z).toBeLessThan(beforeCamera[2]);
-  expect(camera.getTarget().z).toBeLessThan(beforeTarget[2]);
-  expect(
-    Math.hypot(
-      camera.getPosition().x - camera.getTarget().x,
-      camera.getPosition().y - camera.getTarget().y,
-      camera.getPosition().z - camera.getTarget().z,
-    ),
-  ).toBeCloseTo(distance, 5);
-  dispose();
+  expect(w).toEqual(up);
+  expect(s).toEqual(down);
+  expect(w[1]).toBeGreaterThan(0);
+  expect(w[2]).toBeCloseTo(5, 5);
+  expect(s[1]).toBeLessThan(0);
+  expect(s[2]).toBeCloseTo(5, 5);
 });
 
 it('routes physical keyboard presses from the engine surface', () => {
@@ -300,7 +298,7 @@ it('pans vertically with the up and down arrow keys without zooming', () => {
   expect(downTarget[1]).toBeLessThan(0);
 });
 
-it('moves in view-relative directions from A, S, D, and arrow keys', () => {
+it('maps A, D, and the left and right arrows to horizontal view-plane pan', () => {
   const positionAfterKey = (code: string): readonly number[] => {
     const scenario = createMotionScenario();
     scenario.engine.trigger('KEY_DOWN', {
@@ -313,7 +311,6 @@ it('moves in view-relative directions from A, S, D, and arrow keys', () => {
     return position;
   };
 
-  expect(positionAfterKey('KeyS')[2]).toBeGreaterThan(5);
   expect(positionAfterKey('KeyA')[0]).toBeLessThan(0);
   expect(positionAfterKey('ArrowLeft')[0]).toBeLessThan(0);
   expect(positionAfterKey('KeyD')[0]).toBeGreaterThan(0);

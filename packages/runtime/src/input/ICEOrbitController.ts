@@ -294,19 +294,15 @@ export class ICEOrbitController {
   }
 
   private applyKeyboardMovement(deltaMs: number): void {
-    const forward = (
-      Number(this.pressedKeys.has('KeyW'))
-      - Number(this.pressedKeys.has('KeyS'))
-    );
     const right = (
       Number(this.pressedKeys.has('KeyD') || this.pressedKeys.has('ArrowRight'))
       - Number(this.pressedKeys.has('KeyA') || this.pressedKeys.has('ArrowLeft'))
     );
     const up = (
-      Number(this.pressedKeys.has('ArrowUp'))
-      - Number(this.pressedKeys.has('ArrowDown'))
+      Number(this.pressedKeys.has('KeyW') || this.pressedKeys.has('ArrowUp'))
+      - Number(this.pressedKeys.has('KeyS') || this.pressedKeys.has('ArrowDown'))
     );
-    const magnitude = Math.hypot(forward, right, up);
+    const magnitude = Math.hypot(right, up);
     if (magnitude === 0) {
       return;
     }
@@ -318,14 +314,12 @@ export class ICEOrbitController {
     const sinPitch = Math.sin(this.pitch);
     const cosPitch = Math.cos(this.pitch);
     this.target[0] += distance * (
-      -sinYaw * forward
-      + cosYaw * right
+      cosYaw * right
       - sinYaw * sinPitch * up
     );
     this.target[1] += distance * cosPitch * up;
     this.target[2] += distance * (
-      -cosYaw * forward
-      - sinYaw * right
+      -sinYaw * right
       - cosYaw * sinPitch * up
     );
   }

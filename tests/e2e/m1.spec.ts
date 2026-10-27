@@ -144,6 +144,9 @@ test('moves the camera with WASD and arrow keys', async ({ page }) => {
   await page.goto('http://127.0.0.1:8104/');
   await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
   const before = await page.evaluate(() => window.__ice3M1.cameraPosition());
+  const targetBeforeLetter = await page.evaluate(
+    () => window.__ice3M1.cameraTarget(),
+  );
 
   await page.keyboard.down('w');
   await expect.poll(
@@ -151,6 +154,9 @@ test('moves the camera with WASD and arrow keys', async ({ page }) => {
   ).not.toEqual(before);
   await page.keyboard.up('w');
   const afterLetter = await page.evaluate(() => window.__ice3M1.cameraPosition());
+  const targetAfterLetter = await page.evaluate(
+    () => window.__ice3M1.cameraTarget(),
+  );
   const targetBeforeArrow = await page.evaluate(
     () => window.__ice3M1.cameraTarget(),
   );
@@ -171,6 +177,10 @@ test('moves the camera with WASD and arrow keys', async ({ page }) => {
     left[0]! - right[0]!,
     left[1]! - right[1]!,
     left[2]! - right[2]!,
+  );
+  expect(distance(afterLetter, targetAfterLetter)).toBeCloseTo(
+    distance(before, targetBeforeLetter),
+    5,
   );
   expect(distance(afterArrow, targetAfterArrow)).toBeCloseTo(
     distance(afterLetter, targetBeforeArrow),
