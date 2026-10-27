@@ -178,6 +178,11 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   private readonly resident = new Map<string, ICEResidentTile>();
   private readonly candidates = new Map<string, ICETileCandidate>();
   private readonly activeIds = new Set<string>();
+  private readonly failedLodFallbacks = new Set<string>();
+  private readonly lodAncestorCache = new Map<
+    string,
+    readonly ICETilesetTile[]
+  >();
   private readonly idleWaiters: ICEIdleWaiter[] = [];
   private readonly assetLoader: ICEAssetLoader;
   private readonly lodSelector = new ICELodSelector();
@@ -196,6 +201,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   private removeCallerAbort: (() => void) | undefined;
   private workSetUpdateScheduled = false;
   private workSetDirty = true;
+  private workSetForce = false;
   private lastSignature = '';
   private commitScheduled = false;
   private budgetWarningActive = false;
@@ -247,19 +253,33 @@ export class ICETilesetHandle extends ICEEventDispatcher {
 
   get stats(): ICETilesetStats {
     const values = [...this.states.values()];
-    const targetResident = this.lodSelection?.target.filter((tile) => (
-      this.resident.has(tile.id)
-    )) ?? [];
+    const targetTiles = this.lodSelection?.target ?? [];
+    const coverageIds = this.lodCoverageIds(targetTiles);
+    const residentCut = [...coverageIds].filter((id) => (
+      this.resident.has(id)
+    )).length;
     const coarseResident = [...this.resident.keys()].filter((id) => (
       (this.tilesById.get(id)?.children.length ?? 0) > 0
     )).length;
+    const unavailableTargets = targetTiles.filter((tile) => (
+      !this.resident.has(tile.id)
+    ));
+    const transitioning = unavailableTargets.length;
+    const fallbacks = new Set([
+      ...[...coverageIds].filter((id) => (
+        unavailableTargets.some((tile) => (
+          this.lodAncestorIds(tile.id).includes(id)
+        ))
+      )),
+      ...this.failedLodFallbacks,
+    ]);
     const lod = Object.freeze({
       target: this.lodSelection?.target.length ?? 0,
-      resident: targetResident.length,
+      resident: residentCut,
       coarseResident,
       fineResident: this.resident.size - coarseResident,
-      transitioning: 0,
-      fallback: this.lodSelection?.fallbackByTargetId.size ?? 0,
+      transitioning,
+      fallback: fallbacks.size,
       maxScreenSpaceErrorPixels: this.maxScreenSpaceErrorPixels,
     });
     return Object.freeze({
@@ -274,6 +294,74 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       residentBytes: this.residentBytes,
       lod,
     });
+  }
+
+  private lodAncestors(tileId: string): readonly ICETilesetTile[] {
+    const cached = this.lodAncestorCache.get(tileId);
+    if (cached) return cached;
+    const search = (
+      tile: ICETilesetTile,
+      ancestors: readonly ICETilesetTile[],
+    ): readonly ICETilesetTile[] | undefined => {
+      if (tile.id === tileId) return ancestors;
+      const next = tile.contentUri
+        ? [...ancestors, tile]
+        : ancestors;
+      for (const child of tile.children) {
+        const found = search(child, next);
+        if (found) return found;
+      }
+      return undefined;
+    };
+    const ancestors = search(this.snapshot.root, []) ?? [];
+    this.lodAncestorCache.set(tileId, ancestors);
+    return ancestors;
+  }
+
+  private lodAncestorIds(tileId: string): readonly string[] {
+    return this.lodAncestors(tileId).map((tile) => tile.id);
+  }
+
+  private lodCoverageId(tile: ICETilesetTile | undefined): string | undefined {
+    if (!tile) return undefined;
+    if (this.resident.has(tile.id)) return tile.id;
+    const residentAncestor = [...this.lodAncestors(tile.id)]
+      .reverse()
+      .find((ancestor) => this.resident.has(ancestor.id));
+    return residentAncestor?.id;
+  }
+
+  private lodCoverageIds(
+    targets: readonly ICETilesetTile[],
+  ): Set<string> {
+    return new Set(
+      targets
+        .map((tile) => this.lodCoverageId(tile))
+        .filter((id): id is string => Boolean(id)),
+    );
+  }
+
+  private lodNextTiles(
+    targets: readonly ICETilesetTile[],
+  ): ICETilesetTile[] {
+    const output = new Map<string, ICETilesetTile>();
+    for (const target of targets) {
+      if (this.resident.has(target.id)) continue;
+      const ancestors = this.lodAncestors(target.id);
+      const deepestResident = ancestors.findLastIndex((tile) => (
+        this.resident.has(tile.id)
+      ));
+      const next = deepestResident < 0
+        ? ancestors[0] ?? target
+        : ancestors[deepestResident + 1] ?? target;
+      output.set(next.id, next);
+    }
+    return [...output.values()];
+  }
+
+  private recordLodFailure(tileId: string): void {
+    const coverage = this.lodCoverageId(this.tilesById.get(tileId));
+    if (coverage) this.failedLodFallbacks.add(coverage);
   }
 
   tileState(tileId: string): ICETilesetTileState | undefined {
@@ -345,9 +433,10 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     this.requestWorkSetUpdate();
   };
 
-  private requestWorkSetUpdate(): void {
+  private requestWorkSetUpdate(force = false): void {
     if (this.disposed) return;
     this.workSetDirty = true;
+    this.workSetForce ||= force;
     if (this.workSetUpdateScheduled) return;
     this.workSetUpdateScheduled = true;
     queueMicrotask(() => {
@@ -368,21 +457,12 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       viewport.height,
       ...viewProjection.elements,
     ].join(':');
-    if (signature === this.lastSignature) {
+    if (signature === this.lastSignature && !this.workSetForce) {
       this.settleIdleWaiters();
       return;
     }
+    this.workSetForce = false;
     this.lastSignature = signature;
-    const workSet = this.scheduler.update({
-      assetBounds: this.bounds,
-      tiles: this.snapshot.tiles,
-      camera: this.camera,
-      viewport,
-      residentBytes: new Map(
-        [...this.resident].map(([id, tile]) => [id, tile.bytes]),
-      ),
-    });
-    this.workSet = workSet;
     const lodSelection = this.lodSelector.select({
       root: this.snapshot.root,
       camera: this.camera,
@@ -412,6 +492,28 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       });
     }
     this.lastLodFallbacks = fallbacks;
+    const targetTiles = [...lodSelection.target];
+    const coverageTiles = [...this.lodCoverageIds(targetTiles)]
+      .map((id) => this.tilesById.get(id))
+      .filter((tile): tile is ICETilesetTile => Boolean(tile));
+    const nextTiles = this.lodNextTiles(targetTiles);
+    const candidateMap = new Map<string, ICETilesetTile>();
+    for (const tile of [
+      ...coverageTiles,
+      ...nextTiles,
+    ]) {
+      candidateMap.set(tile.id, tile);
+    }
+    const workSet = this.scheduler.update({
+      assetBounds: this.bounds,
+      tiles: [...candidateMap.values()],
+      camera: this.camera,
+      viewport,
+      residentBytes: new Map(
+        [...this.resident].map(([id, tile]) => [id, tile.bytes]),
+      ),
+    });
+    this.workSet = workSet;
     this.idleEmitted = false;
 
     for (const id of [...this.resident.keys()]) {
@@ -422,17 +524,17 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     }
 
     this.enforceResidentBudget();
-    const desired = this.residentBudgetReached()
-      ? workSet.visible
-      : workSet.ordered;
+    const desired = nextTiles;
     const desiredIds = new Set(desired.map((tile) => tile.id));
     const pending: ICETilesetTile[] = [];
     for (const tile of this.snapshot.tiles) {
       if (this.activeIds.has(tile.id)) {
-        this.states.set(
-          tile.id,
-          desiredIds.has(tile.id) ? 'loading' : 'evicted',
-        );
+        if (this.states.get(tile.id) !== 'failed') {
+          this.states.set(
+            tile.id,
+            desiredIds.has(tile.id) ? 'loading' : 'evicted',
+          );
+        }
         continue;
       }
       if (
@@ -551,7 +653,9 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         error instanceof Error ? error.message : String(error),
       );
       this.emit('TILESET_TILE_FAILED', tile.id);
+      this.recordLodFailure(tile.id);
       this.rejectReadyIfVisibleSetFailed();
+      this.requestWorkSetUpdate(true);
       this.settleIdleWaiters();
     }
   }
@@ -609,6 +713,8 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         });
         this.residentBytes += candidate.bytes;
         this.states.set(tileId, 'loaded');
+        const fallbackId = this.lodSelection?.fallbackByTargetId.get(tileId);
+        if (fallbackId) this.failedLodFallbacks.delete(fallbackId);
         this.engine.requestRender('tileset-tile-committed');
         this.emit('TILESET_TILE_LOADED', tileId);
         if (
@@ -633,6 +739,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         this.rejectReadyIfVisibleSetFailed();
       }
     }
+    if (this.lodSelection) this.requestWorkSetUpdate(true);
     this.enforceResidentBudget();
     this.updateBudgetWarning();
     this.scheduleCommit();
@@ -737,7 +844,11 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         waiter.resolve();
       }
     }
-    if (unsettled.size === 0 && !this.idleEmitted) {
+    if (
+      unsettled.size === 0
+      && !this.idleEmitted
+      && !this.workSetUpdateScheduled
+    ) {
       this.idleEmitted = true;
       this.trigger<ICETilesetEvent>('TILESET_IDLE', { stats: this.stats });
     }

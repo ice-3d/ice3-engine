@@ -97,7 +97,7 @@ it('keeps successful tiles after one tile fails', async () => {
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
     }
-    if (url.endsWith('part-001.glb')) {
+    if (url.endsWith('part-000.glb')) {
       return new Response('broken', { status: 500 });
     }
     return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
@@ -343,7 +343,7 @@ it('keeps all visible tiles when the soft resident budget is exceeded', async ()
   expect(diagnostics).toContain('ICE3_TILESET_RESIDENT_BUDGET_EXCEEDED');
 });
 
-it('keeps an offscreen prefetch failure local to that tile', async () => {
+it('does not request offscreen leaf content outside the LOD target', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const orbitCamera = new ICEPerspectiveCamera({
     id: 'camera',
@@ -358,9 +358,6 @@ it('keeps an offscreen prefetch failure local to that tile', async () => {
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
     }
-    if (url.endsWith('part-001.glb')) {
-      return new Response('unavailable', { status: 500 });
-    }
     return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
   });
   const tileset = await new ICETilesetLoader(engine, {
@@ -372,13 +369,13 @@ it('keeps an offscreen prefetch failure local to that tile', async () => {
 
   await tileset.whenIdle();
   expect(tileset.stats.loaded).toBeGreaterThan(0);
-  expect(tileset.stats.failed).toBe(1);
+  expect(tileset.stats.failed).toBe(0);
   const glbRequests = fetch.mock.calls.filter(([input]) => (
     !String(input).endsWith('tileset.json')
   ));
-  expect(glbRequests.length).toBeLessThanOrEqual(2);
+  expect(glbRequests.length).toBeLessThanOrEqual(1);
   expect(engine.getDiagnostics().lastDiagnostic?.code)
-    .toBe('ICE3_TILESET_TILE_FAILED');
+    .not.toBe('ICE3_TILESET_TILE_FAILED');
 });
 
 it('does not retain offscreen prefetch beyond the resident tile budget', async () => {
