@@ -124,3 +124,27 @@ it('round-trips optional material edge color', () => {
 
   expect(block.material.edgeColor).toBe('#e6f2ff');
 });
+
+it('round-trips a matrix-native mesh transform', () => {
+  const registry = new ICETypeRegistry();
+  registry.register('ice3:Mesh', ICEMesh);
+  const scene = new ICEScene({ id: 'scene' });
+  scene.addChild(
+    new ICEMesh({
+      id: 'block',
+      matrix: [
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        2, 3, 4, 1,
+      ],
+      geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
+      material: new ICEBasicMaterial({ color: '#ffffff' }),
+    }),
+  );
+
+  const restored = deserializeScene(serializeScene(scene), registry);
+  const block = restored.scene.findByID('block') as ICEMesh;
+
+  expect(block.getWorldPosition().toArray()).toEqual([2, 3, 4]);
+});

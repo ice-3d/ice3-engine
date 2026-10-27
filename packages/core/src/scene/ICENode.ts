@@ -8,7 +8,15 @@ export interface ICENodeOptions {
   readonly position?: ICEVector3Tuple;
   readonly rotation?: ICEVector3Tuple;
   readonly scale?: ICEVector3Tuple;
+  readonly matrix?: ICEMatrix4Tuple;
 }
+
+export type ICEMatrix4Tuple = readonly [
+  number, number, number, number,
+  number, number, number, number,
+  number, number, number, number,
+  number, number, number, number,
+];
 
 export interface ICESerializedNode {
   readonly id: string;
@@ -17,6 +25,7 @@ export interface ICESerializedNode {
   readonly position: ICEVector3Tuple;
   readonly rotation: ICEVector3Tuple;
   readonly scale: ICEVector3Tuple;
+  readonly matrix?: ICEMatrix4Tuple;
   readonly children: readonly ICESerializedNode[];
   readonly [key: string]: unknown;
 }
@@ -33,6 +42,7 @@ export class ICENode extends ICEEventDispatcher {
   private _parent: ICENode | null = null;
   private readonly _children: ICENode[] = [];
   private readonly worldMatrix = new ICEMatrix4();
+  private localMatrixOverride: Float32Array | null = null;
 
   constructor(options: ICENodeOptions) {
     super();
@@ -43,6 +53,9 @@ export class ICENode extends ICEEventDispatcher {
     this.position = new ICEVector3(...(options.position ?? [0, 0, 0]));
     this.rotation = new ICEVector3(...(options.rotation ?? [0, 0, 0]));
     this.scale = new ICEVector3(...(options.scale ?? [1, 1, 1]));
+    if (options.matrix) {
+      this.setLocalMatrix(options.matrix);
+    }
   }
 
   get typeId(): string {
@@ -124,6 +137,19 @@ export class ICENode extends ICEEventDispatcher {
     return new ICEVector3(matrix.elements[12]!, matrix.elements[13]!, matrix.elements[14]!);
   }
 
+  setLocalMatrix(matrix: ICEMatrix4Tuple): this {
+    if (matrix.length !== 16 || matrix.some((value) => !Number.isFinite(value))) {
+      throw new TypeError('ICE local matrix must contain 16 finite values');
+    }
+    this.localMatrixOverride = new Float32Array(matrix);
+    return this;
+  }
+
+  clearLocalMatrix(): this {
+    this.localMatrixOverride = null;
+    return this;
+  }
+
   toJSON(): ICESerializedNode {
     return {
       id: this.id,
@@ -132,6 +158,9 @@ export class ICENode extends ICEEventDispatcher {
       position: this.position.toArray(),
       rotation: this.rotation.toArray(),
       scale: this.scale.toArray(),
+      ...(this.localMatrixOverride
+        ? { matrix: [...this.localMatrixOverride] as unknown as ICEMatrix4Tuple }
+        : {}),
       children: this._children.map((child) => child.toJSON()),
     };
   }
@@ -163,6 +192,10 @@ export class ICENode extends ICEEventDispatcher {
   }
 
   private localMatrix(target: ICEMatrix4): ICEMatrix4 {
+    if (this.localMatrixOverride) {
+      target.elements.set(this.localMatrixOverride);
+      return target;
+    }
     const x = this.rotation.x;
     const y = this.rotation.y;
     const z = this.rotation.z;

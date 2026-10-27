@@ -5,6 +5,7 @@ import {
   ICEEngineError,
   ICEIndexedGeometry,
   ICEMesh,
+  ICENode,
   ICEScene,
 } from '../src/index';
 
@@ -83,5 +84,20 @@ describe('scene ownership', () => {
 
     scene.addChild(block);
     expect(scene.findByID('triangle')).toBe(block);
+  });
+
+  it('uses a supplied local matrix without decomposing it', () => {
+    const node = new ICENode({
+      id: 'asset-node',
+      position: [99, 99, 99],
+      matrix: [
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        2, 3, 4, 1,
+      ],
+    });
+
+    expect(node.getWorldPosition().toArray()).toEqual([2, 3, 4]);
   });
 });

@@ -13,7 +13,11 @@ export type { ICEBasicMaterialOptions } from './material/ICEBasicMaterial.js';
 export { ICEPerspectiveCamera } from './camera/ICEPerspectiveCamera.js';
 export type { ICEPerspectiveCameraOptions } from './camera/ICEPerspectiveCamera.js';
 export { ICENode } from './scene/ICENode.js';
-export type { ICENodeOptions, ICESerializedNode } from './scene/ICENode.js';
+export type {
+  ICEMatrix4Tuple,
+  ICENodeOptions,
+  ICESerializedNode,
+} from './scene/ICENode.js';
 export { ICEScene } from './scene/ICEScene.js';
 export { ICEMesh } from './scene/ICEMesh.js';
 export type { ICEMeshOptions } from './scene/ICEMesh.js';

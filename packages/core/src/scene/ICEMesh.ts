@@ -41,6 +41,7 @@ export class ICEMesh extends ICENode {
       position: value.position,
       rotation: value.rotation,
       scale: value.scale,
+      ...(value.matrix ? { matrix: value.matrix } : {}),
       geometry: new BoxGeometry({
         width: Number(geometry.width),
         height: Number(geometry.height),
