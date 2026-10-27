@@ -57,7 +57,7 @@ let assetCenter: readonly [number, number, number] = [0, 0, 0];
 engine.on<{ selection: readonly string[] }>('SELECTION_CHANGE', (event) => {
   const selectedId = event.param?.selection[0];
   selectedNode = selectedId
-    ? handle?.scene.findByID(selectedId) ?? null
+    ? findNodeBySelectionId(handle?.scene, selectedId) ?? null
     : null;
   updateStatus();
   if (selectedNode) {
@@ -87,15 +87,18 @@ function updateStatus(): void {
   const stats = handle?.stats;
   status.textContent = stats && stats.failed > 0
     ? `部分分区加载失败（${stats.failed}/${stats.total}）`
-    : '当前视角已就绪';
+    : stats && stats.lod.fallback > 0
+      ? `当前显示粗模回退（${stats.lod.fallback}）`
+      : '当前视角已就绪';
 }
 
 function updateTilesetProgress(stats: ICETilesetStats): void {
   tilesetProgress.textContent = [
-    `驻留 ${stats.resident}`,
-    `可见 ${stats.visible}`,
-    `加载中 ${stats.loading}`,
-    `总计 ${stats.total}`,
+    `切面 ${stats.lod.target}`,
+    `驻留 ${stats.lod.resident}`,
+    `粗模 ${stats.lod.coarseResident}`,
+    `细模 ${stats.lod.fineResident}`,
+    `回退 ${stats.lod.fallback}`,
   ].join(' · ');
   tilesetProgress.dataset.state = stats.failed > 0 ? 'partial' : 'active';
 }
@@ -161,7 +164,29 @@ function hideSelectionInfo(): void {
 
 function selectedScenePoint(): readonly [number, number, number] {
   const firstMesh = handle ? findStableMesh(handle.scene) : undefined;
-  return firstMesh?.getWorldPosition().toArray() ?? assetCenter;
+  if (!firstMesh) return assetCenter;
+  const bounds = firstMesh.geometry.getBounds();
+  const local = [
+    (bounds.min[0] + bounds.max[0]) / 2,
+    (bounds.min[1] + bounds.max[1]) / 2,
+    (bounds.min[2] + bounds.max[2]) / 2,
+    1,
+  ] as const;
+  const matrix = firstMesh.updateWorldMatrix().elements;
+  return [
+    matrix[0]! * local[0]
+      + matrix[4]! * local[1]
+      + matrix[8]! * local[2]
+      + matrix[12]!,
+    matrix[1]! * local[0]
+      + matrix[5]! * local[1]
+      + matrix[9]! * local[2]
+      + matrix[13]!,
+    matrix[2]! * local[0]
+      + matrix[6]! * local[1]
+      + matrix[10]! * local[2]
+      + matrix[14]!,
+  ];
 }
 
 function findStableMesh(node: ICENode): ICEMesh | undefined {
@@ -173,6 +198,21 @@ function findStableMesh(node: ICENode): ICEMesh | undefined {
   visit(node);
   meshes.sort((left, right) => left.id.localeCompare(right.id, 'en'));
   return meshes[0];
+}
+
+function findNodeBySelectionId(
+  node: ICENode | undefined,
+  selectionId: string,
+): ICENode | undefined {
+  if (!node) return undefined;
+  if (node instanceof ICEMesh && node.selectionId === selectionId) {
+    return node;
+  }
+  for (const child of node.children) {
+    const found = findNodeBySelectionId(child, selectionId);
+    if (found) return found;
+  }
+  return undefined;
 }
 
 function scenePixelAtProjection(): readonly [number, number, number, number] {
@@ -215,7 +255,7 @@ function disposeAsset(): void {
 
 async function start(): Promise<void> {
   try {
-    handle = await loader.open('/assets/partitioned/tileset.json');
+    handle = await loader.open('/assets/hierarchical-demo/tileset.json');
     const { min, max } = handle.bounds;
     assetCenter = [
       (min[0] + max[0]) / 2,
@@ -250,6 +290,8 @@ async function start(): Promise<void> {
       'TILESET_TILE_UNLOADED',
       'TILESET_READY',
       'TILESET_IDLE',
+      'TILESET_LOD_CHANGED',
+      'TILESET_LOD_FALLBACK',
     ]) {
       handle.on<ICETilesetEvent>(type, (event) => (
         onTilesetEvent(type, event.param)
@@ -354,6 +396,45 @@ window.__ice3M1 = {
     updateStatus();
     engine.requestRender('test-camera-pose');
   },
+  showLodOverview: () => {
+    if (!handle) return;
+    const { min, max } = handle.bounds;
+    const center = [
+      (min[0] + max[0]) / 2,
+      (min[1] + max[1]) / 2,
+      (min[2] + max[2]) / 2,
+    ] as const;
+    camera.setPosition([center[0] + 18, center[1] + 20, center[2] + 60]);
+    camera.setTarget(center);
+    viewUpdating = true;
+    updateStatus();
+    engine.requestRender('lod-overview');
+  },
+  focusLodBranch: () => {
+    const point = selectedScenePoint();
+    camera.setPosition([point[0], point[1], point[2] + 2]);
+    camera.setTarget(point);
+    viewUpdating = true;
+    updateStatus();
+    engine.requestRender('lod-focus');
+  },
+  selectOverviewDevice: () => {
+    const mesh = handle ? findStableMesh(handle.scene) : undefined;
+    engine.setSelection(mesh ? [mesh.selectionId] : []);
+  },
+  whenLodIdle: async () => {
+    await Promise.resolve();
+    await handle?.whenIdle();
+  },
+  visibleMeshCount: () => {
+    let count = 0;
+    const visit = (node: ICENode): void => {
+      if (node instanceof ICEMesh && node.visible) count += 1;
+      for (const child of node.children) visit(child);
+    };
+    if (handle) visit(handle.scene);
+    return count;
+  },
   scenePixelAtProjection,
   selectedIds: () => engine.getSelection(),
   disposeAsset,
@@ -368,6 +449,15 @@ window.__ice3M1 = {
     visible: 0,
     resident: 0,
     residentBytes: 0,
+    lod: {
+      target: 0,
+      resident: 0,
+      coarseResident: 0,
+      fineResident: 0,
+      transitioning: 0,
+      fallback: 0,
+      maxScreenSpaceErrorPixels: 16,
+    },
   },
 };
 

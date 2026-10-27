@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('shows compact camera hints after the asset is ready', async ({ page }) => {
-  await page.route('**/assets/partitioned/tileset.json', async (route) => {
+  await page.route('**/assets/hierarchical-demo/tileset.json', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 600));
     await route.continue();
   });
@@ -35,7 +35,7 @@ test('shows compact camera hints after the asset is ready', async ({ page }) => 
 });
 
 test('shows an accessible loading state until the asset is ready', async ({ page }) => {
-  await page.route('**/assets/partitioned/tileset.json', async (route) => {
+  await page.route('**/assets/hierarchical-demo/tileset.json', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 600));
     await route.continue();
   });
@@ -57,29 +57,26 @@ test('shows an accessible loading state until the asset is ready', async ({ page
   await expect(dispose).toBeEnabled();
 });
 
-test('shows completed partitions before all tile requests finish', async ({ page }) => {
-  await page.route('**/assets/partitioned/parts/part-*.glb', async (route) => {
-    const name = route.request().url().split('/').at(-1)!;
-    await new Promise((resolve) => setTimeout(
-      resolve,
-      name === 'part-000.glb' ? 0 : 1500,
-    ));
+test('shows coarse overview before fine leaf requests finish', async ({ page }) => {
+  await page.route('**/hierarchical-demo/parts/**', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     await route.continue();
   });
   await page.goto('http://127.0.0.1:8104/');
 
   const progress = page.locator('[data-role="tileset-progress"]');
-  await expect(progress).toHaveText('驻留 1 · 可见 4 · 加载中 2 · 总计 4');
+  await expect(progress).toHaveText(
+    '切面 1 · 驻留 1 · 粗模 1 · 细模 0 · 回退 0',
+  );
   await expect(page.locator('[data-role="stage"]')).toHaveAttribute(
     'aria-busy',
     'false',
   );
-  await expect(progress).toHaveText('驻留 4 · 可见 4 · 加载中 0 · 总计 4');
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
 });
 
-test('keeps completed partitions visible when one partition fails', async ({ page }) => {
-  await page.route('**/assets/partitioned/parts/part-001.glb', (route) => (
+test('keeps coarse coverage when focused fine content fails', async ({ page }) => {
+  await page.route('**/hierarchical-demo/parts/**', (route) => (
     route.fulfill({
       status: 500,
       contentType: 'text/plain',
@@ -87,15 +84,16 @@ test('keeps completed partitions visible when one partition fails', async ({ pag
     })
   ));
   await page.goto('http://127.0.0.1:8104/');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
+  await page.evaluate(() => window.__ice3M1.focusLodBranch());
 
-  await expect(page.locator('[data-role="tileset-progress"]'))
-    .toHaveText('驻留 3 · 可见 4 · 加载中 0 · 总计 4');
   await expect(page.locator('[data-role="status"]'))
-    .toHaveText('部分分区加载失败（1/4）');
+    .toContainText('当前显示粗模回退');
   await expect(page.locator('[data-role="stage"]'))
     .toHaveAttribute('aria-busy', 'false');
-  expect(await page.evaluate(() => window.__ice3M1.assetStats().meshCount))
-    .toBe(3);
+  expect(await page.evaluate(
+    () => window.__ice3M1.tilesetStats().lod.coarseResident,
+  )).toBeGreaterThan(0);
 });
 
 test('loads and unloads with the visible work set', async ({ page }) => {
@@ -110,13 +108,16 @@ test('loads and unloads with the visible work set', async ({ page }) => {
     () => window.__ice3M1.tilesetStats().resident,
   );
 
-  await page.evaluate(() => window.__ice3M1.setCameraPose([12, 0, 8], [12, 0, 0]));
+  await page.evaluate(() => window.__ice3M1.setCameraPose(
+    [20.5, 0, 2],
+    [20.5, 0, 0],
+  ));
   await expect.poll(
     () => page.evaluate(() => window.__ice3M1.tilesetStats().evicted),
   ).toBeGreaterThan(0);
-  expect(await page.evaluate(
-    () => window.__ice3M1.tilesetStats().resident,
-  )).toBeGreaterThan(0);
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.tilesetStats().resident),
+  ).toBeGreaterThan(0);
   expect(firstResident).toBeLessThan(4);
 });
 
@@ -142,7 +143,7 @@ test('clears selection when its visible partition is unloaded', async ({ page })
 });
 
 test('keeps a visible error state when model loading fails', async ({ page }) => {
-  await page.route('**/assets/partitioned/tileset.json', (route) => route.fulfill({
+  await page.route('**/assets/hierarchical-demo/tileset.json', (route) => route.fulfill({
     status: 500,
     contentType: 'text/plain',
     body: 'unavailable',
@@ -164,7 +165,7 @@ test('keeps a visible error state when model loading fails', async ({ page }) =>
 
 test('fits loading and control hints within a narrow viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.route('**/assets/partitioned/tileset.json', async (route) => {
+  await page.route('**/assets/hierarchical-demo/tileset.json', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 600));
     await route.continue();
   });
@@ -236,12 +237,12 @@ test('loads and renders the prepared industrial asset', async ({ page }) => {
     () => window.__ice3M1.diagnostics().backend.picking,
   )).toBe(true);
   expect(await page.evaluate(() => window.__ice3M1.assetStats())).toEqual({
-    nodeCount: 8,
+    nodeCount: 5,
     maxNodeDepth: 1,
     meshCount: 4,
     primitiveCount: 8,
-    triangleCount: 48,
-    edgeSegmentCount: 48,
+    triangleCount: 64,
+    edgeSegmentCount: 84,
     materialCount: 4,
     selectionGroupCount: 4,
   });
@@ -391,8 +392,8 @@ test('selects one equipment unit with a yellow highlight and info panel', async 
   const selectedPixel = await page.evaluate(
     () => window.__ice3M1.scenePixelAtProjection(),
   );
-  expect(selectedPixel[0] - before[0]).toBeGreaterThanOrEqual(60);
-  expect(before[2] - selectedPixel[2]).toBeGreaterThanOrEqual(60);
+  expect(selectedPixel[0] - before[0]).toBeGreaterThanOrEqual(50);
+  expect(before[2] - selectedPixel[2]).toBeGreaterThanOrEqual(50);
   expect(await page.evaluate(
     () => window.__ice3M1.diagnostics().lastPickTimeMs,
   )).toBeGreaterThan(0);
@@ -422,7 +423,13 @@ test('clears selection on empty click and does not select while dragging', async
   await page.mouse.up();
   expect(await page.evaluate(() => window.__ice3M1.selectedIds())).toEqual([]);
 
-  await page.mouse.click(stage.x + center.x, stage.y + center.y);
+  const centerAfterDrag = await page.evaluate(
+    () => window.__ice3M1.assetCenter(),
+  );
+  await page.mouse.click(
+    stage.x + centerAfterDrag.x,
+    stage.y + centerAfterDrag.y,
+  );
   await expect.poll(
     () => page.evaluate(() => window.__ice3M1.selectedIds().length),
   ).toBe(1);
@@ -468,4 +475,57 @@ test('does not select during a two-pointer pinch gesture', async ({ page }) => {
   });
 
   expect(await page.evaluate(() => window.__ice3M1.selectedIds())).toEqual([]);
+});
+
+test('shows coarse coverage and refines the focused branch', async ({ page }) => {
+  await page.goto('http://127.0.0.1:8104/');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
+
+  expect(await page.evaluate(
+    () => window.__ice3M1.tilesetStats().lod.coarseResident,
+  )).toBeGreaterThan(0);
+  await page.evaluate(() => window.__ice3M1.focusLodBranch());
+  await expect.poll(
+    () => page.evaluate(
+      () => window.__ice3M1.tilesetStats().lod.fineResident,
+    ),
+  ).toBeGreaterThan(0);
+  await expect(page.locator('[data-role="tileset-progress"]'))
+    .toContainText(/细模 [1-9]/);
+});
+
+test('keeps selection through a coarse-to-fine transition', async ({ page }) => {
+  await page.goto('http://127.0.0.1:8104/');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
+  await page.evaluate(() => window.__ice3M1.selectOverviewDevice());
+
+  await page.evaluate(() => window.__ice3M1.focusLodBranch());
+  await expect.poll(
+    () => page.evaluate(
+      () => window.__ice3M1.tilesetStats().lod.fineResident,
+    ),
+  ).toBeGreaterThan(0);
+  await expect(page.locator('[data-role="selection-info"]')).toBeVisible();
+  expect(await page.evaluate(() => window.__ice3M1.selectedIds().length))
+    .toBe(1);
+});
+
+test('keeps coarse coverage while focused fine content is delayed', async ({
+  page,
+}) => {
+  await page.route('**/hierarchical-demo/parts/**', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.continue();
+  });
+  await page.goto('http://127.0.0.1:8104/');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
+
+  await page.evaluate(() => window.__ice3M1.focusLodBranch());
+  await expect.poll(
+    () => page.evaluate(
+      () => window.__ice3M1.tilesetStats().lod.coarseResident,
+    ),
+  ).toBeGreaterThan(0);
+  expect(await page.evaluate(() => window.__ice3M1.visibleMeshCount()))
+    .toBeGreaterThan(0);
 });

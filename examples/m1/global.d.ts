@@ -16,6 +16,11 @@ declare global {
         position: readonly [number, number, number],
         target: readonly [number, number, number],
       ): void;
+      showLodOverview(): void;
+      focusLodBranch(): void;
+      selectOverviewDevice(): void;
+      whenLodIdle(): Promise<void>;
+      visibleMeshCount(): number;
       scenePixelAtProjection(): readonly [number, number, number, number];
       selectedIds(): readonly string[];
       disposeAsset(): void;

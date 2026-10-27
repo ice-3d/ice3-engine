@@ -1,0 +1,221 @@
+{
+  "asset": {
+    "version": "1.1",
+    "extras": {
+      "ice3": {
+        "assetId": "hierarchical-demo",
+        "contractVersion": "1.0"
+      }
+    }
+  },
+  "geometricError": 0.15735849738121033,
+  "root": {
+    "boundingVolume": {
+      "box": [
+        15.5,
+        -0.175,
+        0.5,
+        15.5,
+        0,
+        0,
+        0,
+        0,
+        0.5,
+        0,
+        0.175,
+        0
+      ]
+    },
+    "geometricError": 0.15735849738121033,
+    "refine": "REPLACE",
+    "content": {
+      "uri": "coarse/group-root.glb"
+    },
+    "children": [
+      {
+        "boundingVolume": {
+          "box": [
+            5.5,
+            -0.175,
+            0.5,
+            5.5,
+            0,
+            0,
+            0,
+            0,
+            0.5,
+            0,
+            0.175,
+            0
+          ]
+        },
+        "geometricError": 0.15735849738121033,
+        "refine": "REPLACE",
+        "content": {
+          "uri": "coarse/group-root-0.glb"
+        },
+        "children": [
+          {
+            "boundingVolume": {
+              "box": [
+                0.5,
+                -0.175,
+                0.5,
+                0.5,
+                0,
+                0,
+                0,
+                0,
+                0.5,
+                0,
+                0.175,
+                0
+              ]
+            },
+            "geometricError": 0,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "parts/part-000.glb"
+            },
+            "extras": {
+              "ice3": {
+                "assetId": "hierarchical-demo",
+                "partitionId": "group-root-0-0"
+              }
+            }
+          },
+          {
+            "boundingVolume": {
+              "box": [
+                10.5,
+                -0.175,
+                0.5,
+                0.5,
+                0,
+                0,
+                0,
+                0,
+                0.5,
+                0,
+                0.175,
+                0
+              ]
+            },
+            "geometricError": 0,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "parts/part-001.glb"
+            },
+            "extras": {
+              "ice3": {
+                "assetId": "hierarchical-demo",
+                "partitionId": "group-root-0-1"
+              }
+            }
+          }
+        ],
+        "extras": {
+          "ice3": {
+            "assetId": "hierarchical-demo",
+            "partitionId": "group-root-0"
+          }
+        }
+      },
+      {
+        "boundingVolume": {
+          "box": [
+            25.5,
+            -0.175,
+            0.5,
+            5.5,
+            0,
+            0,
+            0,
+            0,
+            0.5,
+            0,
+            0.175,
+            0
+          ]
+        },
+        "geometricError": 0.15735849738121033,
+        "refine": "REPLACE",
+        "content": {
+          "uri": "coarse/group-root-1.glb"
+        },
+        "children": [
+          {
+            "boundingVolume": {
+              "box": [
+                20.5,
+                -0.175,
+                0.5,
+                0.5,
+                0,
+                0,
+                0,
+                0,
+                0.5,
+                0,
+                0.175,
+                0
+              ]
+            },
+            "geometricError": 0,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "parts/part-002.glb"
+            },
+            "extras": {
+              "ice3": {
+                "assetId": "hierarchical-demo",
+                "partitionId": "group-root-1-0"
+              }
+            }
+          },
+          {
+            "boundingVolume": {
+              "box": [
+                30.5,
+                -0.175,
+                0.5,
+                0.5,
+                0,
+                0,
+                0,
+                0,
+                0.5,
+                0,
+                0.175,
+                0
+              ]
+            },
+            "geometricError": 0,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "parts/part-003.glb"
+            },
+            "extras": {
+              "ice3": {
+                "assetId": "hierarchical-demo",
+                "partitionId": "group-root-1-1"
+              }
+            }
+          }
+        ],
+        "extras": {
+          "ice3": {
+            "assetId": "hierarchical-demo",
+            "partitionId": "group-root-1"
+          }
+        }
+      }
+    ],
+    "extras": {
+      "ice3": {
+        "assetId": "hierarchical-demo",
+        "partitionId": "group-root"
+      }
+    }
+  }
+}
