@@ -78,24 +78,37 @@ reuse existing example servers.
 - Select a named equipment unit with an exact GPU click pick and preserve
   source colors under a non-destructive yellow highlight.
 - Reject ordinary GLB or profile features that need runtime conversion.
-- Open an OGC 3D Tiles 1.1 Tileset and incrementally load independent
-  Prepared GLBs in camera-distance order.
+- Open an OGC 3D Tiles 1.1 Tileset with a required perspective camera and
+  maintain a camera-driven visible, prefetch, and retention work set.
+- Cull geometry against the current view frustum, prefetch a bounded offscreen
+  margin, and unload partitions after they leave the retention margin.
+- Apply a soft resident-count and geometry-byte budget without ever omitting
+  visible equipment to satisfy that budget.
+- Commit at most one partition per frame by default, with configurable request
+  concurrency and per-frame commit limits.
 - Merge completed partitions into one scene so equipment selection and spatial
   interaction continue to work across tile boundaries.
-- Expose immutable Tileset progress, emit partition lifecycle events, preserve
-  successful partitions after a tile failure, and release all partitions
-  idempotently.
+- Expose immutable work-set and residency statistics, emit partition lifecycle
+  events, preserve successful partitions after a tile failure, and release all
+  partitions idempotently.
+- Clear a selection before unloading the partition that contains it.
 
 ## M0 boundaries
 
 M0 does not include model loading, LOD, instancing, spatial streaming, industrial semantics, Agent integration, asset tools, post-processing, or a WebGPU backend.
 
 M1 does not include generic glTF compatibility, animation, skins, Morph
-targets, textures, complex materials, instancing, generated LOD, dynamic tile
-unload, full screen-space-error scheduling, or runtime source-format conversion.
+targets, textures, complex materials, instancing, generated LOD, hierarchical
+parent-content refinement, implicit tiling, external Tilesets, or runtime
+source-format conversion.
 The first Tileset runtime supports explicit `children`, local Cartesian `box` or
 `sphere` bounds, relative Prepared GLB content, finite tile transforms, and
 `REPLACE` refinement.
+
+The runtime waits for the current work set through `whenIdle()`. There is no
+`whenComplete()` because a camera-driven Tileset is not expected to retain every
+partition at once. Generated LOD and screen-space-error tile selection are the
+next stage and are not part of this scheduler release.
 
 API details are in [docs/api/m0.md](docs/api/m0.md) and
 [docs/api/m1.md](docs/api/m1.md). Stable diagnostic codes are in
