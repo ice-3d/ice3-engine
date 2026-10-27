@@ -41,6 +41,8 @@ export interface ICETilesetStats {
   readonly visible: number;
   readonly resident: number;
   readonly residentBytes: number;
+  readonly residentContents: number;
+  readonly loadingContents: number;
   readonly lod: ICELodStats;
 }
 
@@ -291,6 +293,15 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       evicted: values.filter((value) => value === 'evicted').length,
       visible: this.workSet?.visible.length ?? 0,
       resident: this.resident.size,
+      residentContents: [...this.resident.values()].reduce(
+        (total, tile) => total + tile.contentUris.length,
+        0,
+      ),
+      loadingContents: [...this.states]
+        .filter(([, state]) => state === 'loading')
+        .reduce((total, [id]) => (
+          total + (this.tilesById.get(id)?.contentUris.length ?? 0)
+        ), 0),
       residentBytes: this.residentBytes,
       lod,
     });
@@ -304,7 +315,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       ancestors: readonly ICETilesetTile[],
     ): readonly ICETilesetTile[] | undefined => {
       if (tile.id === tileId) return ancestors;
-      const next = tile.contentUri
+      const next = tile.contentUris.length > 0
         ? [...ancestors, tile]
         : ancestors;
       for (const child of tile.children) {
@@ -429,7 +440,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     }
     for (const candidate of this.candidates.values()) {
       candidate.container.dispose();
-      this.assetLoader.clear(candidate.contentUri);
+      for (const uri of candidate.contentUris) this.assetLoader.clear(uri);
     }
     this.candidates.clear();
     if (!this.readySettled) {
@@ -629,46 +640,50 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   }
 
   private async loadTile(tile: ICETilesetTile): Promise<void> {
-    let loaded: ICEAssetHandle | undefined;
+    const loadedHandles: ICEAssetHandle[] = [];
     try {
-      if (!tile.contentUri) {
+      if (tile.contentUris.length === 0) {
         throw new Error('tile has no content URI');
       }
-      loaded = await this.assetLoader.load(tile.contentUri, {
-        signal: this.abortController.signal,
-      });
-      if (
-        this.disposed
-        || !this.workSet?.retainIds.has(tile.id)
-      ) {
-        loaded.dispose();
-        this.assetLoader.clear(tile.contentUri);
-        if (!this.disposed) this.states.set(tile.id, 'evicted');
-        return;
-      }
-      const bytes = estimateSceneBytes(loaded.scene);
       const container = new ICENode({
         id: `${this.snapshot.assetId}:tile:${tile.id}`,
         ...(tile.transform
           ? { matrix: tile.transform as ICEMatrix4Tuple }
           : {}),
       });
-      for (const child of [...loaded.scene.children]) {
-        container.addChild(child);
+      let bytes = 0;
+      for (const [index, uri] of tile.contentUris.entries()) {
+        const loaded = await this.assetLoader.load(uri, {
+          signal: this.abortController.signal,
+        });
+        loadedHandles.push(loaded);
+        if (this.disposed || !this.workSet?.retainIds.has(tile.id)) {
+          for (const handle of loadedHandles) handle.dispose();
+          for (const contentUri of tile.contentUris) {
+            this.assetLoader.clear(contentUri);
+          }
+          container.dispose();
+          if (!this.disposed) this.states.set(tile.id, 'evicted');
+          return;
+        }
+        bytes += estimateSceneBytes(loaded.scene);
+        const chunk = new ICENode({ id: `${container.id}:content:${index}` });
+        for (const child of [...loaded.scene.children]) chunk.addChild(child);
+        container.addChild(chunk);
+        loaded.dispose();
       }
-      loaded.dispose();
-      loaded = undefined;
       this.candidates.set(tile.id, {
         tile,
         container,
         bytes,
-        contentUri: tile.contentUri,
+        contentUris: tile.contentUris,
       });
       this.commitQueue.push(tile.id);
       this.scheduleCommit();
       this.settleIdleWaiters();
     } catch (error) {
-      loaded?.dispose();
+      for (const handle of loadedHandles) handle.dispose();
+      for (const uri of tile.contentUris) this.assetLoader.clear(uri);
       if (this.disposed || isAbortError(error)) return;
       if (!this.workSet?.retainIds.has(tile.id)) {
         this.states.set(tile.id, 'evicted');
@@ -736,7 +751,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
           tile: candidate.tile,
           container: candidate.container,
           bytes: candidate.bytes,
-          contentUri: candidate.contentUri,
+          contentUris: candidate.contentUris,
         });
         this.residentBytes += candidate.bytes;
         this.states.set(tileId, 'loaded');
@@ -756,7 +771,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         }
       } catch (error) {
         candidate.container.dispose();
-        this.assetLoader.clear(candidate.contentUri);
+        for (const uri of candidate.contentUris) this.assetLoader.clear(uri);
         this.states.set(tileId, 'failed');
         this.engine.reportDiagnostic(
           'ICE3_TILESET_TILE_FAILED',
@@ -784,7 +799,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
 
   private discardCandidateRecord(candidate: ICETileCandidate): void {
     candidate.container.dispose();
-    this.assetLoader.clear(candidate.contentUri);
+    for (const uri of candidate.contentUris) this.assetLoader.clear(uri);
   }
 
   private unloadTile(tileId: string): void {
@@ -793,7 +808,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     this.scene.removeChild(record.container, { dispose: true });
     this.resident.delete(tileId);
     this.residentBytes = Math.max(0, this.residentBytes - record.bytes);
-    this.assetLoader.clear(record.contentUri);
+    for (const uri of record.contentUris) this.assetLoader.clear(uri);
     this.states.set(tileId, 'evicted');
     this.emit('TILESET_TILE_UNLOADED', tileId);
     const remainingIds = new Set<string>();
@@ -901,7 +916,7 @@ interface ICEResidentTile {
   readonly tile: ICETilesetTile;
   readonly container: ICENode;
   readonly bytes: number;
-  readonly contentUri: string;
+  readonly contentUris: readonly string[];
 }
 
 interface ICETileCandidate extends Omit<ICEResidentTile, 'tile'> {

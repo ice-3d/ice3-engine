@@ -449,6 +449,8 @@ window.__ice3M1 = {
     visible: 0,
     resident: 0,
     residentBytes: 0,
+    residentContents: 0,
+    loadingContents: 0,
     lod: {
       target: 0,
       resident: 0,
