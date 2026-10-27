@@ -7,11 +7,12 @@ const readPackage = (path) =>
   JSON.parse(readFileSync(new URL(`packages/${path}/package.json`, root), 'utf8'));
 
 test('workspace packages exist with the expected dependency direction', () => {
-  for (const name of ['core', 'renderer', 'runtime', 'ice3']) {
+  for (const name of ['core', 'assets', 'renderer', 'runtime', 'ice3']) {
     assert.equal(existsSync(new URL(`packages/${name}/package.json`, root)), true);
   }
 
   assert.deepEqual(readPackage('core').dependencies ?? {}, {});
+  assert.deepEqual(readPackage('assets').dependencies, { '@ice3/core': '0.0.0' });
   assert.deepEqual(readPackage('renderer').dependencies, { '@ice3/core': '0.0.0' });
   assert.deepEqual(readPackage('runtime').dependencies, {
     '@ice3/core': '0.0.0',
