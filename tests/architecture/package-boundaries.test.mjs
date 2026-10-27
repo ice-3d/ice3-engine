@@ -20,6 +20,7 @@ test('workspace packages exist with the expected dependency direction', () => {
     '@ice3/renderer': '0.0.0',
   });
   assert.deepEqual(readPackage('ice3').dependencies, {
+    '@ice3/assets': '0.0.0',
     '@ice3/core': '0.0.0',
     '@ice3/renderer': '0.0.0',
     '@ice3/runtime': '0.0.0',

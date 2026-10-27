@@ -2,6 +2,7 @@ export {
   ICEBasicMaterial,
   ICEBoxGeometry,
   ICEEngineError,
+  ICEAssetLoader,
   ICELabel,
   ICEMesh,
   ICENode,
@@ -24,5 +25,8 @@ export type {
   ICEInputEvent,
   ICEInputTarget,
   ICEProjectedPoint,
+  ICEAssetHandle,
+  ICEAssetLoaderOptions,
+  ICEAssetLoadOptions,
   ICESerializedScene,
 } from '@ice3/runtime';

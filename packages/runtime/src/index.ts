@@ -22,3 +22,9 @@ export { ICEInputRouter } from './input/ICEInputRouter.js';
 export type { ICEInputEvent, ICEInputTarget } from './input/ICEInputRouter.js';
 export { ICEOrbitController } from './input/ICEOrbitController.js';
 export * from './asset/ICEAssetSceneBuilder.js';
+export {
+  ICEAssetLoader,
+  type ICEAssetHandle,
+  type ICEAssetLoaderOptions,
+  type ICEAssetLoadOptions,
+} from './asset/ICEAssetLoader.js';
