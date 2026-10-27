@@ -7,16 +7,22 @@ import type {
 } from './types.js';
 
 export class FakeRendererBackend implements ICERendererBackend {
-  readonly capabilities: Readonly<ICERendererCapabilities> = {
-    backend: 'fake',
-    maxTextureSize: 4096,
-    picking: false,
-  };
+  readonly capabilities: Readonly<ICERendererCapabilities>;
   readonly frames: ICEFrame[] = [];
   lastViewport: ICEViewport = { x: 0, y: 0, width: 1, height: 1 };
   lastBackgroundColor = '#09111f';
+  pickResult: string | undefined;
+  pickError: Error | undefined;
   private disposed = false;
   private disposals = 0;
+
+  constructor(options: { readonly picking?: boolean } = {}) {
+    this.capabilities = {
+      backend: 'fake',
+      maxTextureSize: 4096,
+      picking: options.picking ?? false,
+    };
+  }
 
   initialize(): void {}
 
@@ -32,6 +38,13 @@ export class FakeRendererBackend implements ICERendererBackend {
   render(frame: ICEFrame): void {
     this.assertActive();
     this.frames.push(frame);
+  }
+
+  pick(): string | undefined {
+    if (this.pickError) {
+      throw this.pickError;
+    }
+    return this.pickResult;
   }
 
   dispose(): void {

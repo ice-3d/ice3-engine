@@ -9,5 +9,6 @@ export type {
   ICERendererBackend,
   ICERendererCapabilities,
   ICEFrame,
+  ICEScreenPoint,
   ICEViewport,
 } from './types.js';

@@ -35,4 +35,5 @@ export type {
   ICEGeometryBounds,
   ICEIndexedGeometryOptions,
   ICEMatrix4Tuple,
+  ICEPickOutcome,
 } from '@ice3/runtime';

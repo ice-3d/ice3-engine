@@ -109,7 +109,8 @@ test('2D controls shield 3D and transparent areas pass through', async ({ page }
   const hud = await page.evaluate(() => window.__ice3M0.hudRect());
   await page.mouse.click(stage.x + hud.x + 4, stage.y + hud.y + 4);
   await expect(page.locator('[data-role="status"]')).toHaveText('HUD 已点击');
-  expect(await page.evaluate(() => window.__ice3M0.getSelection())).toEqual([]);
+  expect(await page.evaluate(() => window.__ice3M0.getSelection()))
+    .toEqual(['demo-block']);
 
   await page.mouse.click(stage.x + center.x, stage.y + center.y);
   await expect(page.locator('[data-role="status"]')).toHaveText('已选中 demo-block');
@@ -131,10 +132,14 @@ test('mouse drag and wheel animate the camera smoothly', async ({ page }) => {
     stage.y + center.y + 48,
     { steps: 8 },
   );
-  await page.mouse.up();
-  await expect(page.locator('[data-role="status"]')).toHaveText(
-    '已选中 demo-block',
+  await page.mouse.move(
+    stage.x + center.x,
+    stage.y + center.y,
+    { steps: 8 },
   );
+  await page.mouse.up();
+  await expect(page.locator('[data-role="status"]')).toHaveText('运行');
+  expect(await page.evaluate(() => window.__ice3M0.getSelection())).toEqual([]);
   await expect
     .poll(() => page.evaluate(() => window.__ice3M0.diagnostics().frameId))
     .toBeGreaterThan(beforeDrag + 4);

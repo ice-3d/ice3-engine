@@ -25,6 +25,12 @@ export type {
   ICEKeyboardInputEvent,
 } from './input/ICEInputRouter.js';
 export { ICEOrbitController } from './input/ICEOrbitController.js';
+export {
+  SELECTION_CLICK_THRESHOLD_PX,
+  isSelectionClick,
+  selectionForOutcome,
+} from './input/ICESelectionGesture.js';
+export type { ICEPickOutcome } from './input/ICESelectionGesture.js';
 export * from './asset/ICEAssetSceneBuilder.js';
 export {
   ICEAssetLoader,

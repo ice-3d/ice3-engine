@@ -9,6 +9,7 @@ import {
 import {
   WebGL2RendererBackend,
   type ICERendererBackend,
+  type ICEScreenPoint,
   type ICEViewport,
 } from '@ice3/renderer';
 import { ICE2DCanvasPainter } from './layer/ICE2DCanvasPainter.js';
@@ -22,6 +23,11 @@ import {
   type ICEKeyboardInputEvent,
 } from './input/ICEInputRouter.js';
 import { pickSceneNode } from './input/ICEScenePicker.js';
+import {
+  isSelectionClick,
+  selectionForOutcome,
+  type ICEPickOutcome,
+} from './input/ICESelectionGesture.js';
 import { ICEInteractionState } from './ICEInteractionState.js';
 import { projectWorldPoint, type ICEProjectedPoint } from './ICEProjection.js';
 import {
@@ -51,6 +57,9 @@ export type ICEEngineDiagnostics = {
   readonly canvas: Readonly<{ width: number; height: number }>;
   readonly viewport: Readonly<ICEViewport>;
   readonly contextLossCount: number;
+  readonly selectionCount: number;
+  readonly lastPickTimeMs: number;
+  readonly lastPickId?: string;
   readonly labels: readonly Readonly<{
     id: string;
     layerId: string;
@@ -60,6 +69,17 @@ export type ICEEngineDiagnostics = {
 };
 
 type EngineState = 'created' | 'initialized' | 'running' | 'stopped' | 'destroyed';
+
+type PointerGesture = {
+  readonly start: Readonly<{ x: number; y: number }>;
+  readonly target: ICEInputTarget;
+  dragged: boolean;
+};
+
+type ICEPickResult =
+  | { readonly kind: 'hit'; readonly node: ICENode }
+  | { readonly kind: 'empty' }
+  | { readonly kind: 'error' };
 
 const NAVIGATION_KEY_CODES = new Set([
   'ArrowUp',
@@ -82,13 +102,7 @@ export class ICE3 extends ICEEventDispatcher {
         ? { kind: 'layer', layerId: hit.layer.id, labelId: hit.label.id }
         : undefined;
     },
-    pickScene: (point) => {
-      const node = this.pick(point);
-      return {
-        kind: 'scene',
-        ...(node?.id ? { nodeId: node.id } : {}),
-      };
-    },
+    pickScene: () => ({ kind: 'scene' }),
     dispatch: (target, event) => this.dispatchInput(target, event),
   });
   private state: EngineState = 'created';
@@ -108,6 +122,9 @@ export class ICE3 extends ICEEventDispatcher {
   private cpuFrameTimeMs = 0;
   private contextLost = false;
   private contextLossCount = 0;
+  private lastPickTimeMs = 0;
+  private lastPickId: string | undefined;
+  private readonly pointerGestures = new Map<number, PointerGesture>();
   private lastDiagnostic: ICEDiagnostic | undefined;
   private readonly removeInputListeners: Array<() => void> = [];
   private readonly handleWindowResize = (): void => {
@@ -257,6 +274,7 @@ export class ICE3 extends ICEEventDispatcher {
     this.assertActive();
     this.scheduler.cancelAll();
     this.renderPending = false;
+    this.pointerGestures.clear();
     this.state = 'stopped';
     return this;
   }
@@ -303,11 +321,9 @@ export class ICE3 extends ICEEventDispatcher {
     return this;
   }
 
-  pick(point: { readonly x: number; readonly y: number }): ICENode | undefined {
-    this.assertActive();
-    return this.scene && this.camera
-      ? pickSceneNode(this.scene, this.camera, this.viewport, point)
-      : undefined;
+  pick(point: ICEScreenPoint): ICENode | undefined {
+    const result = this.samplePick(point);
+    return result.kind === 'hit' ? result.node : undefined;
   }
 
   getDiagnostics(): Readonly<ICEEngineDiagnostics> {
@@ -329,6 +345,9 @@ export class ICE3 extends ICEEventDispatcher {
       },
       viewport: { ...this.viewport },
       contextLossCount: this.contextLossCount,
+      selectionCount: this.interaction.getSelection().length,
+      lastPickTimeMs: this.lastPickTimeMs,
+      ...(this.lastPickId ? { lastPickId: this.lastPickId } : {}),
       labels: this.layers.flatMap((layer) =>
         layer.getLabels().map((label) => ({
           id: label.id,
@@ -364,6 +383,7 @@ export class ICE3 extends ICEEventDispatcher {
     this.host = null;
     this.scene = null;
     this.camera = null;
+    this.pointerGestures.clear();
     this.state = 'destroyed';
     this.trigger('DESTROY');
     this.removeAllListeners();
@@ -507,17 +527,52 @@ export class ICE3 extends ICEEventDispatcher {
 
     listen('pointerdown', (event) => {
       overlay.setPointerCapture?.(event.pointerId);
-      this.inputRouter.pointerDown(pointOf(event), event.pointerId);
+      const point = pointOf(event);
+      const target = this.inputRouter.pointerDown(point, event.pointerId);
+      if (target) {
+        this.pointerGestures.set(event.pointerId, {
+          start: { ...point },
+          target,
+          dragged: false,
+        });
+      }
     });
     listen('pointermove', (event) => {
-      this.inputRouter.pointerMove(pointOf(event), event.pointerId);
+      const point = pointOf(event);
+      const gesture = this.pointerGestures.get(event.pointerId);
+      if (
+        gesture
+        && !isSelectionClick(gesture.start, point)
+      ) {
+        gesture.dragged = true;
+      }
+      this.inputRouter.pointerMove(point, event.pointerId);
     });
     listen('pointerup', (event) => {
-      this.inputRouter.pointerUp(pointOf(event), event.pointerId);
+      const point = pointOf(event);
+      const gesture = this.pointerGestures.get(event.pointerId);
+      this.inputRouter.pointerUp(point, event.pointerId);
+      this.pointerGestures.delete(event.pointerId);
+      if (
+        gesture
+        && gesture.target.kind === 'scene'
+        && !gesture.dragged
+        && isSelectionClick(gesture.start, point)
+      ) {
+        const result = this.samplePick(point);
+        const outcome: ICEPickOutcome = result.kind === 'hit'
+          ? { kind: 'hit', id: result.node.id }
+          : result;
+        const nextSelection = selectionForOutcome(outcome);
+        if (nextSelection !== undefined) {
+          this.setSelection(nextSelection);
+        }
+      }
       overlay.releasePointerCapture?.(event.pointerId);
     });
     listen('pointercancel', (event) => {
       this.inputRouter.pointerCancel(event.pointerId);
+      this.pointerGestures.delete(event.pointerId);
     });
     listen('wheel', (event) => {
       event.preventDefault();
@@ -553,6 +608,7 @@ export class ICE3 extends ICEEventDispatcher {
       handleKey('keyup', event);
     };
     const handleBlur = (): void => {
+      this.pointerGestures.clear();
       this.trigger('KEY_CANCEL');
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -566,9 +622,6 @@ export class ICE3 extends ICEEventDispatcher {
   }
 
   private dispatchInput(target: ICEInputTarget, event: ICEInputEvent): void {
-    if (event.type === 'pointerdown') {
-      this.setSelection(target.kind === 'scene' && target.nodeId ? [target.nodeId] : []);
-    }
     const eventName = {
       pointerdown: 'POINTER_DOWN',
       pointermove: 'POINTER_MOVE',
@@ -577,6 +630,41 @@ export class ICE3 extends ICEEventDispatcher {
       wheel: 'WHEEL',
     }[event.type];
     this.trigger(eventName, { target, event });
+  }
+
+  private samplePick(point: ICEScreenPoint): ICEPickResult {
+    this.assertActive();
+    if (!this.scene || !this.camera) {
+      return { kind: 'empty' };
+    }
+    if (this.backend.capabilities.picking && this.backend.pick) {
+      const startedAt = performance.now();
+      try {
+        const selectionId = this.backend.pick({
+          frameId: this.frameId,
+          scene: this.scene,
+          camera: this.camera,
+          viewport: this.viewport,
+          dpr: this.dpr,
+          selection: this.interaction.getSelection(),
+        }, point);
+        this.lastPickId = selectionId;
+        const node = selectionId
+          ? this.scene.findByID(selectionId)
+          : undefined;
+        return node ? { kind: 'hit', node } : { kind: 'empty' };
+      } catch (error) {
+        this.recordDiagnostic(
+          'ICE3_PICK_UNAVAILABLE',
+          error instanceof Error ? error.message : String(error),
+        );
+        return { kind: 'error' };
+      } finally {
+        this.lastPickTimeMs = performance.now() - startedAt;
+      }
+    }
+    const node = pickSceneNode(this.scene, this.camera, this.viewport, point);
+    return node ? { kind: 'hit', node } : { kind: 'empty' };
   }
 
   private assertActive(): void {
