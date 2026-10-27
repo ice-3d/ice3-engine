@@ -6,6 +6,7 @@ import {
   createForbiddenFeatureGLB,
   createDuplicateMeshIdGLB,
   createInvalidPrimitiveModeGLB,
+  createFourByteAlignedFloatGLB,
   createOrdinaryGLB,
   createOutOfRangeAccessorGLB,
   createTRSNodeGLB,
@@ -61,4 +62,9 @@ it('rejects primitive modes outside triangles and profile edges', () => {
   expect(() => readPreparedGLB(createInvalidPrimitiveModeGLB())).toThrowError(
     /ICE3_ASSET_UNSUPPORTED_FEATURE/,
   );
+});
+
+it('accepts float VEC3 data aligned to four bytes rather than twelve', () => {
+  const snapshot = readPreparedGLB(createFourByteAlignedFloatGLB());
+  expect(snapshot.geometries[0]!.positions).toHaveLength(9);
 });

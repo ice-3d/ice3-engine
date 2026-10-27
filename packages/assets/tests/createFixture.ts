@@ -9,6 +9,7 @@ type FixtureOptions = {
   readonly forbiddenFeature?: boolean;
   readonly duplicateMeshId?: boolean;
   readonly invalidPrimitiveMode?: boolean;
+  readonly floatOffset4?: boolean;
 };
 
 export function createMinimalPreparedGLB(
@@ -17,10 +18,14 @@ export function createMinimalPreparedGLB(
   const positions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]);
   const indices = new Uint16Array([0, 1, 2]);
   const edges = new Uint16Array([0, 1, 1, 2, 2, 0]);
-  const binary = Buffer.alloc(56);
-  Buffer.from(positions.buffer).copy(binary, 0);
-  Buffer.from(indices.buffer).copy(binary, 36);
-  Buffer.from(edges.buffer).copy(binary, 44);
+  const positionOffset = options.floatOffset4 ? 4 : 0;
+  const indexOffset = positionOffset + 36;
+  const edgeOffset = Math.ceil((indexOffset + 6) / 4) * 4;
+  const binaryLength = edgeOffset + 12;
+  const binary = Buffer.alloc(binaryLength);
+  Buffer.from(positions.buffer).copy(binary, positionOffset);
+  Buffer.from(indices.buffer).copy(binary, indexOffset);
+  Buffer.from(edges.buffer).copy(binary, edgeOffset);
   const digest = createHash('sha256').update(binary).digest('hex');
 
   const json = {
@@ -112,11 +117,11 @@ export function createMinimalPreparedGLB(
       { bufferView: 2, componentType: 5123, count: 6, type: 'SCALAR' },
     ],
     bufferViews: [
-      { buffer: 0, byteOffset: 0, byteLength: 36 },
-      { buffer: 0, byteOffset: 36, byteLength: 6 },
-      { buffer: 0, byteOffset: 44, byteLength: 12 },
+      { buffer: 0, byteOffset: positionOffset, byteLength: 36 },
+      { buffer: 0, byteOffset: indexOffset, byteLength: 6 },
+      { buffer: 0, byteOffset: edgeOffset, byteLength: 12 },
     ],
-    buffers: [{ byteLength: 56 }],
+    buffers: [{ byteLength: binaryLength }],
     ...(options.forbiddenFeature
       ? { animations: [{}], textures: [{}] }
       : {}),
@@ -155,6 +160,10 @@ export function createDuplicateMeshIdGLB(): ArrayBuffer {
 
 export function createInvalidPrimitiveModeGLB(): ArrayBuffer {
   return createMinimalPreparedGLB({ invalidPrimitiveMode: true });
+}
+
+export function createFourByteAlignedFloatGLB(): ArrayBuffer {
+  return createMinimalPreparedGLB({ floatOffset4: true });
 }
 
 function packGLB(json: unknown, binary: Buffer): ArrayBuffer {

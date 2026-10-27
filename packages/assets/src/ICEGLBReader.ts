@@ -248,16 +248,17 @@ function accessorOffset(
     throw assetError('ICE3_ASSET_ACCESSOR_INVALID', 'bufferView is missing');
   }
   const offset = Number(view.byteOffset ?? 0) + Number(accessor.byteOffset ?? 0);
-  const elementBytes = accessor.componentType === 5126
-    ? 12
+  const componentBytes = accessor.componentType === 5126
+    ? 4
     : accessor.componentType === 5123
       ? 2
       : 4;
-  const required = Number(accessor.count) * elementBytes;
+  const componentCount = accessor.type === 'VEC3' ? 3 : 1;
+  const required = Number(accessor.count) * componentBytes * componentCount;
   if (
     !Number.isInteger(offset)
     || offset < 0
-    || offset % elementBytes !== 0
+    || offset % componentBytes !== 0
     || required > Number(view.byteLength)
     || offset + required > binary.byteLength
   ) {
