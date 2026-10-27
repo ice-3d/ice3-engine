@@ -63,10 +63,11 @@ it('keeps coarse parent coverage until focused fine content commits', async () =
   expect(idleSettled).toBe(false);
   await expect.poll(() => tileset.stats.lod.fineResident)
     .toBeGreaterThan(0);
-  await expect.poll(() => tileset.stats.lod.coarseResident).toBe(0);
   await idle;
 
-  expect(tileset.stats.lod.coarseResident).toBe(0);
+  expect(tileset.scene.findByID('hierarchical-demo:tile:root')?.visible)
+    .toBe(false);
+  expect(tileset.scene.children.some((node) => node.visible)).toBe(true);
   expect(tileset.stats.lod.fineResident).toBeGreaterThan(0);
   expect(tileset.stats.lod.transitioning).toBe(0);
 });
@@ -133,6 +134,70 @@ it('keeps the current representation visible until coarse content commits', asyn
   expect(tileset.stats.lod.fineResident).toBe(0);
 });
 
+it('keeps the displayed LOD stable while the camera is moving', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const lodCamera = camera();
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch: immediateFetch(),
+    camera: lodCamera,
+    maxScreenSpaceErrorPixels: 0.01,
+    lodSettleDelayMs: 80,
+  }).open('https://example.test/hierarchical-demo/tileset.json');
+  await tileset.whenReady();
+  await tileset.whenIdle();
+  const initialVisibleIds = tileset.scene.children
+    .filter((node) => node.visible)
+    .map((node) => node.id);
+  expect(initialVisibleIds).toEqual(['hierarchical-demo:tile:root']);
+
+  for (const x of [0.5, 1, 0.5, 0]) {
+    lodCamera.setPosition([x, 0, 2]).setTarget([x, 0, 0]);
+    engine.trigger('AFTER_RENDER');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  expect(tileset.scene.children
+    .filter((node) => node.visible)
+    .map((node) => node.id)).toEqual(initialVisibleIds);
+
+  await expect.poll(() => tileset.stats.lod.fineResident)
+    .toBeGreaterThan(0);
+  await tileset.whenIdle();
+  expect(tileset.scene.children
+    .filter((node) => node.visible)
+    .map((node) => node.id)).not.toEqual(initialVisibleIds);
+});
+
+it('uses a retained coarse ancestor as the stable motion fallback', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const lodCamera = camera();
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch: immediateFetch(),
+    camera: lodCamera,
+    maxScreenSpaceErrorPixels: 0.01,
+    lodSettleDelayMs: 40,
+  }).open('https://example.test/hierarchical-demo/tileset.json');
+  await tileset.whenReady();
+  await tileset.whenIdle();
+
+  lodCamera.setPosition([0.5, 0, 2]).setTarget([0.5, 0, 0]);
+  engine.trigger('AFTER_RENDER');
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  await tileset.whenIdle();
+
+  const fallback = tileset.scene.findByID('hierarchical-demo:tile:root');
+  expect(fallback).toBeDefined();
+  expect(fallback?.visible).toBe(false);
+
+  lodCamera.setPosition([0, 0, 2]).setTarget([0, 0, 0]);
+  engine.trigger('AFTER_RENDER');
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  expect(fallback?.visible).toBe(true);
+  expect(tileset.scene.children
+    .filter((node) => node.visible)
+    .map((node) => node.id)).toEqual(['hierarchical-demo:tile:root']);
+});
+
 it('keeps parent coverage when focused fine content fails', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const lodCamera = camera();
@@ -181,6 +246,7 @@ it('discards stale refinement coverage when the camera leaves', async () => {
   engine.trigger('AFTER_RENDER');
   lodCamera.setPosition([1000, 0, 1000]).setTarget([1000, 0, 0]);
   engine.trigger('AFTER_RENDER');
+  await new Promise((resolve) => setTimeout(resolve, 0));
   await tileset.whenIdle();
 
   expect(tileset.stats.lod.transitioning).toBe(0);
@@ -202,9 +268,10 @@ it('preserves selection when coarse content is replaced by fine content', async 
   engine.trigger('AFTER_RENDER');
   await expect.poll(() => tileset.stats.lod.fineResident)
     .toBeGreaterThan(0);
-  await expect.poll(() => tileset.stats.lod.coarseResident).toBe(0);
   await tileset.whenIdle();
 
+  expect(tileset.scene.findByID('hierarchical-demo:tile:root')?.visible)
+    .toBe(false);
   expect(engine.getSelection()).toEqual(['hierarchical-demo/node/0']);
 });
 

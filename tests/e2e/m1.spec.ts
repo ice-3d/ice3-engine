@@ -144,10 +144,12 @@ test('loads and unloads with the visible work set', async ({ page }) => {
 
 test('clears selection when its visible partition is unloaded', async ({ page }) => {
   await page.goto('http://127.0.0.1:8104/');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   await page.evaluate(() => window.__ice3M1.setCameraPose([0, 0, 8], [0, 0, 0]));
   await expect.poll(
     () => page.evaluate(() => window.__ice3M1.tilesetStats().resident),
   ).toBeGreaterThan(0);
+  await page.evaluate(() => window.__ice3M1.whenLodIdle());
   const center = await page.evaluate(() => window.__ice3M1.assetCenter());
   const stage = await page.locator('[data-role="stage"]').boundingBox();
   if (!stage) throw new Error('Stage bounds missing');

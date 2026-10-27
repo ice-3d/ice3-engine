@@ -71,6 +71,7 @@ export interface ICETilesetLoaderOptions {
   readonly unloadMarginRatio?: number;
   readonly maxCommitsPerFrame?: number;
   readonly maxScreenSpaceErrorPixels?: number;
+  readonly lodSettleDelayMs?: number;
 }
 
 export interface ICETilesetOpenOptions {
@@ -84,6 +85,7 @@ export class ICETilesetLoader {
   private readonly maxCommitsPerFrame: number;
   private readonly scheduler: ICETilesetScheduler;
   private readonly maxScreenSpaceErrorPixels: number;
+  private readonly lodSettleDelayMs: number;
 
   constructor(
     private readonly engine: ICE3,
@@ -99,6 +101,7 @@ export class ICETilesetLoader {
     this.maxConcurrentTiles = options.maxConcurrentTiles ?? 2;
     this.maxCommitsPerFrame = options.maxCommitsPerFrame ?? 1;
     this.maxScreenSpaceErrorPixels = options.maxScreenSpaceErrorPixels ?? 16;
+    this.lodSettleDelayMs = options.lodSettleDelayMs ?? 180;
     if (
       !Number.isInteger(this.maxConcurrentTiles)
       || this.maxConcurrentTiles < 1
@@ -115,6 +118,14 @@ export class ICETilesetLoader {
     ) {
       throw new Error(
         'ICE3_TILESET_LOD_INVALID: maxScreenSpaceErrorPixels must be positive',
+      );
+    }
+    if (
+      !Number.isInteger(this.lodSettleDelayMs)
+      || this.lodSettleDelayMs < 0
+    ) {
+      throw new Error(
+        'ICE3_TILESET_LOD_INVALID: lodSettleDelayMs must be a non-negative integer',
       );
     }
     this.scheduler = new ICETilesetScheduler({
@@ -165,6 +176,7 @@ export class ICETilesetLoader {
       this.maxConcurrentTiles,
       this.maxCommitsPerFrame,
       this.maxScreenSpaceErrorPixels,
+      this.lodSettleDelayMs,
       options.signal,
     );
     handle.start();
@@ -191,6 +203,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   private readonly lodSelector = new ICELodSelector();
   private readonly abortController = new AbortController();
   private readonly readyPromise: Promise<void>;
+  private readonly lodSettleDelayMs: number;
   private requestQueue: ICETilesetTile[] = [];
   private commitQueue: string[] = [];
   private workSet: ICETilesetWorkSet | undefined;
@@ -212,6 +225,9 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   private lodSelection: ICELodSelection | undefined;
   private lastLodTarget = '';
   private lastLodFallbacks = '';
+  private cameraMoving = false;
+  private lodSettleTimer: ReturnType<typeof setTimeout> | undefined;
+  private motionFallbackId: string | undefined;
 
   constructor(
     private readonly engine: ICE3,
@@ -222,11 +238,13 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     private readonly maxConcurrentTiles: number,
     private readonly maxCommitsPerFrame: number,
     private readonly maxScreenSpaceErrorPixels: number,
+    lodSettleDelayMs: number,
     callerSignal?: AbortSignal,
   ) {
     super();
     this.scene = new ICEScene({ id: `${snapshot.assetId}:scene` });
     this.bounds = snapshot.bounds;
+    this.lodSettleDelayMs = lodSettleDelayMs;
     this.assetLoader = new ICEAssetLoader(engine, {
       fetch: (input, init) => fetch(input, {
         ...(init ?? {}),
@@ -415,7 +433,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   }
 
   whenIdle(): Promise<void> {
-    const pending = new Set([
+    const pending = new Set<string>([
       ...this.requestQueue
         .map((tile) => tile.id)
         .filter((id) => !this.prefetchIds.has(id)),
@@ -428,6 +446,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         ))
         .map(([id]) => id),
     ]);
+    if (this.cameraMoving) pending.add('@lod-settle');
     if (pending.size === 0 && !this.workSetUpdateScheduled) {
       return Promise.resolve();
     }
@@ -442,6 +461,10 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     this.removeCallerAbort?.();
     this.removeCallerAbort = undefined;
     this.engine.off('AFTER_RENDER', this.handleAfterRender);
+    if (this.lodSettleTimer !== undefined) {
+      clearTimeout(this.lodSettleTimer);
+      this.lodSettleTimer = undefined;
+    }
     this.abortController.abort();
     for (const [id, state] of this.states) {
       if (state === 'pending' || state === 'loading') {
@@ -505,12 +528,15 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       viewport.height,
       ...viewProjection.elements,
     ].join(':');
+    const cameraChanged = this.lastSignature !== ''
+      && signature !== this.lastSignature;
     if (signature === this.lastSignature && !this.workSetForce) {
       this.settleIdleWaiters();
       return;
     }
     this.workSetForce = false;
     this.lastSignature = signature;
+    if (cameraChanged) this.enterCameraMotion();
     const previousTargetIds = new Set(
       this.lodSelection?.target.map((tile) => tile.id) ?? [],
     );
@@ -574,11 +600,20 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     this.workSet = workSet;
     this.idleEmitted = false;
 
-    const retainingTransitionCoverage = this.hasPendingVisibleTargets();
+    const retainingTransitionCoverage = this.cameraMoving
+      || this.hasPendingVisibleTargets();
     if (!retainingTransitionCoverage) {
       this.promoteReadyVisibleTargets();
       for (const id of [...this.resident.keys()]) {
-        if (!workSet.retainIds.has(id)) this.unloadTile(id);
+        if (
+          !workSet.retainIds.has(id)
+          && (
+            (this.lodSelection?.target.length ?? 0) === 0
+            || id !== this.motionFallbackId
+          )
+        ) {
+          this.unloadTile(id);
+        }
       }
     }
     for (const id of [...this.candidates.keys()]) {
@@ -801,9 +836,11 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         this.rejectReadyIfVisibleSetFailed();
       }
     }
-    this.promoteReadyVisibleTargets();
+    if (!this.cameraMoving) this.promoteReadyVisibleTargets();
     if (this.lodSelection) this.requestWorkSetUpdate(true);
-    if (!this.hasPendingVisibleTargets()) this.enforceResidentBudget();
+    if (!this.cameraMoving && !this.hasPendingVisibleTargets()) {
+      this.enforceResidentBudget();
+    }
     this.updateBudgetWarning();
     this.scheduleCommit();
     this.settleIdleWaiters();
@@ -849,6 +886,46 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     ));
   }
 
+  private enterCameraMotion(): void {
+    if (this.lodSettleDelayMs === 0) {
+      this.cameraMoving = false;
+      this.requestWorkSetUpdate(true);
+      return;
+    }
+    if (!this.cameraMoving) {
+      this.cameraMoving = true;
+      this.showMotionFallback();
+    }
+    if (this.lodSettleTimer !== undefined) {
+      clearTimeout(this.lodSettleTimer);
+    }
+    this.lodSettleTimer = setTimeout(() => {
+      this.lodSettleTimer = undefined;
+      if (this.disposed) return;
+      this.cameraMoving = false;
+      this.requestWorkSetUpdate(true);
+    }, this.lodSettleDelayMs);
+  }
+
+  private showMotionFallback(): void {
+    const fallback = this.motionFallbackId
+      ? this.resident.get(this.motionFallbackId)
+      : undefined;
+    if (!fallback) return;
+    let changed = !fallback.container.visible;
+    fallback.container.visible = true;
+    for (const [id, resident] of this.resident) {
+      if (id !== this.motionFallbackId && resident.container.visible) {
+        resident.container.visible = false;
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.reconcileSelectionVisibility();
+      this.engine.requestRender('tileset-motion-fallback');
+    }
+  }
+
   private promoteReadyVisibleTargets(): void {
     const targets = this.lodSelection?.target ?? [];
     if (
@@ -858,6 +935,21 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       return;
     }
     const targetIds = new Set(targets.map((tile) => tile.id));
+    const fallback = targets
+      .flatMap((tile) => this.lodAncestors(tile.id))
+      .find((tile) => (
+        !targetIds.has(tile.id)
+        && this.resident.has(tile.id)
+        && (
+          tile.contentUris?.length > 0
+          || Boolean(tile.contentUri)
+        )
+      ));
+    this.motionFallbackId = fallback?.id;
+    if (fallback) {
+      const resident = this.resident.get(fallback.id);
+      if (resident) resident.container.visible = false;
+    }
     for (const tileId of targetIds) {
       const resident = this.resident.get(tileId);
       if (resident) resident.container.visible = true;
@@ -868,10 +960,12 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       if (
         !targetIds.has(tileId)
         && !this.prefetchIds.has(tileId)
+        && tileId !== this.motionFallbackId
       ) {
         this.unloadTile(tileId);
       }
     }
+    this.reconcileSelectionVisibility();
     this.engine.requestRender('tileset-visible-target-committed');
     if (!this.readySettled) {
       this.readySettled = true;
@@ -879,6 +973,18 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       this.trigger<ICETilesetEvent>('TILESET_READY', {
         stats: this.stats,
       });
+    }
+  }
+
+  private reconcileSelectionVisibility(): void {
+    const visibleIds = new Set<string>();
+    for (const child of this.scene.children) {
+      collectVisibleNodeAndSelectionIDs(child, visibleIds);
+    }
+    const selection = this.engine.getSelection();
+    const visibleSelection = selection.filter((id) => visibleIds.has(id));
+    if (visibleSelection.length !== selection.length) {
+      this.engine.setSelection(visibleSelection);
     }
   }
 
@@ -936,7 +1042,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   }
 
   private settleIdleWaiters(): void {
-    const unsettled = new Set([
+    const unsettled = new Set<string>([
       ...this.requestQueue
         .map((tile) => tile.id)
         .filter((id) => !this.prefetchIds.has(id)),
@@ -949,6 +1055,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         ))
         .map(([id]) => id),
     ]);
+    if (this.cameraMoving) unsettled.add('@lod-settle');
     for (const waiter of [...this.idleWaiters]) {
       if ([...waiter.watchedIds].every((id) => !unsettled.has(id))) {
         this.idleWaiters.splice(this.idleWaiters.indexOf(waiter), 1);
@@ -1031,6 +1138,18 @@ function collectNodeAndSelectionIDs(
   if (node instanceof ICEMesh) output.add(node.selectionId);
   for (const child of node.children) {
     collectNodeAndSelectionIDs(child, output);
+  }
+}
+
+function collectVisibleNodeAndSelectionIDs(
+  node: ICENode,
+  output: Set<string>,
+): void {
+  if (!node.visible) return;
+  output.add(node.id);
+  if (node instanceof ICEMesh) output.add(node.selectionId);
+  for (const child of node.children) {
+    collectVisibleNodeAndSelectionIDs(child, output);
   }
 }
 
