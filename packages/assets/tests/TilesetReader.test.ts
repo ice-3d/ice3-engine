@@ -34,6 +34,12 @@ test('parses a local Cartesian leaf and resolves a relative content URL', () => 
 test('rejects unsupported and escaping content references', () => {
   expect(() => readTileset(tileset('../part.glb'), 'https://x.test/a/tileset.json'))
     .toThrow(/ICE3_TILESET_UNSUPPORTED/);
+  expect(() => readTileset(tileset('/a/part.glb'), 'https://x.test/a/tileset.json'))
+    .toThrow(/ICE3_TILESET_UNSUPPORTED/);
+  expect(() => readTileset(
+    tileset('https://x.test/a/part.glb'),
+    'https://x.test/a/tileset.json',
+  )).toThrow(/ICE3_TILESET_UNSUPPORTED/);
   expect(() => readTileset(tileset('part.json'), 'https://x.test/a/tileset.json'))
     .toThrow(/ICE3_TILESET_UNSUPPORTED/);
 });

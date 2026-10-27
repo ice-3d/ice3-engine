@@ -248,6 +248,9 @@ function resolveContentUri(value: unknown, baseUrl: URL): string {
   if (typeof value !== 'string' || !value) {
     throw invalid('content.uri must be a non-empty string');
   }
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/)/i.test(value)) {
+    throw unsupported('content.uri must be relative');
+  }
   let resolved: URL;
   try {
     resolved = new URL(value, baseUrl);
