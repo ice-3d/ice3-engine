@@ -142,3 +142,23 @@ it('aborts pending work and disposes its scene idempotently', async () => {
   expect(tileset.scene.children).toHaveLength(0);
   expect(tileset.stats.loading).toBe(0);
 });
+
+it('removes the caller abort listener when the handle is disposed', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('tileset.json')) {
+      return new Response(fixture('tileset.json'));
+    }
+    return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
+  });
+  const controller = new AbortController();
+  const remove = vi.spyOn(controller.signal, 'removeEventListener');
+  const tileset = await new ICETilesetLoader(engine, { fetch }).open(
+    'https://example.test/spatial-demo/tileset.json',
+    { signal: controller.signal },
+  );
+
+  tileset.dispose();
+  expect(remove).toHaveBeenCalledWith('abort', expect.any(Function));
+});

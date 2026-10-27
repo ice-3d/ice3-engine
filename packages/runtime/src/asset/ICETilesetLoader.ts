@@ -128,6 +128,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   private completeSettled = false;
   private started = false;
   private disposed = false;
+  private removeCallerAbort: (() => void) | undefined;
 
   constructor(
     private readonly engine: ICE3,
@@ -157,9 +158,13 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     });
     if (callerSignal) {
       if (callerSignal.aborted) this.abort();
-      else callerSignal.addEventListener('abort', () => this.abort(), {
-        once: true,
-      });
+      else {
+        const abort = (): void => this.abort();
+        callerSignal.addEventListener('abort', abort, { once: true });
+        this.removeCallerAbort = () => {
+          callerSignal.removeEventListener('abort', abort);
+        };
+      }
     }
   }
 
@@ -189,6 +194,8 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.removeCallerAbort?.();
+    this.removeCallerAbort = undefined;
     this.abortController.abort();
     for (const [id, state] of this.states) {
       if (state === 'loading') this.states.set(id, 'pending');
