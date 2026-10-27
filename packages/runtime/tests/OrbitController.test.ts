@@ -81,3 +81,25 @@ it('orbits from shared engine pointer events until pointer release', () => {
   expect(camera.getPosition().toArray()).toEqual(after);
   controller.dispose();
 });
+
+it('zooms from two-pointer pinching', () => {
+  const { engine, camera, controller } = createController();
+  const initial = Math.hypot(...camera.getPosition().toArray());
+  controller.start();
+
+  engine.trigger('POINTER_DOWN', {
+    target: { kind: 'scene' },
+    event: { type: 'pointerdown', point: { x: 0, y: 0 }, pointerId: 11 },
+  });
+  engine.trigger('POINTER_DOWN', {
+    target: { kind: 'scene' },
+    event: { type: 'pointerdown', point: { x: 0, y: 100 }, pointerId: 12 },
+  });
+  engine.trigger('POINTER_MOVE', {
+    target: { kind: 'scene' },
+    event: { type: 'pointermove', point: { x: 0, y: 200 }, pointerId: 12 },
+  });
+
+  expect(Math.hypot(...camera.getPosition().toArray())).toBeLessThan(initial);
+  controller.dispose();
+});
