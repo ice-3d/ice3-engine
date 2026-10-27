@@ -52,6 +52,8 @@ Diagnostics use stable codes. Callers should branch on `code`, not on message te
 | `ICE3_TILESET_ABORTED` | The caller signal or Tileset disposal cancels loading | Start a new load if the Tileset is still needed |
 | `ICE3_TILESET_CAMERA_REQUIRED` | Tileset work-set scheduling is created without a camera | Pass the active perspective camera |
 | `ICE3_TILESET_RESIDENT_BUDGET_EXCEEDED` | Resident partitions exceed the soft memory or tile budget | Expect a larger visible working set or reduce partition sizes; the warning is deduplicated until residency returns within budget |
+| `ICE3_TILESET_LOD_INVALID` | The SSE threshold or LOD hierarchy configuration is invalid | Use a positive threshold and regenerate the hierarchical Tileset |
+| `ICE3_TILESET_LOD_FALLBACK` | Finer target content is unavailable and a resident coarse ancestor remains visible | Inspect the target tile failure; keep the current fallback coverage |
 
 ## Rendering
 

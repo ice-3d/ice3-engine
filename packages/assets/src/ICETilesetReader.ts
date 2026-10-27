@@ -73,6 +73,7 @@ export function readTileset(
   );
   return {
     assetId,
+    root: rootTile,
     bounds: rootTile.bounds,
     tiles,
   };
@@ -134,6 +135,7 @@ function parseTile(
   const contentUri = content?.uri === undefined
     ? undefined
     : resolveContentUri(content.uri, baseUrl);
+  const contentOutputIndex = output.length;
   const childrenInput = input.children;
   if (
     childrenInput !== undefined
@@ -154,13 +156,11 @@ function parseTile(
       output,
     );
     assertContains(bounds, parsed.bounds, id);
+    if (parsed.geometricError > geometricError) {
+      throw invalid(`tile ${parsed.id} geometricError exceeds its parent`);
+    }
     return parsed;
   });
-  if (contentUri && children.length > 0) {
-    throw unsupported(
-      'content on non-leaf tiles requires LOD scheduling and is not supported',
-    );
-  }
   if (!contentUri && children.length === 0) {
     throw invalid(`tile ${id} has neither content nor children`);
   }
@@ -178,7 +178,7 @@ function parseTile(
       ? {}
       : { transform: [...engineTransform] }),
   };
-  if (contentUri) output.push(tile);
+  if (contentUri) output.splice(contentOutputIndex, 0, tile);
   return tile;
 }
 

@@ -11,6 +11,7 @@ export interface ICETilesetTile {
 
 export interface ICETilesetSnapshot {
   readonly assetId: string;
+  readonly root: ICETilesetTile;
   readonly bounds: ICEGeometryBounds;
   readonly tiles: readonly ICETilesetTile[];
 }

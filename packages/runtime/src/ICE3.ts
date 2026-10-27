@@ -1,6 +1,7 @@
 import {
   ICEEngineError,
   ICEEventDispatcher,
+  ICEMesh,
   ICEPerspectiveCamera,
   ICEScene,
   type ICEDiagnostic,
@@ -577,7 +578,12 @@ export class ICE3 extends ICEEventDispatcher {
       ) {
         const result = this.samplePick(point);
         const outcome: ICEPickOutcome = result.kind === 'hit'
-          ? { kind: 'hit', id: result.node.id }
+          ? {
+              kind: 'hit',
+              id: result.node instanceof ICEMesh
+                ? result.node.selectionId
+                : result.node.id,
+            }
           : result;
         const nextSelection = selectionForOutcome(outcome);
         if (nextSelection !== undefined) {
@@ -666,7 +672,7 @@ export class ICE3 extends ICEEventDispatcher {
         }, point);
         this.lastPickId = selectionId;
         const node = selectionId
-          ? this.scene.findByID(selectionId)
+          ? findNodeBySelectionId(this.scene, selectionId)
           : undefined;
         return node ? { kind: 'hit', node } : { kind: 'empty' };
       } catch (error) {
@@ -708,6 +714,20 @@ export class ICE3 extends ICEEventDispatcher {
     this.reportDiagnostic(code, message, severity);
   }
 }
+
+const findNodeBySelectionId = (
+  node: ICENode,
+  selectionId: string,
+): ICENode | undefined => {
+  if (node instanceof ICEMesh && node.selectionId === selectionId) {
+    return node;
+  }
+  for (const child of node.children) {
+    const found = findNodeBySelectionId(child, selectionId);
+    if (found) return found;
+  }
+  return undefined;
+};
 
 const countNodes = (node: ICENode): number =>
   1 + node.children.reduce((total, child) => total + countNodes(child), 0);

@@ -19,6 +19,10 @@ import {
   ICETilesetScheduler,
   type ICETilesetWorkSet,
 } from './ICETilesetScheduler.js';
+import {
+  ICELodSelector,
+  type ICELodSelection,
+} from './ICELodSelector.js';
 
 export type ICETilesetTileState =
   | 'pending'
@@ -37,6 +41,17 @@ export interface ICETilesetStats {
   readonly visible: number;
   readonly resident: number;
   readonly residentBytes: number;
+  readonly lod: ICELodStats;
+}
+
+export interface ICELodStats {
+  readonly target: number;
+  readonly resident: number;
+  readonly coarseResident: number;
+  readonly fineResident: number;
+  readonly transitioning: number;
+  readonly fallback: number;
+  readonly maxScreenSpaceErrorPixels: number;
 }
 
 export interface ICETilesetEvent {
@@ -53,6 +68,7 @@ export interface ICETilesetLoaderOptions {
   readonly prefetchMarginRatio?: number;
   readonly unloadMarginRatio?: number;
   readonly maxCommitsPerFrame?: number;
+  readonly maxScreenSpaceErrorPixels?: number;
 }
 
 export interface ICETilesetOpenOptions {
@@ -65,6 +81,7 @@ export class ICETilesetLoader {
   private readonly maxConcurrentTiles: number;
   private readonly maxCommitsPerFrame: number;
   private readonly scheduler: ICETilesetScheduler;
+  private readonly maxScreenSpaceErrorPixels: number;
 
   constructor(
     private readonly engine: ICE3,
@@ -79,6 +96,7 @@ export class ICETilesetLoader {
     this.camera = options.camera;
     this.maxConcurrentTiles = options.maxConcurrentTiles ?? 2;
     this.maxCommitsPerFrame = options.maxCommitsPerFrame ?? 1;
+    this.maxScreenSpaceErrorPixels = options.maxScreenSpaceErrorPixels ?? 16;
     if (
       !Number.isInteger(this.maxConcurrentTiles)
       || this.maxConcurrentTiles < 1
@@ -87,6 +105,14 @@ export class ICETilesetLoader {
     ) {
       throw new Error(
         'ICE3_TILESET_INVALID: concurrency and commit limits must be positive integers',
+      );
+    }
+    if (
+      !Number.isFinite(this.maxScreenSpaceErrorPixels)
+      || this.maxScreenSpaceErrorPixels <= 0
+    ) {
+      throw new Error(
+        'ICE3_TILESET_LOD_INVALID: maxScreenSpaceErrorPixels must be positive',
       );
     }
     this.scheduler = new ICETilesetScheduler({
@@ -136,6 +162,7 @@ export class ICETilesetLoader {
       this.fetcher,
       this.maxConcurrentTiles,
       this.maxCommitsPerFrame,
+      this.maxScreenSpaceErrorPixels,
       options.signal,
     );
     handle.start();
@@ -147,11 +174,18 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   readonly scene: ICEScene;
   readonly bounds: ICEGeometryBounds;
   private readonly states = new Map<string, ICETilesetTileState>();
+  private readonly tilesById = new Map<string, ICETilesetTile>();
   private readonly resident = new Map<string, ICEResidentTile>();
   private readonly candidates = new Map<string, ICETileCandidate>();
   private readonly activeIds = new Set<string>();
+  private readonly failedLodFallbacks = new Set<string>();
+  private readonly lodAncestorCache = new Map<
+    string,
+    readonly ICETilesetTile[]
+  >();
   private readonly idleWaiters: ICEIdleWaiter[] = [];
   private readonly assetLoader: ICEAssetLoader;
+  private readonly lodSelector = new ICELodSelector();
   private readonly abortController = new AbortController();
   private readonly readyPromise: Promise<void>;
   private requestQueue: ICETilesetTile[] = [];
@@ -167,10 +201,14 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   private removeCallerAbort: (() => void) | undefined;
   private workSetUpdateScheduled = false;
   private workSetDirty = true;
+  private workSetForce = false;
   private lastSignature = '';
   private commitScheduled = false;
   private budgetWarningActive = false;
   private idleEmitted = false;
+  private lodSelection: ICELodSelection | undefined;
+  private lastLodTarget = '';
+  private lastLodFallbacks = '';
 
   constructor(
     private readonly engine: ICE3,
@@ -180,6 +218,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     fetch: typeof globalThis.fetch,
     private readonly maxConcurrentTiles: number,
     private readonly maxCommitsPerFrame: number,
+    private readonly maxScreenSpaceErrorPixels: number,
     callerSignal?: AbortSignal,
   ) {
     super();
@@ -191,7 +230,10 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         signal: this.abortController.signal,
       }),
     });
-    for (const tile of snapshot.tiles) this.states.set(tile.id, 'pending');
+    for (const tile of snapshot.tiles) {
+      this.states.set(tile.id, 'pending');
+      this.tilesById.set(tile.id, tile);
+    }
     this.readyPromise = new Promise<void>((resolve, reject) => {
       this.resolveReady = resolve;
       this.rejectReady = reject;
@@ -211,6 +253,35 @@ export class ICETilesetHandle extends ICEEventDispatcher {
 
   get stats(): ICETilesetStats {
     const values = [...this.states.values()];
+    const targetTiles = this.lodSelection?.target ?? [];
+    const coverageIds = this.lodCoverageIds(targetTiles);
+    const residentCut = [...coverageIds].filter((id) => (
+      this.resident.has(id)
+    )).length;
+    const coarseResident = [...this.resident.keys()].filter((id) => (
+      (this.tilesById.get(id)?.children.length ?? 0) > 0
+    )).length;
+    const unavailableTargets = targetTiles.filter((tile) => (
+      !this.resident.has(tile.id)
+    ));
+    const transitioning = this.lodNextTiles(targetTiles).length;
+    const fallbacks = new Set([
+      ...[...coverageIds].filter((id) => (
+        unavailableTargets.some((tile) => (
+          this.lodAncestorIds(tile.id).includes(id)
+        ))
+      )),
+      ...this.failedLodFallbacks,
+    ]);
+    const lod = Object.freeze({
+      target: this.lodSelection?.target.length ?? 0,
+      resident: residentCut,
+      coarseResident,
+      fineResident: this.resident.size - coarseResident,
+      transitioning,
+      fallback: fallbacks.size,
+      maxScreenSpaceErrorPixels: this.maxScreenSpaceErrorPixels,
+    });
     return Object.freeze({
       total: this.states.size,
       pending: values.filter((value) => value === 'pending').length,
@@ -221,7 +292,102 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       visible: this.workSet?.visible.length ?? 0,
       resident: this.resident.size,
       residentBytes: this.residentBytes,
+      lod,
     });
+  }
+
+  private lodAncestors(tileId: string): readonly ICETilesetTile[] {
+    const cached = this.lodAncestorCache.get(tileId);
+    if (cached) return cached;
+    const search = (
+      tile: ICETilesetTile,
+      ancestors: readonly ICETilesetTile[],
+    ): readonly ICETilesetTile[] | undefined => {
+      if (tile.id === tileId) return ancestors;
+      const next = tile.contentUri
+        ? [...ancestors, tile]
+        : ancestors;
+      for (const child of tile.children) {
+        const found = search(child, next);
+        if (found) return found;
+      }
+      return undefined;
+    };
+    const ancestors = search(this.snapshot.root, []) ?? [];
+    this.lodAncestorCache.set(tileId, ancestors);
+    return ancestors;
+  }
+
+  private lodAncestorIds(tileId: string): readonly string[] {
+    return this.lodAncestors(tileId).map((tile) => tile.id);
+  }
+
+  private lodCoverageId(tile: ICETilesetTile | undefined): string | undefined {
+    if (!tile) return undefined;
+    if (this.resident.has(tile.id)) return tile.id;
+    const residentAncestor = [...this.lodAncestors(tile.id)]
+      .reverse()
+      .find((ancestor) => this.resident.has(ancestor.id));
+    return residentAncestor?.id;
+  }
+
+  private lodCoverageIds(
+    targets: readonly ICETilesetTile[],
+  ): Set<string> {
+    return new Set(
+      targets
+        .map((tile) => this.lodCoverageId(tile))
+        .filter((id): id is string => Boolean(id)),
+    );
+  }
+
+  private lodNextTiles(
+    targets: readonly ICETilesetTile[],
+  ): ICETilesetTile[] {
+    const output = new Map<string, ICETilesetTile>();
+    for (const target of targets) {
+      if (this.resident.has(target.id)) continue;
+      const ancestors = this.lodAncestors(target.id);
+      const deepestResident = ancestors.findLastIndex((tile) => (
+        this.resident.has(tile.id)
+      ));
+      const next = deepestResident < 0
+        ? ancestors[0] ?? target
+        : ancestors[deepestResident + 1] ?? target;
+      if (
+        this.residentBudgetReached()
+        && this.lodCoverageId(target)
+      ) {
+        continue;
+      }
+      output.set(next.id, next);
+    }
+    return [...output.values()];
+  }
+
+  private lodUnsettledIds(): string[] {
+    const targets = (this.lodSelection?.target ?? []).filter((tile) => (
+      !this.resident.has(tile.id)
+      && this.states.get(tile.id) !== 'failed'
+    ));
+    const next = this.lodNextTiles(targets);
+    if (next.length === 0) return [];
+    return [...new Set([
+      ...next.map((tile) => tile.id),
+      ...targets.map((tile) => tile.id),
+    ])];
+  }
+
+  private recordLodFailure(tileId: string): void {
+    const coverage = this.lodCoverageId(this.tilesById.get(tileId));
+    if (coverage && !this.failedLodFallbacks.has(coverage)) {
+      this.failedLodFallbacks.add(coverage);
+      this.engine.reportDiagnostic(
+        'ICE3_TILESET_LOD_FALLBACK',
+        'Finer Tileset content is unavailable; retaining coarse coverage',
+        'warning',
+      );
+    }
   }
 
   tileState(tileId: string): ICETilesetTileState | undefined {
@@ -236,6 +402,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     const pending = new Set([
       ...this.requestQueue.map((tile) => tile.id),
       ...this.commitQueue,
+      ...this.lodUnsettledIds(),
       ...[...this.states]
         .filter(([, state]) => state === 'pending' || state === 'loading')
         .map(([id]) => id),
@@ -293,9 +460,10 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     this.requestWorkSetUpdate();
   };
 
-  private requestWorkSetUpdate(): void {
+  private requestWorkSetUpdate(force = false): void {
     if (this.disposed) return;
     this.workSetDirty = true;
+    this.workSetForce ||= force;
     if (this.workSetUpdateScheduled) return;
     this.workSetUpdateScheduled = true;
     queueMicrotask(() => {
@@ -316,14 +484,56 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       viewport.height,
       ...viewProjection.elements,
     ].join(':');
-    if (signature === this.lastSignature) {
+    if (signature === this.lastSignature && !this.workSetForce) {
       this.settleIdleWaiters();
       return;
     }
+    this.workSetForce = false;
     this.lastSignature = signature;
+    const lodSelection = this.lodSelector.select({
+      root: this.snapshot.root,
+      camera: this.camera,
+      viewport,
+      residentIds: new Set(this.resident.keys()),
+      failedIds: new Set(
+        [...this.states]
+          .filter(([, state]) => state === 'failed')
+          .map(([id]) => id),
+      ),
+      maxScreenSpaceErrorPixels: this.maxScreenSpaceErrorPixels,
+    });
+    this.lodSelection = lodSelection;
+    const lodTarget = lodSelection.target.map((tile) => tile.id).join('|');
+    if (this.lastLodTarget && lodTarget !== this.lastLodTarget) {
+      this.trigger<ICETilesetEvent>('TILESET_LOD_CHANGED', {
+        stats: this.stats,
+      });
+    }
+    this.lastLodTarget = lodTarget;
+    const fallbacks = [...lodSelection.fallbackByTargetId]
+      .map(([targetId, fallbackId]) => `${targetId}:${fallbackId}`)
+      .join('|');
+    if (fallbacks !== this.lastLodFallbacks) {
+      this.trigger<ICETilesetEvent>('TILESET_LOD_FALLBACK', {
+        stats: this.stats,
+      });
+    }
+    this.lastLodFallbacks = fallbacks;
+    const targetTiles = [...lodSelection.target];
+    const coverageTiles = [...this.lodCoverageIds(targetTiles)]
+      .map((id) => this.tilesById.get(id))
+      .filter((tile): tile is ICETilesetTile => Boolean(tile));
+    const nextTiles = this.lodNextTiles(targetTiles);
+    const candidateMap = new Map<string, ICETilesetTile>();
+    for (const tile of [
+      ...coverageTiles,
+      ...nextTiles,
+    ]) {
+      candidateMap.set(tile.id, tile);
+    }
     const workSet = this.scheduler.update({
       assetBounds: this.bounds,
-      tiles: this.snapshot.tiles,
+      tiles: [...candidateMap.values()],
       camera: this.camera,
       viewport,
       residentBytes: new Map(
@@ -341,17 +551,17 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     }
 
     this.enforceResidentBudget();
-    const desired = this.residentBudgetReached()
-      ? workSet.visible
-      : workSet.ordered;
+    const desired = nextTiles;
     const desiredIds = new Set(desired.map((tile) => tile.id));
     const pending: ICETilesetTile[] = [];
     for (const tile of this.snapshot.tiles) {
       if (this.activeIds.has(tile.id)) {
-        this.states.set(
-          tile.id,
-          desiredIds.has(tile.id) ? 'loading' : 'evicted',
-        );
+        if (this.states.get(tile.id) !== 'failed') {
+          this.states.set(
+            tile.id,
+            desiredIds.has(tile.id) ? 'loading' : 'evicted',
+          );
+        }
         continue;
       }
       if (
@@ -470,7 +680,9 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         error instanceof Error ? error.message : String(error),
       );
       this.emit('TILESET_TILE_FAILED', tile.id);
+      this.recordLodFailure(tile.id);
       this.rejectReadyIfVisibleSetFailed();
+      this.requestWorkSetUpdate(true);
       this.settleIdleWaiters();
     }
   }
@@ -528,6 +740,8 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         });
         this.residentBytes += candidate.bytes;
         this.states.set(tileId, 'loaded');
+        const fallbackId = this.lodSelection?.fallbackByTargetId.get(tileId);
+        if (fallbackId) this.failedLodFallbacks.delete(fallbackId);
         this.engine.requestRender('tileset-tile-committed');
         this.emit('TILESET_TILE_LOADED', tileId);
         if (
@@ -552,6 +766,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         this.rejectReadyIfVisibleSetFailed();
       }
     }
+    if (this.lodSelection) this.requestWorkSetUpdate(true);
     this.enforceResidentBudget();
     this.updateBudgetWarning();
     this.scheduleCommit();
@@ -575,17 +790,20 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   private unloadTile(tileId: string): void {
     const record = this.resident.get(tileId);
     if (!record) return;
-    const ids = new Set<string>();
-    collectNodeIDs(record.container, ids);
-    if (this.engine.getSelection().some((id) => ids.has(id))) {
-      this.engine.setSelection([]);
-    }
     this.scene.removeChild(record.container, { dispose: true });
     this.resident.delete(tileId);
     this.residentBytes = Math.max(0, this.residentBytes - record.bytes);
     this.assetLoader.clear(record.contentUri);
     this.states.set(tileId, 'evicted');
     this.emit('TILESET_TILE_UNLOADED', tileId);
+    const remainingIds = new Set<string>();
+    collectNodeAndSelectionIDs(this.scene, remainingIds);
+    const selection = this.engine.getSelection();
+    if (selection.some((id) => !remainingIds.has(id))) {
+      this.engine.setSelection(
+        selection.filter((id) => remainingIds.has(id)),
+      );
+    }
     this.engine.requestRender('tileset-tile-unloaded');
   }
 
@@ -646,6 +864,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     const unsettled = new Set([
       ...this.requestQueue.map((tile) => tile.id),
       ...this.commitQueue,
+      ...this.lodUnsettledIds(),
       ...[...this.states]
         .filter(([, state]) => state === 'pending' || state === 'loading')
         .map(([id]) => id),
@@ -656,7 +875,11 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         waiter.resolve();
       }
     }
-    if (unsettled.size === 0 && !this.idleEmitted) {
+    if (
+      unsettled.size === 0
+      && !this.idleEmitted
+      && !this.workSetUpdateScheduled
+    ) {
       this.idleEmitted = true;
       this.trigger<ICETilesetEvent>('TILESET_IDLE', { stats: this.stats });
     }
@@ -718,6 +941,17 @@ function estimateSceneBytes(scene: ICEScene): number {
 function collectNodeIDs(node: ICENode, output: Set<string>): void {
   output.add(node.id);
   for (const child of node.children) collectNodeIDs(child, output);
+}
+
+function collectNodeAndSelectionIDs(
+  node: ICENode,
+  output: Set<string>,
+): void {
+  output.add(node.id);
+  if (node instanceof ICEMesh) output.add(node.selectionId);
+  for (const child of node.children) {
+    collectNodeAndSelectionIDs(child, output);
+  }
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
