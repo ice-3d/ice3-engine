@@ -1264,7 +1264,15 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       }
       materialByKey.set(batch.materialKey, batch.material);
       const group = groups.get(batch.materialKey) ?? [];
-      group.push(workerSource(batch));
+      const source = await workerSource(batch, controller.signal);
+      if (controller.signal.aborted) {
+        return {
+          kind: 'failed',
+          reason: 'worker',
+          error: new DOMException('Adaptive source staging aborted', 'AbortError'),
+        };
+      }
+      group.push(source);
       groups.set(batch.materialKey, group);
     }
     if (groups.size === 0) {
@@ -1535,18 +1543,53 @@ function geometryByteLength(batch: ICERenderBatch): number {
     + (batch.geometry.semanticIndices?.byteLength ?? 0);
 }
 
-function workerSource(batch: ICERenderBatch): ICEBatchWorkerSource {
+async function workerSource(
+  batch: ICERenderBatch,
+  signal: AbortSignal,
+): Promise<ICEBatchWorkerSource> {
   const semanticIndices = batch.geometry.semanticIndices!;
   return {
     id: batch.id,
     materialKey: batch.materialKey,
-    positions: batch.geometry.positions.slice().buffer,
-    indices: Uint32Array.from(batch.geometry.indices).buffer,
-    semanticIndices: Uint32Array.from(semanticIndices).buffer,
+    positions: (
+      await copyFloat32(batch.geometry.positions, signal)
+    ).buffer as ArrayBuffer,
+    indices: (
+      await copyUint32(batch.geometry.indices, signal)
+    ).buffer as ArrayBuffer,
+    semanticIndices: (
+      await copyUint32(semanticIndices, signal)
+    ).buffer as ArrayBuffer,
     semanticIds: batch.semanticIds,
     semanticNodeIds: batch.semanticNodeIds,
     semanticSelectionIds: batch.semanticSelectionIds,
   };
+}
+
+async function copyFloat32(
+  source: Float32Array,
+  signal: AbortSignal,
+): Promise<Float32Array> {
+  const target = new Float32Array(source.length);
+  for (let offset = 0; offset < source.length; offset += 262_144) {
+    target.set(source.subarray(offset, offset + 262_144), offset);
+    if (signal.aborted) break;
+    await yieldMainThread();
+  }
+  return target;
+}
+
+async function copyUint32(
+  source: Uint16Array | Uint32Array,
+  signal: AbortSignal,
+): Promise<Uint32Array> {
+  const target = new Uint32Array(source.length);
+  for (let offset = 0; offset < source.length; offset += 262_144) {
+    target.set(source.subarray(offset, offset + 262_144), offset);
+    if (signal.aborted) break;
+    await yieldMainThread();
+  }
+  return target;
 }
 
 function uploadBuffer(
