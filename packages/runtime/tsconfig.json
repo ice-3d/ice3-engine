@@ -13,6 +13,9 @@
       "path": "../core"
     },
     {
+      "path": "../assets"
+    },
+    {
       "path": "../renderer"
     }
   ]

@@ -21,3 +21,4 @@ export type { ICERenderScheduler } from './ICERenderScheduler.js';
 export { ICEInputRouter } from './input/ICEInputRouter.js';
 export type { ICEInputEvent, ICEInputTarget } from './input/ICEInputRouter.js';
 export { ICEOrbitController } from './input/ICEOrbitController.js';
+export * from './asset/ICEAssetSceneBuilder.js';
