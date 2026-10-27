@@ -14,6 +14,7 @@ export class FakeRendererBackend implements ICERendererBackend {
   readonly frames: ICEFrame[] = [];
   lastViewport: ICEViewport = { x: 0, y: 0, width: 1, height: 1 };
   private disposed = false;
+  private disposals = 0;
 
   initialize(): void {}
 
@@ -33,6 +34,11 @@ export class FakeRendererBackend implements ICERendererBackend {
     }
     this.frames.length = 0;
     this.disposed = true;
+    this.disposals += 1;
+  }
+
+  get disposeCount(): number {
+    return this.disposals;
   }
 
   private assertActive(): void {
