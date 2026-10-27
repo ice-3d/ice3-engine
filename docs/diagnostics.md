@@ -54,6 +54,9 @@ Diagnostics use stable codes. Callers should branch on `code`, not on message te
 | `ICE3_TILESET_RESIDENT_BUDGET_EXCEEDED` | Resident partitions exceed the soft memory or tile budget | Expect a larger visible working set or reduce partition sizes; the warning is deduplicated until residency returns within budget |
 | `ICE3_TILESET_LOD_INVALID` | The SSE threshold or LOD hierarchy configuration is invalid | Use a positive threshold and regenerate the hierarchical Tileset |
 | `ICE3_TILESET_LOD_FALLBACK` | Finer target content is unavailable and a resident coarse ancestor remains visible | Inspect the target tile failure; keep the current fallback coverage |
+| `ICE3_TILESET_CONTENTS_INVALID` | A tile has conflicting, empty, or duplicate content entries | Regenerate the Tileset |
+| `ICE3_SCENE_QUERY_INVALID` | Query limit or world ray is invalid | Correct the query input |
+| `ICE3_CAMERA_FOCUS_INVALID` | Focus padding or bounds are invalid | Pass positive padding and finite bounds |
 
 ## Rendering
 
