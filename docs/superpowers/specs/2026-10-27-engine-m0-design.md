@@ -186,7 +186,7 @@ engine.start();
 
 `ICE3` 是 M0 的唯一公开引擎入口：
 
-- `init(target)`：绑定 Canvas 元素、选择器或已有上下文配置。
+- `init(target)`：绑定任意 `HTMLElement`、Canvas 元素、选择器或已有上下文配置。
 - `setScene(scene)`：设置唯一活动场景。
 - `setCamera(camera)`：设置活动相机。
 - `addLayer(layer)` / `removeLayer(layer)`：添加或移除 2D 图层。
