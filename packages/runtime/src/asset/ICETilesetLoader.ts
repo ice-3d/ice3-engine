@@ -513,7 +513,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     const fallbacks = [...lodSelection.fallbackByTargetId]
       .map(([targetId, fallbackId]) => `${targetId}:${fallbackId}`)
       .join('|');
-    if (this.lastLodFallbacks && fallbacks !== this.lastLodFallbacks) {
+    if (fallbacks !== this.lastLodFallbacks) {
       this.trigger<ICETilesetEvent>('TILESET_LOD_FALLBACK', {
         stats: this.stats,
       });

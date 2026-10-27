@@ -84,6 +84,10 @@ it('keeps parent coverage when focused fine content fails', async () => {
     maxScreenSpaceErrorPixels: 0.01,
   }).open('https://example.test/hierarchical-demo/tileset.json');
   await tileset.whenReady();
+  let fallbackEvents = 0;
+  tileset.on('TILESET_LOD_FALLBACK', () => {
+    fallbackEvents += 1;
+  });
 
   lodCamera.setPosition([0.5, 0, 2]).setTarget([0.5, 0, 0]);
   engine.trigger('AFTER_RENDER');
@@ -94,6 +98,7 @@ it('keeps parent coverage when focused fine content fails', async () => {
       ?? tileset.scene.findByID('hierarchical-demo:tile:root'),
   ).toBeDefined();
   expect(tileset.stats.lod.fallback).toBeGreaterThan(0);
+  expect(fallbackEvents).toBeGreaterThan(0);
 });
 
 it('discards stale refinement coverage when the camera leaves', async () => {
