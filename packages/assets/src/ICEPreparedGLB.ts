@@ -5,6 +5,7 @@ import type {
 
 export interface ICEPreparedNode {
   readonly id: string;
+  readonly selectionId: string;
   readonly name: string;
   readonly parent: number | null;
   readonly matrix: ICEMatrix4Tuple;

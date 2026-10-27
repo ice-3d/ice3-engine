@@ -87,11 +87,22 @@ export function validatePreparedProfile(
   }
   const ids = new Set<string>();
   for (const node of records(json.nodes)) {
-    const id = record(record(node.extras)?.ice3)?.id;
+    const nodeProfile = record(record(node.extras)?.ice3);
+    const id = nodeProfile?.id;
     if (typeof id !== 'string' || !id || ids.has(id)) {
       throw assetError('ICE3_ASSET_DUPLICATE_ID', 'node profile ID is invalid');
     }
     ids.add(id);
+    const selectionId = nodeProfile?.selectionId;
+    if (
+      selectionId !== undefined
+      && (typeof selectionId !== 'string' || !selectionId.trim())
+    ) {
+      throw assetError(
+        'ICE3_ASSET_PROFILE_UNSUPPORTED',
+        'node selection identity is invalid',
+      );
+    }
     const matrix = node.matrix;
     if (
       !Array.isArray(matrix)

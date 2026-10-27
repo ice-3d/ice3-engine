@@ -25,6 +25,15 @@ it('reads a prepared triangle asset with zero-copy accessor views', () => {
   );
 });
 
+it('reads an explicit selection identity for LOD content', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB({
+    selectionId: 'semantic/device/7',
+  }));
+
+  expect(snapshot.nodes[0]!.id).toBe('fixture/node/0');
+  expect(snapshot.nodes[0]!.selectionId).toBe('semantic/device/7');
+});
+
 it('rejects an ordinary GLB without the ICE3 profile', () => {
   expect(() => readPreparedGLB(createOrdinaryGLB())).toThrowError(
     /ICE3_ASSET_PROFILE_UNSUPPORTED/,
