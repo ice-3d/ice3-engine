@@ -36,6 +36,11 @@ import {
   type ICERenderScheduler,
 } from './ICERenderScheduler.js';
 import type { ICEVector3Tuple } from '@ice3/core';
+import {
+  collectSceneItems,
+  type ICESceneItem,
+  type ICESceneQuery,
+} from './query/ICESceneQuery.js';
 
 export type ICE3Options = {
   readonly backend?: ICERendererBackend;
@@ -318,6 +323,16 @@ export class ICE3 extends ICEEventDispatcher {
 
   getSelection(): readonly string[] {
     return this.interaction.getSelection();
+  }
+
+  queryScene(query?: ICESceneQuery): readonly ICESceneItem[] {
+    this.assertActive();
+    return this.scene ? collectSceneItems(this.scene, query) : Object.freeze([]);
+  }
+
+  findBySelectionId(selectionId: string): ICENode | undefined {
+    const item = this.queryScene({ selectionIds: [selectionId], limit: 1 })[0];
+    return item ? this.scene?.findByID(item.nodeId) : undefined;
   }
 
   setSelection(ids: readonly string[]): this {
