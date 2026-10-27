@@ -5,7 +5,6 @@ import { ICEBasicMaterial as BasicMaterial } from '../material/ICEBasicMaterial.
 import { ICENode, type ICENodeOptions, type ICESerializedNode } from './ICENode.js';
 
 export interface ICEMeshOptions extends ICENodeOptions {
-  readonly selectionId?: string;
   readonly geometry: ICEGeometry;
   readonly material: ICEBasicMaterial;
 }
@@ -15,7 +14,7 @@ export class ICEMesh extends ICENode {
 
   readonly geometry: ICEGeometry;
   readonly material: ICEBasicMaterial;
-  readonly selectionId: string;
+  override readonly selectionId: string;
 
   constructor(options: ICEMeshOptions) {
     super(options);

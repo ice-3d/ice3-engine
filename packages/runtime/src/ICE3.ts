@@ -749,7 +749,7 @@ const findNodeBySelectionId = (
   node: ICENode,
   selectionId: string,
 ): ICENode | undefined => {
-  if (node instanceof ICEMesh && node.selectionId === selectionId) {
+  if (node.selectionId === selectionId) {
     return node;
   }
   for (const child of node.children) {

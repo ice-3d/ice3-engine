@@ -118,9 +118,14 @@ export function collectSceneItems(
   const items = new Map<string, { item: ICESceneItem; depth: number }>();
   const visit = (node: ICENode, depth: number, inheritedVisible: boolean): void => {
     const visible = inheritedVisible && node.visible;
-    if (node instanceof ICEMesh) {
+    if (node.selectionId) {
       const matrix = node.updateWorldMatrix().elements;
-      const local = node.geometry.getBounds();
+      const local = node instanceof ICEMesh
+        ? node.geometry.getBounds()
+        : {
+            min: [0, 0, 0] as const,
+            max: [0, 0, 0] as const,
+          };
       const corners = [0, 1].flatMap((x) => [0, 1].flatMap((y) => [0, 1].map((z) => {
         const p = [x ? local.max[0] : local.min[0], y ? local.max[1] : local.min[1], z ? local.max[2] : local.min[2]];
         return [matrix[0]! * p[0]! + matrix[4]! * p[1]! + matrix[8]! * p[2]! + matrix[12]!, matrix[1]! * p[0]! + matrix[5]! * p[1]! + matrix[9]! * p[2]! + matrix[13]!, matrix[2]! * p[0]! + matrix[6]! * p[1]! + matrix[10]! * p[2]! + matrix[14]!] as const;

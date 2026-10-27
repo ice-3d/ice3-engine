@@ -1,7 +1,8 @@
 import { expect, it } from 'node-test';
 import type { ICEPreparedAssetSnapshot } from '@ice3/assets';
-import { ICEMesh } from '@ice3/core';
+import { ICEMesh, ICENode } from '@ice3/core';
 import { buildAssetScene } from '../src/asset/ICEAssetSceneBuilder';
+import { ICERenderBatch } from '../src/asset/ICERenderBatch';
 
 const snapshotWithEdges: ICEPreparedAssetSnapshot = {
   assetId: 'fixture',
@@ -121,4 +122,81 @@ it('keeps secondary primitives in the same equipment selection group', () => {
   const secondary = sourceNode.children[0] as ICEMesh;
   expect(secondary.selectionId).toBe('root/motor');
   expect(secondary.displayName).toBe('motor');
+});
+
+it('builds semantic nodes and batches without duplicate drawable devices', () => {
+  const snapshot: ICEPreparedAssetSnapshot = {
+    assetId: 'batched',
+    bounds: { min: [0, 0, 0], max: [2, 1, 0] },
+    stats: {
+      nodeCount: 2,
+      maxNodeDepth: 0,
+      meshCount: 1,
+      primitiveCount: 1,
+      triangleCount: 2,
+      edgeSegmentCount: 0,
+      materialCount: 1,
+      selectionGroupCount: 1,
+    },
+    contract: { status: 'legacy' },
+    nodes: [
+      {
+        id: 'asset/node/0',
+        selectionId: 'asset/node/0',
+        name: 'semantic-device',
+        parent: null,
+        matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+        visible: true,
+      },
+      {
+        id: 'asset/render-batch-node/0',
+        selectionId: 'asset/render-batch-node/0',
+        name: 'render-batch-0',
+        parent: null,
+        matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+        visible: true,
+      },
+    ],
+    geometries: [{
+      id: 'asset/batch/geometry',
+      positions: new Float32Array([
+        0, 0, 0, 1, 0, 0, 0, 1, 0,
+        1, 0, 0, 1, 1, 0, 0, 1, 0,
+      ]),
+      indices: new Uint32Array([0, 1, 2, 3, 4, 5]),
+      semanticIndices: new Uint32Array([0, 0, 0, 0, 0, 0]),
+      bounds: { min: [0, 0, 0], max: [1, 1, 0] },
+    }],
+    materials: [{ id: 'asset/batch/material', baseColor: '#ffffff' }],
+    meshes: [{
+      id: 'asset/batch/mesh',
+      node: 1,
+      geometry: 0,
+      material: 0,
+    }],
+    batching: {
+      version: '1.0',
+      semanticIds: ['semantic:0'],
+      semanticNodeIds: ['asset/node/0'],
+      semanticSelectionIds: ['asset/node/0'],
+      batches: [{
+        id: 'batch:0',
+        mesh: 0,
+        primitive: 0,
+        material: 0,
+        mode: 4,
+        triangleCount: 2,
+        bounds: { min: [0, 0, 0], max: [1, 1, 0] },
+      }],
+    },
+  };
+  const built = buildAssetScene(snapshot);
+  const semantic = built.scene.findByID('asset/node/0');
+  const batch = built.scene.findByID('asset/render-batch-node/0');
+
+  expect(semantic).toBeInstanceOf(ICENode);
+  expect(semantic).not.toBeInstanceOf(ICEMesh);
+  expect(semantic?.selectionId).toBe('asset/node/0');
+  expect(batch).toBeInstanceOf(ICERenderBatch);
+  expect(batch?.children).toHaveLength(0);
 });

@@ -33,6 +33,10 @@ export {
 export type { ICEPickOutcome } from './input/ICESelectionGesture.js';
 export * from './asset/ICEAssetSceneBuilder.js';
 export {
+  ICERenderBatch,
+  type ICERenderBatchOptions,
+} from './asset/ICERenderBatch.js';
+export {
   ICEAssetLoader,
   type ICEAssetHandle,
   type ICEAssetLoaderOptions,
