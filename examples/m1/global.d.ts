@@ -10,6 +10,7 @@ declare global {
       diagnostics(): Readonly<ICEEngineDiagnostics>;
       projection(): ICEProjectedPoint;
       assetCenter(): ICEProjectedPoint;
+      cameraPosition(): readonly [number, number, number];
       scenePixelAtProjection(): readonly [number, number, number, number];
       selectedIds(): readonly string[];
       disposeAsset(): void;

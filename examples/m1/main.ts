@@ -118,6 +118,7 @@ window.__ice3M1 = {
   diagnostics: (): Readonly<ICEEngineDiagnostics> => engine.getDiagnostics(),
   projection: (): ICEProjectedPoint => engine.project([0, 0, 0]),
   assetCenter: () => engine.project(assetCenter),
+  cameraPosition: () => camera.getPosition().toArray(),
   scenePixelAtProjection,
   selectedIds: () => engine.getSelection(),
   disposeAsset,

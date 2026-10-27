@@ -25,6 +25,7 @@ export type {
   ICEEngineDiagnostics,
   ICEInputEvent,
   ICEInputTarget,
+  ICEKeyboardInputEvent,
   ICEProjectedPoint,
   ICEAssetHandle,
   ICEAssetLoaderOptions,

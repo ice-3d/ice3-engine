@@ -1,12 +1,22 @@
 import type { ICEEvent } from '@ice3/core';
 import { ICEPerspectiveCamera } from '@ice3/core';
 import type { ICE3 } from '../ICE3.js';
-import type { ICEInputEvent, ICEInputTarget } from './ICEInputRouter.js';
+import type {
+  ICEInputEvent,
+  ICEInputTarget,
+  ICEKeyboardInputEvent,
+} from './ICEInputRouter.js';
 
 type DispatchEvent = ICEEvent<{
   readonly target: ICEInputTarget;
-  readonly event: ICEInputEvent;
+  readonly event: ICEInputEvent | ICEKeyboardInputEvent;
 }>;
+
+const isKeyboardInput = (
+  input: ICEInputEvent | ICEKeyboardInputEvent,
+): input is ICEKeyboardInputEvent => (
+  input.type === 'keydown' || input.type === 'keyup'
+);
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
@@ -16,9 +26,21 @@ const MAX_FRAME_DELTA_MS = 64;
 const SETTLE_EPSILON = 1e-5;
 const WHEEL_LINE_HEIGHT_PX = 16;
 const MAX_WHEEL_STEP_PX = 240;
+const MOVE_SPEED_PER_DISTANCE = 0.75;
+
+const NAVIGATION_KEYS = new Set([
+  'KeyW',
+  'KeyA',
+  'KeyS',
+  'KeyD',
+  'ArrowUp',
+  'ArrowLeft',
+  'ArrowDown',
+  'ArrowRight',
+]);
 
 export class ICEOrbitController {
-  private readonly target: readonly [number, number, number];
+  private target: [number, number, number];
   private yaw: number;
   private pitch: number;
   private distance: number;
@@ -33,11 +55,12 @@ export class ICEOrbitController {
     Readonly<{ x: number; y: number }>
   >();
   private pinchDistance: number | null = null;
+  private readonly pressedKeys = new Set<string>();
   private started = false;
   private disposed = false;
   private readonly onPointerDown = (event: DispatchEvent): void => {
     const { target, event: input } = event.param ?? {};
-    if (!input || input.pointerId === undefined) {
+    if (!input || isKeyboardInput(input) || input.pointerId === undefined) {
       return;
     }
     if (target?.kind === 'scene') {
@@ -53,7 +76,7 @@ export class ICEOrbitController {
   };
   private readonly onPointerMove = (event: DispatchEvent): void => {
     const input = event.param?.event;
-    if (!input || input.pointerId === undefined) {
+    if (!input || isKeyboardInput(input) || input.pointerId === undefined) {
       return;
     }
     if (this.activePointers.has(input.pointerId)) {
@@ -77,7 +100,10 @@ export class ICEOrbitController {
     this.lastPoint = [input.point.x, input.point.y];
   };
   private readonly onPointerUp = (event: DispatchEvent): void => {
-    const pointerId = event.param?.event.pointerId;
+    const input = event.param?.event;
+    const pointerId = input && !isKeyboardInput(input)
+      ? input.pointerId
+      : undefined;
     if (pointerId === undefined) {
       return;
     }
@@ -98,7 +124,11 @@ export class ICEOrbitController {
   };
   private readonly onWheel = (event: DispatchEvent): void => {
     const param = event.param;
-    if (param?.target.kind === 'scene' && param.event.deltaY !== undefined) {
+    if (
+      param?.target.kind === 'scene'
+      && !isKeyboardInput(param.event)
+      && param.event.deltaY !== undefined
+    ) {
       const deltaMode = param.event.deltaMode ?? 0;
       const scale = deltaMode === 1
         ? WHEEL_LINE_HEIGHT_PX
@@ -114,8 +144,31 @@ export class ICEOrbitController {
       );
     }
   };
+  private readonly onKeyDown = (event: DispatchEvent): void => {
+    const input = event.param?.event;
+    if (
+      !input
+      || input.type !== 'keydown'
+      || !NAVIGATION_KEYS.has(input.code)
+    ) {
+      return;
+    }
+    this.prepareMotion();
+    this.pressedKeys.add(input.code);
+    this.engine.requestRender('camera-keyboard-movement');
+  };
+  private readonly onKeyUp = (event: DispatchEvent): void => {
+    const input = event.param?.event;
+    if (input?.type === 'keyup') {
+      this.pressedKeys.delete(input.code);
+    }
+  };
+  private readonly onKeyCancel = (): void => {
+    this.pressedKeys.clear();
+  };
   private readonly onBeforeRender = (): void => {
-    if (this.motionSettled()) {
+    const moving = this.pressedKeys.size > 0;
+    if (this.motionSettled() && !moving) {
       return;
     }
     const now = performance.now();
@@ -133,8 +186,9 @@ export class ICEOrbitController {
       this.pitch = this.targetPitch;
       this.distance = this.targetDistance;
     }
+    this.applyKeyboardMovement(deltaMs);
     this.applyPosition();
-    if (!this.motionSettled()) {
+    if (!this.motionSettled() || this.pressedKeys.size > 0) {
       this.engine.requestRender('orbit-smoothing');
     }
   };
@@ -193,6 +247,9 @@ export class ICEOrbitController {
       .on('POINTER_UP', this.onPointerUp)
       .on('POINTER_CANCEL', this.onPointerUp)
       .on('WHEEL', this.onWheel)
+      .on('KEY_DOWN', this.onKeyDown)
+      .on('KEY_UP', this.onKeyUp)
+      .on('KEY_CANCEL', this.onKeyCancel)
       .on('BEFORE_RENDER', this.onBeforeRender);
     this.started = true;
     return this;
@@ -208,11 +265,15 @@ export class ICEOrbitController {
       .off('POINTER_UP', this.onPointerUp)
       .off('POINTER_CANCEL', this.onPointerUp)
       .off('WHEEL', this.onWheel)
+      .off('KEY_DOWN', this.onKeyDown)
+      .off('KEY_UP', this.onKeyUp)
+      .off('KEY_CANCEL', this.onKeyCancel)
       .off('BEFORE_RENDER', this.onBeforeRender);
     this.started = false;
     this.draggingPointer = null;
     this.activePointers.clear();
     this.pinchDistance = null;
+    this.pressedKeys.clear();
     return this;
   }
 
@@ -224,11 +285,36 @@ export class ICEOrbitController {
   private applyPosition(): void {
     const horizontal = Math.cos(this.pitch) * this.distance;
     const [targetX, targetY, targetZ] = this.target;
+    this.camera.setTarget(this.target);
     this.camera.setPosition([
       targetX + Math.sin(this.yaw) * horizontal,
       targetY + Math.sin(this.pitch) * this.distance,
       targetZ + Math.cos(this.yaw) * horizontal,
     ]);
+  }
+
+  private applyKeyboardMovement(deltaMs: number): void {
+    const forward = (
+      Number(this.pressedKeys.has('KeyW') || this.pressedKeys.has('ArrowUp'))
+      - Number(this.pressedKeys.has('KeyS') || this.pressedKeys.has('ArrowDown'))
+    );
+    const right = (
+      Number(this.pressedKeys.has('KeyD') || this.pressedKeys.has('ArrowRight'))
+      - Number(this.pressedKeys.has('KeyA') || this.pressedKeys.has('ArrowLeft'))
+    );
+    const magnitude = Math.hypot(forward, right);
+    if (magnitude === 0) {
+      return;
+    }
+    const distance = this.distance * MOVE_SPEED_PER_DISTANCE
+      * (deltaMs / 1000)
+      / magnitude;
+    const normalizedForward = forward * distance;
+    const normalizedRight = right * distance;
+    const sinYaw = Math.sin(this.yaw);
+    const cosYaw = Math.cos(this.yaw);
+    this.target[0] += -sinYaw * normalizedForward + cosYaw * normalizedRight;
+    this.target[2] += -cosYaw * normalizedForward - sinYaw * normalizedRight;
   }
 
   private prepareMotion(): void {

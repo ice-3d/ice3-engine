@@ -10,6 +10,13 @@ export type ICEInputEvent = {
   readonly deltaMode?: number;
 };
 
+export type ICEKeyboardInputEvent = {
+  readonly type: 'keydown' | 'keyup';
+  readonly code: string;
+  readonly key: string;
+  readonly repeat: boolean;
+};
+
 export interface ICEInputRouterOptions {
   readonly hitTestLayer: (point: { x: number; y: number }) => ICEInputTarget | undefined;
   readonly pickScene: (point: { x: number; y: number }) => ICEInputTarget | undefined;

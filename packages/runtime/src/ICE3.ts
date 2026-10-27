@@ -19,6 +19,7 @@ import {
   ICEInputRouter,
   type ICEInputEvent,
   type ICEInputTarget,
+  type ICEKeyboardInputEvent,
 } from './input/ICEInputRouter.js';
 import { pickSceneNode } from './input/ICEScenePicker.js';
 import { ICEInteractionState } from './ICEInteractionState.js';
@@ -58,6 +59,13 @@ export type ICEEngineDiagnostics = {
 };
 
 type EngineState = 'created' | 'initialized' | 'running' | 'stopped' | 'destroyed';
+
+const NAVIGATION_KEY_CODES = new Set([
+  'ArrowUp',
+  'ArrowLeft',
+  'ArrowDown',
+  'ArrowRight',
+]);
 
 export class ICE3 extends ICEEventDispatcher {
   private readonly backend: ICERendererBackend;
@@ -513,6 +521,46 @@ export class ICE3 extends ICEEventDispatcher {
       event.preventDefault();
       this.inputRouter.wheel(event.deltaY, pointOf(event), event.deltaMode);
     });
+
+    const handleKey = (type: 'keydown' | 'keyup', event: KeyboardEvent): void => {
+      const editing = type === 'keydown' && (
+        isEditableTarget(event.target)
+        || isEditableTarget(document.activeElement)
+      );
+      if (editing) {
+        return;
+      }
+      if (type === 'keydown' && NAVIGATION_KEY_CODES.has(event.code)) {
+        event.preventDefault();
+      }
+      const input: ICEKeyboardInputEvent = {
+        type,
+        code: event.code,
+        key: event.key,
+        repeat: event.repeat,
+      };
+      this.trigger(type === 'keydown' ? 'KEY_DOWN' : 'KEY_UP', {
+        target: { kind: 'scene' },
+        event: input,
+      });
+    };
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      handleKey('keydown', event);
+    };
+    const handleKeyUp = (event: KeyboardEvent): void => {
+      handleKey('keyup', event);
+    };
+    const handleBlur = (): void => {
+      this.trigger('KEY_CANCEL');
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    this.removeInputListeners.push(() => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    });
   }
 
   private dispatchInput(target: ICEInputTarget, event: ICEInputEvent): void {
@@ -547,3 +595,9 @@ export class ICE3 extends ICEEventDispatcher {
 
 const countNodes = (node: ICENode): number =>
   1 + node.children.reduce((total, child) => total + countNodes(child), 0);
+
+const isEditableTarget = (target: EventTarget | null): boolean =>
+  target instanceof Element
+  && target.closest(
+    'input, textarea, select, [contenteditable]:not([contenteditable="false"])',
+  ) !== null;

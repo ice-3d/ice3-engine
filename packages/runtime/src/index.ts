@@ -19,7 +19,11 @@ export { ICEInteractionState } from './ICEInteractionState.js';
 export { BrowserRenderScheduler } from './ICERenderScheduler.js';
 export type { ICERenderScheduler } from './ICERenderScheduler.js';
 export { ICEInputRouter } from './input/ICEInputRouter.js';
-export type { ICEInputEvent, ICEInputTarget } from './input/ICEInputRouter.js';
+export type {
+  ICEInputEvent,
+  ICEInputTarget,
+  ICEKeyboardInputEvent,
+} from './input/ICEInputRouter.js';
 export { ICEOrbitController } from './input/ICEOrbitController.js';
 export * from './asset/ICEAssetSceneBuilder.js';
 export {

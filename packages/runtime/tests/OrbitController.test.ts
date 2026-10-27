@@ -232,6 +232,163 @@ it('eases camera rotation across rendered frames', () => {
   dispose();
 });
 
+it('moves the camera and target together from a held forward key', () => {
+  const { engine, camera, advanceFrame, dispose } = createMotionScenario();
+  const beforeCamera = camera.getPosition().toArray();
+  const beforeTarget = camera.getTarget().toArray();
+  const distance = Math.hypot(
+    beforeCamera[0] - beforeTarget[0],
+    beforeCamera[1] - beforeTarget[1],
+    beforeCamera[2] - beforeTarget[2],
+  );
+
+  engine.trigger('KEY_DOWN', {
+    target: { kind: 'scene' },
+    event: { type: 'keydown', code: 'KeyW', key: 'w' },
+  });
+  advanceFrame();
+
+  expect(camera.getPosition().z).toBeLessThan(beforeCamera[2]);
+  expect(camera.getTarget().z).toBeLessThan(beforeTarget[2]);
+  expect(
+    Math.hypot(
+      camera.getPosition().x - camera.getTarget().x,
+      camera.getPosition().y - camera.getTarget().y,
+      camera.getPosition().z - camera.getTarget().z,
+    ),
+  ).toBeCloseTo(distance, 5);
+  dispose();
+});
+
+it('routes physical keyboard presses from the engine surface', () => {
+  const { camera, advanceFrame, dispose } = createMotionScenario();
+  const before = camera.getPosition().toArray();
+
+  window.dispatchEvent(new KeyboardEvent('keydown', {
+    code: 'KeyW',
+    key: 'w',
+  }));
+  advanceFrame();
+
+  expect(camera.getPosition().toArray()).not.toEqual(before);
+  dispose();
+});
+
+it('maps the forward arrow key to the same movement as W', () => {
+  const letter = createMotionScenario();
+  const letterStart = letter.camera.getPosition().toArray();
+  letter.engine.trigger('KEY_DOWN', {
+    target: { kind: 'scene' },
+    event: { type: 'keydown', code: 'KeyW', key: 'w' },
+  });
+  letter.advanceFrame();
+  const letterEnd = letter.camera.getPosition().toArray();
+  letter.dispose();
+
+  const arrow = createMotionScenario();
+  const arrowStart = arrow.camera.getPosition().toArray();
+  arrow.engine.trigger('KEY_DOWN', {
+    target: { kind: 'scene' },
+    event: { type: 'keydown', code: 'ArrowUp', key: 'ArrowUp' },
+  });
+  arrow.advanceFrame();
+  const arrowEnd = arrow.camera.getPosition().toArray();
+  arrow.dispose();
+
+  expect(letterEnd[2]).toBeLessThan(letterStart[2]);
+  expect(arrowEnd).toEqual(letterEnd);
+});
+
+it('moves in view-relative directions from A, S, D, and arrow keys', () => {
+  const positionAfterKey = (code: string): readonly number[] => {
+    const scenario = createMotionScenario();
+    scenario.engine.trigger('KEY_DOWN', {
+      target: { kind: 'scene' },
+      event: { type: 'keydown', code, key: code },
+    });
+    scenario.advanceFrame();
+    const position = scenario.camera.getPosition().toArray();
+    scenario.dispose();
+    return position;
+  };
+
+  expect(positionAfterKey('KeyS')[2]).toBeGreaterThan(5);
+  expect(positionAfterKey('ArrowDown')[2]).toBeGreaterThan(5);
+  expect(positionAfterKey('KeyA')[0]).toBeLessThan(0);
+  expect(positionAfterKey('ArrowLeft')[0]).toBeLessThan(0);
+  expect(positionAfterKey('KeyD')[0]).toBeGreaterThan(0);
+  expect(positionAfterKey('ArrowRight')[0]).toBeGreaterThan(0);
+});
+
+it('stops camera movement when the held key is released', () => {
+  const { engine, camera, advanceFrame, dispose } = createMotionScenario();
+  engine.trigger('KEY_DOWN', {
+    target: { kind: 'scene' },
+    event: { type: 'keydown', code: 'KeyW', key: 'w' },
+  });
+  advanceFrame();
+  const afterMovement = camera.getPosition().toArray();
+
+  engine.trigger('KEY_UP', {
+    target: { kind: 'scene' },
+    event: { type: 'keyup', code: 'KeyW', key: 'w' },
+  });
+  advanceFrame();
+
+  expect(camera.getPosition().toArray()).toEqual(afterMovement);
+  dispose();
+});
+
+it('does not move the camera when typing in an editable control', () => {
+  const { camera, advanceFrame, dispose } = createMotionScenario();
+  const input = document.createElement('input');
+  document.body.appendChild(input);
+  input.focus();
+  const before = camera.getPosition().toArray();
+
+  input.dispatchEvent(new KeyboardEvent('keydown', {
+    bubbles: true,
+    code: 'KeyW',
+    key: 'w',
+  }));
+  advanceFrame();
+
+  expect(camera.getPosition().toArray()).toEqual(before);
+  input.remove();
+  dispose();
+});
+
+it('prevents navigation keys from scrolling the page', () => {
+  const { dispose } = createMotionScenario();
+  const event = new KeyboardEvent('keydown', {
+    bubbles: true,
+    cancelable: true,
+    code: 'ArrowLeft',
+    key: 'ArrowLeft',
+  });
+
+  window.dispatchEvent(event);
+
+  expect(event.defaultPrevented).toBe(true);
+  dispose();
+});
+
+it('releases held keys when the window loses focus', () => {
+  const { camera, advanceFrame, dispose } = createMotionScenario();
+  window.dispatchEvent(new KeyboardEvent('keydown', {
+    code: 'KeyW',
+    key: 'w',
+  }));
+  advanceFrame();
+  const beforeBlur = camera.getPosition().toArray();
+
+  window.dispatchEvent(new Event('blur'));
+  advanceFrame();
+
+  expect(camera.getPosition().toArray()).toEqual(beforeBlur);
+  dispose();
+});
+
 it('normalizes line-based wheel deltas to pixel-equivalent zoom', () => {
   const lineScenario = createMotionScenario();
   lineScenario.engine.trigger('WHEEL', {

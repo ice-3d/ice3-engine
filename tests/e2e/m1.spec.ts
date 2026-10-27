@@ -60,3 +60,22 @@ test('uses a black background with material contrast', async ({ page }) => {
   expect(background[1]).toBeLessThanOrEqual(5);
   expect(background[2]).toBeLessThanOrEqual(5);
 });
+
+test('moves the camera with WASD and arrow keys', async ({ page }) => {
+  await page.goto('http://127.0.0.1:8104/');
+  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  const before = await page.evaluate(() => window.__ice3M1.cameraPosition());
+
+  await page.keyboard.down('w');
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.cameraPosition()),
+  ).not.toEqual(before);
+  await page.keyboard.up('w');
+  const afterLetter = await page.evaluate(() => window.__ice3M1.cameraPosition());
+
+  await page.keyboard.down('ArrowUp');
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.cameraPosition()),
+  ).not.toEqual(afterLetter);
+  await page.keyboard.up('ArrowUp');
+});
