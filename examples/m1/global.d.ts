@@ -2,6 +2,7 @@ import type {
   ICEAssetHandle,
   ICEEngineDiagnostics,
   ICEProjectedPoint,
+  ICETilesetStats,
 } from 'ice3';
 
 declare global {
@@ -16,6 +17,7 @@ declare global {
       selectedIds(): readonly string[];
       disposeAsset(): void;
       assetStats(): ICEAssetHandle['stats'];
+      tilesetStats(): ICETilesetStats;
     };
   }
 }
