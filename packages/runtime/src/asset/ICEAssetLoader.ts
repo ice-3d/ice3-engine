@@ -32,6 +32,7 @@ export interface ICEAssetHandle {
 export class ICEAssetLoader {
   private readonly fetcher: typeof globalThis.fetch;
   private readonly verifyIntegrity: boolean;
+  private readonly legacyWarnings = new Set<string>();
   private readonly cache = new Map<string, Promise<{
     readonly bytes: ArrayBuffer;
     readonly snapshot: ICEPreparedAssetSnapshot;
@@ -62,7 +63,11 @@ export class ICEAssetLoader {
     }
     const cached = await awaitWithAbort(pending, options.signal);
     assertNotAborted(options.signal);
-    if (cached.snapshot.contract.status === 'legacy') {
+    if (
+      cached.snapshot.contract.status === 'legacy'
+      && !this.legacyWarnings.has(url)
+    ) {
+      this.legacyWarnings.add(url);
       this.engine.reportDiagnostic(
         'ICE3_ASSET_CONTRACT_MISSING',
         'Prepared asset has no collaboration contract; using legacy statistics',
@@ -95,6 +100,7 @@ export class ICEAssetLoader {
 
   clear(): void {
     this.cache.clear();
+    this.legacyWarnings.clear();
   }
 
   private async fetchSnapshot(

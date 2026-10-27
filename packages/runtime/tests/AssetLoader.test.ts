@@ -53,6 +53,25 @@ it('emits a warning when loading a legacy asset', async () => {
   expect(diagnostics).toContain('ICE3_ASSET_CONTRACT_MISSING');
 });
 
+it('emits the legacy warning once per cached asset URL', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const diagnostics: string[] = [];
+  engine.on<{ code: string }>('DIAGNOSTIC', (event) => {
+    if (event.param) diagnostics.push(event.param.code);
+  });
+  const bytes = createMinimalPreparedGLB({ contract: 'legacy' });
+  const loader = new ICEAssetLoader(engine, {
+    fetch: vi.fn(async () => new Response(bytes.slice(0))),
+  });
+
+  await loader.load('/legacy.glb');
+  await loader.load('/legacy.glb');
+
+  expect(diagnostics.filter(
+    (code) => code === 'ICE3_ASSET_CONTRACT_MISSING',
+  )).toHaveLength(1);
+});
+
 it('aborts before scene instantiation', async () => {
   const { loader } = createLoader();
   const controller = new AbortController();
