@@ -97,14 +97,20 @@ reuse existing example servers.
   are ready.
 - Preserve semantic equipment selection while the same device moves between
   coarse and fine scene nodes.
+- Consume optional static render batches from Prepared GLB while retaining
+  stable device selection, exact GPU picking, and yellow highlight.
+- Submit compatible repeated geometry through one instanced draw with one
+  shared geometry buffer and a stable per-instance semantic index.
+- Fall back to ordinary mesh submission when instance-buffer allocation fails
+  and expose the fallback count in renderer diagnostics.
 
 ## M0 boundaries
 
 M0 does not include model loading, LOD, instancing, spatial streaming, industrial semantics, Agent integration, asset tools, post-processing, or a WebGPU backend.
 
 M1 does not include generic glTF compatibility, animation, skins, Morph
-targets, textures, complex materials, instancing, implicit tiling, external
-Tilesets, or runtime source-format conversion.
+targets, textures, complex materials, implicit tiling, external Tilesets, or
+runtime source-format conversion.
 The first Tileset runtime supports explicit `children`, local Cartesian `box` or
 `sphere` bounds, relative Prepared GLB content, finite tile transforms, and
 `REPLACE` refinement.

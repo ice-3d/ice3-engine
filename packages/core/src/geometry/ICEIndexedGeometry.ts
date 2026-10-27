@@ -6,6 +6,7 @@ export interface ICEIndexedGeometryOptions {
   readonly indices: Uint16Array | Uint32Array;
   readonly edgeIndices?: Uint16Array | Uint32Array;
   readonly colors?: Float32Array;
+  readonly semanticIndices?: Uint32Array;
 }
 
 export class ICEIndexedGeometry implements ICEGeometry {
@@ -15,6 +16,7 @@ export class ICEIndexedGeometry implements ICEGeometry {
   readonly indices: Uint16Array | Uint32Array;
   readonly edgeIndices?: Uint16Array | Uint32Array;
   readonly colors?: Float32Array;
+  readonly semanticIndices?: Uint32Array;
 
   constructor(options: ICEIndexedGeometryOptions) {
     if (!options.id.trim()) {
@@ -50,6 +52,14 @@ export class ICEIndexedGeometry implements ICEGeometry {
         'ICE color count must be 3 or 4 values per vertex',
       );
     }
+    if (
+      options.semanticIndices
+      && options.semanticIndices.length !== vertexCount
+    ) {
+      throw new TypeError(
+        'ICE semantic index count must match the vertex count',
+      );
+    }
     this.id = options.id;
     this.positions = options.positions;
     this.indices = options.indices;
@@ -58,6 +68,9 @@ export class ICEIndexedGeometry implements ICEGeometry {
     }
     if (options.colors) {
       this.colors = options.colors;
+    }
+    if (options.semanticIndices) {
+      this.semanticIndices = options.semanticIndices;
     }
   }
 
@@ -82,6 +95,9 @@ export class ICEIndexedGeometry implements ICEGeometry {
       indexCount: this.indices.length,
       edgeIndexCount: this.edgeIndices?.length ?? 0,
       colorCount: this.colors ? this.positions.length / 3 : 0,
+      ...(this.semanticIndices
+        ? { semanticIndexCount: this.semanticIndices.length }
+        : {}),
       bounds: this.getBounds(),
     };
   }

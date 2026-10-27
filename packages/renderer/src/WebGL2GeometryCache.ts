@@ -1,12 +1,13 @@
 import type { ICEGeometry } from '@ice3/core';
 import { WebGL2Program } from './WebGL2Program.js';
 
-interface GeometryEntry {
+export interface GeometryEntry {
   readonly vertexArray: WebGLVertexArrayObject;
   readonly positionBuffer: WebGLBuffer;
   readonly triangleIndexBuffer: WebGLBuffer;
   readonly edgeIndexBuffer: WebGLBuffer | null;
   readonly colorBuffer: WebGLBuffer | null;
+  readonly semanticBuffer: WebGLBuffer | null;
   readonly triangleCount: number;
   readonly edgeCount: number;
   readonly bytes: number;
@@ -33,21 +34,23 @@ export class WebGL2GeometryCache {
     const triangleIndexBuffer = gl.createBuffer();
     const edgeIndexBuffer = geometry.edgeIndices ? gl.createBuffer() : null;
     const colorBuffer = geometry.colors ? gl.createBuffer() : null;
+    const semanticBuffer = geometry.semanticIndices ? gl.createBuffer() : null;
     if (
       !vertexArray
       || !positionBuffer
       || !triangleIndexBuffer
       || (geometry.edgeIndices && !edgeIndexBuffer)
       || (geometry.colors && !colorBuffer)
+      || (geometry.semanticIndices && !semanticBuffer)
     ) {
       gl.deleteVertexArray(vertexArray);
       gl.deleteBuffer(positionBuffer);
       gl.deleteBuffer(triangleIndexBuffer);
       gl.deleteBuffer(edgeIndexBuffer);
       gl.deleteBuffer(colorBuffer);
+      gl.deleteBuffer(semanticBuffer);
       throw new Error('ICE3_GPU_RESOURCE_FAILED: geometry buffers are unavailable');
     }
-
     gl.bindVertexArray(vertexArray);
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, geometry.positions, gl.STATIC_DRAW);
@@ -73,6 +76,12 @@ export class WebGL2GeometryCache {
         0,
       );
     }
+    if (semanticBuffer && geometry.semanticIndices) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, semanticBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, geometry.semanticIndices, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(2);
+      gl.vertexAttribPointer(2, 1, gl.UNSIGNED_INT, false, 0, 0);
+    }
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, triangleIndexBuffer);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, geometry.indices, gl.STATIC_DRAW);
     if (edgeIndexBuffer && geometry.edgeIndices) {
@@ -91,13 +100,15 @@ export class WebGL2GeometryCache {
       triangleIndexBuffer,
       edgeIndexBuffer,
       colorBuffer,
+      semanticBuffer,
       triangleCount: geometry.indices.length,
       edgeCount: geometry.edgeIndices?.length ?? 0,
       bytes:
         geometry.positions.byteLength
         + geometry.indices.byteLength
         + (geometry.edgeIndices?.byteLength ?? 0)
-        + (geometry.colors?.byteLength ?? 0),
+        + (geometry.colors?.byteLength ?? 0)
+        + (geometry.semanticIndices?.byteLength ?? 0),
     };
     this.entries.set(geometry, entry);
     return entry;
@@ -144,6 +155,7 @@ export class WebGL2GeometryCache {
     this.gl.deleteBuffer(entry.triangleIndexBuffer);
     this.gl.deleteBuffer(entry.edgeIndexBuffer);
     this.gl.deleteBuffer(entry.colorBuffer);
+    this.gl.deleteBuffer(entry.semanticBuffer);
     this.gl.deleteVertexArray(entry.vertexArray);
   }
 }

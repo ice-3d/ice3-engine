@@ -10,6 +10,7 @@ import {
   ICEScene,
   type ICEGeometryBounds,
 } from '@ice3/core';
+import { ICERenderBatch } from './ICERenderBatch.js';
 
 export interface ICEBuiltAsset {
   readonly scene: ICEScene;
@@ -27,6 +28,9 @@ export function buildAssetScene(
       indices: geometry.indices,
       ...(geometry.edgeIndices ? { edgeIndices: geometry.edgeIndices } : {}),
       ...(geometry.colors ? { colors: geometry.colors } : {}),
+      ...(geometry.semanticIndices
+        ? { semanticIndices: geometry.semanticIndices }
+        : {}),
     })
   ));
   const materials = snapshot.materials.map((material) => (
@@ -47,20 +51,33 @@ export function buildAssetScene(
     const mesh = meshesByNode.get(index)?.[0];
     const geometry = mesh ? geometries[mesh.geometry] : undefined;
     const material = mesh ? materials[mesh.material] : undefined;
-    const node = geometry && material
-      ? new ICEMesh({
+    const node = snapshot.batching && geometry && material
+      ? new ICERenderBatch({
+          id: source.id,
+          displayName: source.name,
+          matrix: source.matrix,
+          geometry,
+          material,
+          semanticIds: snapshot.batching.semanticIds,
+          semanticNodeIds: snapshot.batching.semanticNodeIds,
+          semanticSelectionIds: snapshot.batching.semanticSelectionIds,
+          materialKey: `${mesh!.material}`,
+        })
+      : geometry && material
+        ? new ICEMesh({
           id: source.id,
           displayName: source.name,
           selectionId: source.selectionId,
           matrix: source.matrix,
           geometry,
           material,
-        })
-      : new ICENode({
+          })
+        : new ICENode({
           id: source.id,
           displayName: source.name,
+          selectionId: source.selectionId,
           matrix: source.matrix,
-        });
+          });
     node.visible = source.visible;
     return node;
   });

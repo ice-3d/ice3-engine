@@ -219,24 +219,30 @@ function validatePreparedStats(json: JSONRecord, profile: JSONRecord): void {
   let triangleCount = 0;
   let edgeSegmentCount = 0;
   const selectionNodes = new Set<number>();
+  const referencedMeshes = new Set<number>();
   for (const [nodeIndex, node] of nodes.entries()) {
     if (node.mesh === undefined) continue;
     const mesh = meshes[Number(node.mesh)];
     if (!mesh) continue;
+    referencedMeshes.add(Number(node.mesh));
     for (const primitive of records(mesh.primitives)) {
-      primitiveCount += 1;
       const mode = Number(primitive.mode ?? 4);
-      const accessor = accessors[Number(primitive.indices)];
       if (mode === 4) {
-        const count = Number(accessor?.count);
-        if (Number.isInteger(count) && count >= 0) triangleCount += count / 3;
         selectionNodes.add(nodeIndex);
-      } else if (mode === 1) {
-        const count = Number(accessor?.count);
-        if (Number.isInteger(count) && count >= 0) edgeSegmentCount += count / 2;
       }
     }
   }
+  for (const meshIndex of referencedMeshes) {
+    for (const primitive of records(meshes[meshIndex]?.primitives)) {
+      primitiveCount += 1;
+      const mode = Number(primitive.mode ?? 4);
+      const count = Number(accessors[Number(primitive.indices)]?.count);
+      if (!Number.isInteger(count) || count < 0) continue;
+      if (mode === 4) triangleCount += count / 3;
+      if (mode === 1) edgeSegmentCount += count / 2;
+    }
+  }
+  const batchingSelectionIds = record(profile.batching)?.semanticSelectionIds;
   const expected = {
     nodeCount: nodes.length,
     maxNodeDepth: sceneDepth(json),
@@ -245,7 +251,9 @@ function validatePreparedStats(json: JSONRecord, profile: JSONRecord): void {
     triangleCount,
     edgeSegmentCount,
     materialCount: records(json.materials).length,
-    selectionGroupCount: selectionNodes.size,
+    selectionGroupCount: Array.isArray(batchingSelectionIds)
+      ? new Set(batchingSelectionIds).size
+      : selectionNodes.size,
   };
   for (const [key, value] of Object.entries(expected)) {
     if (stats?.[key] !== value) {

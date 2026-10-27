@@ -12,14 +12,22 @@ type FixtureOptions = {
   readonly floatOffset4?: boolean;
   readonly withVertexColors?: boolean;
   readonly selectionId?: string;
+  readonly sharedNodeCount?: number;
   readonly contract?: 'active' | 'legacy' | 'unsupported' | 'conversion';
   readonly missingBufferViewBuffer?: boolean;
+  readonly batchIssue?:
+    | 'missing-semantic-attribute'
+    | 'out-of-range-semantic-index'
+    | 'duplicate-batch-id'
+    | 'mismatched-semantic-arrays'
+    | 'unsupported-version';
 };
 
 export function createMinimalPreparedGLB(
   options: FixtureOptions = {},
 ): ArrayBuffer {
   const contractMode = options.contract ?? 'active';
+  const nodeCount = options.sharedNodeCount ?? 1;
   const positions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]);
   const indices = new Uint16Array([0, 1, 2]);
   const edges = new Uint16Array([0, 1, 1, 2, 2, 0]);
@@ -84,34 +92,34 @@ export function createMinimalPreparedGLB(
               },
               bounds: { min: [0, 0, 0], max: [1, 1, 0] },
               stats: {
-                nodeCount: 1,
+                nodeCount,
                 maxNodeDepth: 0,
                 meshCount: 1,
                 primitiveCount: 2,
                 triangleCount: 1,
                 edgeSegmentCount: 3,
                 materialCount: 3,
-                selectionGroupCount: 1,
+                selectionGroupCount: nodeCount,
               },
             },
           },
     },
     scene: 0,
-    scenes: [{ nodes: [0] }],
-    nodes: [{
+    scenes: [{ nodes: Array.from({ length: nodeCount }, (_, index) => index) }],
+    nodes: Array.from({ length: nodeCount }, (_, index) => ({
       ...(options.trsNode
         ? { translation: [0, 0, 0] }
         : { matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] }),
       mesh: 0,
       extras: {
         ice3: {
-          id: 'fixture/node/0',
+          id: `fixture/node/${index}`,
           ...(options.selectionId
             ? { selectionId: options.selectionId }
             : {}),
         },
       },
-    }],
+    })),
     meshes: [{
       primitives: [
         {
@@ -243,6 +251,75 @@ export function createVertexColorGLB(): ArrayBuffer {
   json.meshes[0].primitives[0].attributes.COLOR_0 = 3;
   json.meshes[0].primitives[0].material = 2;
   return packGLB(json, bytes.subarray(28 + jsonLength));
+}
+
+export function createBatchedPreparedGLB(
+  issue: FixtureOptions['batchIssue'] = undefined,
+): ArrayBuffer {
+  const bytes = Buffer.from(createMinimalPreparedGLB());
+  const jsonLength = bytes.readUInt32LE(12);
+  const json = JSON.parse(
+    bytes.subarray(20, 20 + jsonLength).toString('utf8').replace(/ +$/g, ''),
+  );
+  const binary = bytes.subarray(28 + jsonLength);
+  const semanticOffset = binary.length;
+  const semanticIndices = new Uint32Array([
+    0,
+    issue === 'out-of-range-semantic-index' ? 2 : 0,
+    0,
+  ]);
+  const nextBinary = Buffer.alloc(binary.length + semanticIndices.byteLength);
+  binary.copy(nextBinary, 0);
+  Buffer.from(semanticIndices.buffer).copy(nextBinary, semanticOffset);
+  json.bufferViews.push({
+    buffer: 0,
+    byteOffset: semanticOffset,
+    byteLength: semanticIndices.byteLength,
+  });
+  json.accessors.push({
+    bufferView: json.bufferViews.length - 1,
+    componentType: 5125,
+    count: semanticIndices.length,
+    type: 'SCALAR',
+  });
+  json.buffers[0].byteLength = nextBinary.length;
+  json.meshes[0].primitives[0].attributes._ICE3_SEMANTIC_INDEX =
+    json.accessors.length - 1;
+  if (issue === 'missing-semantic-attribute') {
+    delete json.meshes[0].primitives[0].attributes._ICE3_SEMANTIC_INDEX;
+  }
+  json.asset.extras.ice3.batching = {
+    version: issue === 'unsupported-version' ? '2.0' : '1.0',
+    semanticIds:
+      issue === 'mismatched-semantic-arrays'
+        ? ['semantic:0', 'semantic:1']
+        : ['semantic:0'],
+    semanticNodeIds: ['fixture/node/0'],
+    semanticSelectionIds: ['fixture/node/0'],
+    batches: [
+      {
+        id: 'batch:0',
+        mesh: 0,
+        primitive: 0,
+        material: 0,
+        mode: 4,
+        triangleCount: 1,
+        bounds: { min: [0, 0, 0], max: [1, 1, 0] },
+      },
+      ...(issue === 'duplicate-batch-id'
+        ? [{
+            id: 'batch:0',
+            mesh: 0,
+            primitive: 1,
+            material: 1,
+            mode: 1,
+            triangleCount: 0,
+            bounds: { min: [0, 0, 0], max: [1, 1, 0] },
+          }]
+        : []),
+    ],
+  };
+  return packGLB(json, nextBinary);
 }
 
 function packGLB(json: unknown, binary: Buffer): ArrayBuffer {

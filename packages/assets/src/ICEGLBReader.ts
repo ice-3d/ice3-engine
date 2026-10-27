@@ -4,6 +4,8 @@ import type {
 } from '@ice3/core';
 import type {
   ICEPreparedAssetSnapshot,
+  ICEPreparedBatch,
+  ICEPreparedBatching,
   ICEPreparedGeometry,
   ICEPreparedMaterial,
   ICEPreparedMesh,
@@ -54,6 +56,16 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
       visible: record(record(node.extras)?.ice3)?.visible !== false,
     };
   });
+  const batching = readBatchingMetadata(
+    profile,
+    sourceNodes,
+    sourceMeshes,
+    sourceMaterials,
+    nodes,
+    views,
+    accessors,
+    binary,
+  );
 
   const geometries: ICEPreparedGeometry[] = [];
   const materials: ICEPreparedMaterial[] = [];
@@ -95,6 +107,17 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
         views,
         accessors[triangleIndex],
       );
+      const semanticAccessorIndex = record(primitive.attributes)
+        ?._ICE3_SEMANTIC_INDEX;
+      const semanticIndices = semanticAccessorIndex === undefined
+        ? undefined
+        : readSemanticAccessor(
+            binary,
+            views,
+            accessors[Number(semanticAccessorIndex)],
+            positions.length / 3,
+            batching?.semanticIds.length ?? 0,
+          );
       triangleCount += indices.length / 3;
       validateIndexRange(indices, positions.length / 3);
       const edgePrimitive = primitives.find((candidate) => (
@@ -124,6 +147,7 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
         indices,
         ...(edgeIndices ? { edgeIndices } : {}),
         ...(colors ? { colors } : {}),
+        ...(semanticIndices ? { semanticIndices } : {}),
         bounds,
       });
       for (const entry of nodesForMesh) {
@@ -158,7 +182,203 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
     geometries,
     materials,
     meshes,
+    ...(batching ? { batching } : {}),
   };
+}
+
+function readBatchingMetadata(
+  profile: JSONRecord,
+  sourceNodes: readonly JSONRecord[],
+  sourceMeshes: readonly JSONRecord[],
+  sourceMaterials: readonly JSONRecord[],
+  nodes: readonly ICEPreparedNode[],
+  views: readonly JSONRecord[],
+  accessors: readonly JSONRecord[],
+  binary: Uint8Array,
+): ICEPreparedBatching | undefined {
+  const raw = record(profile.batching);
+  if (!raw) return undefined;
+  if (raw.version !== '1.0') {
+    throw assetError('ICE3_ASSET_BATCH_INVALID', 'batch version is unsupported');
+  }
+  const semanticIds = stringArray(raw.semanticIds, 'semanticIds');
+  const semanticNodeIds = stringArray(raw.semanticNodeIds, 'semanticNodeIds');
+  const semanticSelectionIds = stringArray(
+    raw.semanticSelectionIds,
+    'semanticSelectionIds',
+  );
+  if (
+    semanticIds.length === 0
+    || semanticNodeIds.length !== semanticIds.length
+    || semanticSelectionIds.length !== semanticIds.length
+  ) {
+    throw assetError('ICE3_ASSET_BATCH_INVALID', 'semantic arrays are inconsistent');
+  }
+  const nodeById = new Map(nodes.map((node) => [node.id, node] as const));
+  for (let index = 0; index < semanticNodeIds.length; index += 1) {
+    const node = nodeById.get(semanticNodeIds[index]!);
+    if (!node || node.selectionId !== semanticSelectionIds[index]) {
+      throw assetError(
+        'ICE3_ASSET_BATCH_INVALID',
+        'semantic node and selection identity do not match',
+      );
+    }
+  }
+  const sourceBatches = records(raw.batches);
+  if (sourceBatches.length === 0) {
+    throw assetError('ICE3_ASSET_BATCH_INVALID', 'batch list is empty');
+  }
+  const batchIds = new Set<string>();
+  const primitiveKeys = new Set<string>();
+  const batches: ICEPreparedBatch[] = sourceBatches.map((entry) => {
+    const id = entry.id;
+    const mesh = entry.mesh;
+    const primitive = entry.primitive;
+    const material = entry.material;
+    const mode = entry.mode;
+    const triangleCount = entry.triangleCount;
+    if (
+      typeof id !== 'string'
+      || !id.trim()
+      || batchIds.has(id)
+      || !nonNegativeInteger(mesh)
+      || !nonNegativeInteger(primitive)
+      || !nonNegativeInteger(material)
+      || (mode !== 4 && mode !== 1)
+      || !nonNegativeInteger(triangleCount)
+    ) {
+      throw assetError('ICE3_ASSET_BATCH_INVALID', 'batch entry is invalid');
+    }
+    batchIds.add(id);
+    const sourceMesh = sourceMeshes[mesh];
+    const sourcePrimitive = records(sourceMesh?.primitives)[primitive];
+    if (
+      !sourcePrimitive
+      || material >= sourceMaterials.length
+      || Number(sourcePrimitive.mode ?? 4) !== mode
+    ) {
+      throw assetError(
+        'ICE3_ASSET_BATCH_INVALID',
+        'batch primitive or material index is invalid',
+      );
+    }
+    const primitiveKey = `${mesh}:${primitive}`;
+    if (primitiveKeys.has(primitiveKey)) {
+      throw assetError('ICE3_ASSET_BATCH_INVALID', 'batch primitive is duplicated');
+    }
+    primitiveKeys.add(primitiveKey);
+    const attributes = record(sourcePrimitive.attributes);
+    const semanticAccessorIndex = Number(attributes?._ICE3_SEMANTIC_INDEX);
+    const semanticAccessor = accessors[semanticAccessorIndex];
+    const positionCount = Number(
+      accessors[Number(attributes?.POSITION)]?.count,
+    );
+    if (
+      !Number.isInteger(semanticAccessorIndex)
+      || semanticAccessorIndex < 0
+      || semanticAccessor?.componentType !== 5125
+      || semanticAccessor.type !== 'SCALAR'
+      || Number(semanticAccessor.count) !== positionCount
+    ) {
+      throw assetError(
+        'ICE3_ASSET_BATCH_INVALID',
+        'batch semantic attribute is invalid',
+      );
+    }
+    readSemanticAccessor(
+      binary,
+      views,
+      semanticAccessor,
+      positionCount,
+      semanticIds.length,
+    );
+    if (
+      mode === 4
+      && triangleCount !== Number(accessors[Number(sourcePrimitive.indices)]?.count) / 3
+    ) {
+      throw assetError(
+        'ICE3_ASSET_BATCH_INVALID',
+        'batch triangle count is invalid',
+      );
+    }
+    return {
+      id,
+      mesh,
+      primitive,
+      material,
+      mode,
+      triangleCount,
+      bounds: batchingBounds(entry.bounds),
+    };
+  });
+  return {
+    version: '1.0',
+    semanticIds,
+    semanticNodeIds,
+    semanticSelectionIds,
+    batches,
+  };
+}
+
+function stringArray(value: unknown, field: string): readonly string[] {
+  if (
+    !Array.isArray(value)
+    || value.some((entry) => typeof entry !== 'string' || !entry.trim())
+    || new Set(value).size !== value.length
+  ) {
+    throw assetError('ICE3_ASSET_BATCH_INVALID', `${field} is invalid`);
+  }
+  return value as string[];
+}
+
+function batchingBounds(value: unknown): ICEGeometryBounds {
+  const recordValue = record(value);
+  const min = numbers(recordValue?.min, 3);
+  const max = numbers(recordValue?.max, 3);
+  if (
+    !min
+    || !max
+    || [0, 1, 2].some((axis) => min[axis]! > max[axis]!)
+  ) {
+    throw assetError('ICE3_ASSET_BATCH_INVALID', 'batch bounds are invalid');
+  }
+  return {
+    min: [min[0]!, min[1]!, min[2]!],
+    max: [max[0]!, max[1]!, max[2]!],
+  };
+}
+
+function readSemanticAccessor(
+  binary: Uint8Array,
+  views: readonly JSONRecord[],
+  accessor: JSONRecord | undefined,
+  vertexCount: number,
+  semanticCount: number,
+): Uint32Array {
+  if (
+    !accessor
+    || accessor.componentType !== 5125
+    || accessor.type !== 'SCALAR'
+    || Number(accessor.count) !== vertexCount
+  ) {
+    throw assetError(
+      'ICE3_ASSET_BATCH_INVALID',
+      'semantic index accessor is invalid',
+    );
+  }
+  const offset = accessorOffset(binary, views, accessor);
+  const values = new Uint32Array(
+    binary.buffer,
+    binary.byteOffset + offset,
+    vertexCount,
+  );
+  if (values.some((value) => value >= semanticCount)) {
+    throw assetError(
+      'ICE3_ASSET_BATCH_INVALID',
+      'semantic index is out of range',
+    );
+  }
+  return values;
 }
 
 function preparedContract(profile: JSONRecord): {
@@ -436,6 +656,20 @@ function integers(value: unknown): number[] {
   return Array.isArray(value)
     ? value.filter((entry): entry is number => Number.isInteger(entry))
     : [];
+}
+
+function numbers(value: unknown, length: number): number[] | undefined {
+  return Array.isArray(value)
+    && value.length === length
+    && value.every((entry) => typeof entry === 'number' && Number.isFinite(entry))
+    ? value as number[]
+    : undefined;
+}
+
+function nonNegativeInteger(value: unknown): value is number {
+  return typeof value === 'number'
+    && Number.isInteger(value)
+    && value >= 0;
 }
 
 function assetError(code: string, message: string): Error {

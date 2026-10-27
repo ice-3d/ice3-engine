@@ -13,6 +13,7 @@ import {
   createOrdinaryGLB,
   createOutOfRangeAccessorGLB,
   createTRSNodeGLB,
+  createBatchedPreparedGLB,
 } from './createFixture';
 
 it('reads a prepared triangle asset with zero-copy accessor views', () => {
@@ -32,6 +33,21 @@ it('reads an explicit selection identity for LOD content', () => {
 
   expect(snapshot.nodes[0]!.id).toBe('fixture/node/0');
   expect(snapshot.nodes[0]!.selectionId).toBe('semantic/device/7');
+});
+
+it('counts a shared mesh once while preserving every node selection', () => {
+  const snapshot = readPreparedGLB(
+    createMinimalPreparedGLB({ sharedNodeCount: 4 }),
+  );
+
+  expect(snapshot.stats).toMatchObject({
+    nodeCount: 4,
+    meshCount: 1,
+    primitiveCount: 2,
+    triangleCount: 1,
+    selectionGroupCount: 4,
+  });
+  expect(snapshot.meshes).toHaveLength(4);
 });
 
 it('rejects an ordinary GLB without the ICE3 profile', () => {
@@ -96,6 +112,40 @@ it('reads prepared per-vertex display colors', () => {
     0.1, 0.2, 0.8,
   ]);
   expect(snapshot.materials[0]!.baseColor).toBe('#ffffff');
+});
+
+it('reads validated render batch metadata', () => {
+  const snapshot = readPreparedGLB(createBatchedPreparedGLB());
+
+  expect(snapshot.batching).toEqual({
+    version: '1.0',
+    semanticIds: ['semantic:0'],
+    semanticNodeIds: ['fixture/node/0'],
+    semanticSelectionIds: ['fixture/node/0'],
+    batches: [{
+      id: 'batch:0',
+      mesh: 0,
+      primitive: 0,
+      material: 0,
+      mode: 4,
+      triangleCount: 1,
+      bounds: { min: [0, 0, 0], max: [1, 1, 0] },
+    }],
+  });
+  expect(snapshot.geometries[0]!.semanticIndices).toEqual(
+    new Uint32Array([0, 0, 0]),
+  );
+});
+
+it.each([
+  'missing-semantic-attribute',
+  'out-of-range-semantic-index',
+  'duplicate-batch-id',
+  'mismatched-semantic-arrays',
+  'unsupported-version',
+] as const)('rejects invalid render batch metadata: %s', (issue) => {
+  expect(() => readPreparedGLB(createBatchedPreparedGLB(issue)))
+    .toThrowError(/ICE3_ASSET_BATCH_INVALID/);
 });
 
 it('reads v1 contract, preparation, extended stats, and budget', () => {

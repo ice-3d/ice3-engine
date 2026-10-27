@@ -165,13 +165,74 @@ it('passes a configured background color to the renderer', () => {
 it('reports renderer metrics alongside engine frame metrics', () => {
   const engine = new ICE3({
     backend: new FakeRendererBackend({
-      stats: { drawCalls: 3, renderedMeshes: 1, gpuBytes: 2048 },
+      stats: {
+        drawCalls: 3,
+        renderedMeshes: 1,
+        renderedBatches: 0,
+        instancingFallbacks: 0,
+        gpuBytes: 2048,
+      },
     }),
   });
 
   expect(engine.getDiagnostics().renderer).toEqual({
     drawCalls: 3,
     renderedMeshes: 1,
+    renderedBatches: 0,
+    instancingFallbacks: 0,
     gpuBytes: 2048,
   });
+});
+
+it('reports instancing fallback once while it remains active', () => {
+  const backend = new FakeRendererBackend({
+    stats: {
+      drawCalls: 4,
+      renderedMeshes: 4,
+      renderedBatches: 0,
+      instancingFallbacks: 1,
+      gpuBytes: 512,
+    },
+  });
+  const callbacks: FrameRequestCallback[] = [];
+  const scheduler: ICERenderScheduler = {
+    request: (callback) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    },
+    cancelAll: () => {
+      callbacks.length = 0;
+    },
+    flushForTest: () => {
+      const pending = callbacks.shift();
+      pending?.(0);
+      return pending !== undefined;
+    },
+    pendingCount: () => callbacks.length,
+  };
+  const engine = new ICE3({ backend, scheduler }).init(createHost());
+  let diagnostics = 0;
+  engine.on('DIAGNOSTIC', () => {
+    diagnostics += 1;
+  });
+  engine.setScene(new ICEScene({ id: 'scene' })).setCamera(
+    new ICEPerspectiveCamera({
+      id: 'camera',
+      fov: 45,
+      near: 0.1,
+      far: 100,
+      position: [0, 0, 5],
+      target: [0, 0, 0],
+    }),
+  ).start();
+
+  scheduler.flushForTest();
+  scheduler.flushForTest();
+
+  expect(engine.getDiagnostics().lastDiagnostic).toMatchObject({
+    severity: 'warning',
+    code: 'ICE3_RENDER_INSTANCING_FALLBACK',
+  });
+  expect(diagnostics).toBe(1);
+  engine.destroy();
 });

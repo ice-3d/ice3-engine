@@ -18,6 +18,7 @@ export interface ICEPreparedGeometry {
   readonly indices: Uint16Array | Uint32Array;
   readonly edgeIndices?: Uint16Array | Uint32Array;
   readonly colors?: Float32Array;
+  readonly semanticIndices?: Uint32Array;
   readonly bounds: ICEGeometryBounds;
 }
 
@@ -32,6 +33,24 @@ export interface ICEPreparedMesh {
   readonly node: number;
   readonly geometry: number;
   readonly material: number;
+}
+
+export interface ICEPreparedBatch {
+  readonly id: string;
+  readonly mesh: number;
+  readonly primitive: number;
+  readonly material: number;
+  readonly mode: 4 | 1;
+  readonly triangleCount: number;
+  readonly bounds: ICEGeometryBounds;
+}
+
+export interface ICEPreparedBatching {
+  readonly version: '1.0';
+  readonly semanticIds: readonly string[];
+  readonly semanticNodeIds: readonly string[];
+  readonly semanticSelectionIds: readonly string[];
+  readonly batches: readonly ICEPreparedBatch[];
 }
 
 export interface ICEPreparedStats {
@@ -74,4 +93,5 @@ export interface ICEPreparedAssetSnapshot {
   readonly geometries: readonly ICEPreparedGeometry[];
   readonly materials: readonly ICEPreparedMaterial[];
   readonly meshes: readonly ICEPreparedMesh[];
+  readonly batching?: ICEPreparedBatching;
 }

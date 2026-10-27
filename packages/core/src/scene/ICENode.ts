@@ -6,6 +6,7 @@ import { ICEVector3, type ICEVector3Tuple } from '../math/ICEVector3.js';
 export interface ICENodeOptions {
   readonly id: string;
   readonly displayName?: string;
+  readonly selectionId?: string;
   readonly position?: ICEVector3Tuple;
   readonly rotation?: ICEVector3Tuple;
   readonly scale?: ICEVector3Tuple;
@@ -37,6 +38,7 @@ const LOCAL_MATRIX = new ICEMatrix4();
 export class ICENode extends ICEEventDispatcher {
   readonly id: string;
   readonly displayName: string;
+  readonly selectionId?: string;
   readonly position: ICEVector3;
   readonly rotation: ICEVector3;
   readonly scale: ICEVector3;
@@ -54,6 +56,8 @@ export class ICENode extends ICEEventDispatcher {
     }
     this.id = options.id;
     this.displayName = options.displayName?.trim() || options.id;
+    const selectionId = options.selectionId?.trim();
+    if (selectionId) this.selectionId = selectionId;
     this.position = new ICEVector3(...(options.position ?? [0, 0, 0]));
     this.rotation = new ICEVector3(...(options.rotation ?? [0, 0, 0]));
     this.scale = new ICEVector3(...(options.scale ?? [1, 1, 1]));
@@ -159,6 +163,7 @@ export class ICENode extends ICEEventDispatcher {
       id: this.id,
       displayName: this.displayName,
       typeId: this.typeId,
+      ...(this.selectionId ? { selectionId: this.selectionId } : {}),
       visible: this.visible,
       position: this.position.toArray(),
       rotation: this.rotation.toArray(),

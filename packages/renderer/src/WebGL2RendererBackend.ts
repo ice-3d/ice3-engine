@@ -4,9 +4,19 @@ import {
   selectionIdentity,
   type ICEGeometryRenderable,
 } from './WebGL2GeometryBatch.js';
+import {
+  collectRenderBatches,
+  type ICERenderBatchDraw,
+} from './WebGL2RenderBatch.js';
+import {
+  collectInstanceBatches,
+  WebGL2InstanceCache,
+  type ICEInstanceBatch,
+} from './WebGL2InstanceBatch.js';
 import { WebGL2GeometryCache } from './WebGL2GeometryCache.js';
 import { WebGL2Picker } from './WebGL2Picker.js';
 import { WebGL2Program } from './WebGL2Program.js';
+import { WebGL2SemanticProgram } from './WebGL2SemanticProgram.js';
 import type {
   ICERendererBackend,
   ICERendererCapabilities,
@@ -72,24 +82,37 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private onContextLost: (() => void) | undefined;
   private onContextRestored: (() => void) | undefined;
   private program: WebGL2Program | null = null;
+  private semanticProgram: WebGL2SemanticProgram | null = null;
   private geometryCache: WebGL2GeometryCache | null = null;
+  private instanceCache: WebGL2InstanceCache | null = null;
   private picker: WebGL2Picker | null = null;
   private readonly mvpScratch = new ICEMatrix4();
   private readonly worldScratch = new ICEMatrix4();
   private readonly renderablesScratch: ICEGeometryRenderable[] = [];
+  private readonly batchesScratch: ICERenderBatchDraw[] = [];
+  private readonly instancesScratch: ICEInstanceBatch[] = [];
+  private readonly instancedMeshIds = new Set<string>();
   private backgroundRgba: readonly [number, number, number, number] = [
     0.035,
     0.055,
     0.09,
     1,
   ];
-  private frameStats = { drawCalls: 0, renderedMeshes: 0, gpuBytes: 0 };
+  private frameStats = {
+    drawCalls: 0,
+    renderedMeshes: 0,
+    renderedBatches: 0,
+    instancingFallbacks: 0,
+    gpuBytes: 0,
+  };
   private readonly handleContextLost = (event: Event): void => {
     event.preventDefault();
     this.picker = null;
     this.program = null;
     this.geometryCache?.clear();
     this.geometryCache = null;
+    this.instanceCache?.clear();
+    this.instanceCache = null;
     this.onContextLost?.();
   };
   private readonly handleContextRestored = (): void => {
@@ -180,11 +203,19 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     const aspect = frame.viewport.width / Math.max(frame.viewport.height, 1);
     const viewProjection = frame.camera.getViewProjectionMatrix(aspect);
     const mvp = this.mvpScratch;
-    this.frameStats = { drawCalls: 0, renderedMeshes: 0, gpuBytes: 0 };
+    this.frameStats = {
+      drawCalls: 0,
+      renderedMeshes: 0,
+      renderedBatches: 0,
+      instancingFallbacks: 0,
+      gpuBytes: 0,
+    };
 
     this.program.use();
     this.program.setClipOffset(0, 0);
     this.geometryCache.beginFrame();
+    this.instanceCache!.beginFrame();
+    this.instancedMeshIds.clear();
     const world = this.worldScratch;
     const clipPixelX = 2 / Math.max(1, frame.viewport.width * frame.dpr);
     const clipPixelY = 2 / Math.max(1, frame.viewport.height * frame.dpr);
@@ -192,7 +223,104 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       frame.scene,
       this.renderablesScratch,
     );
+    const instances = collectInstanceBatches(
+      renderables,
+      this.instancesScratch,
+    );
+    this.program.setInstancing(true);
+    for (const batch of instances) {
+      const instance = this.instanceCache!.retain(
+        gl,
+        this.geometryCache,
+        batch,
+      );
+      if (!instance) continue;
+      for (const id of batch.meshIds) this.instancedMeshIds.add(id);
+      mvp.elements.set(viewProjection.elements);
+      this.program.setMatrix(mvp);
+      this.program.setColor(colorToRgba(batch.material.color));
+      this.program.setVertexColors(Boolean(batch.geometry.colors));
+      gl.bindVertexArray(instance.vertexArray);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, instance.triangleIndexBuffer);
+      gl.drawElementsInstanced(
+        gl.TRIANGLES,
+        instance.triangleCount,
+        batch.geometry.indices instanceof Uint16Array
+          ? gl.UNSIGNED_SHORT
+          : gl.UNSIGNED_INT,
+        0,
+        instance.instanceCount,
+      );
+      this.frameStats.drawCalls += 1;
+      if (batch.material.edgeColor && instance.edgeCount > 0) {
+        this.program.setVertexColors(false);
+        this.program.setColor(colorToRgba(batch.material.edgeColor));
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, instance.edgeIndexBuffer);
+        for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
+          this.program.setClipOffset(
+            offsetX * clipPixelX,
+            offsetY * clipPixelY,
+          );
+          gl.drawElementsInstanced(
+            gl.LINES,
+            instance.edgeCount,
+            batch.geometry.edgeIndices instanceof Uint16Array
+              ? gl.UNSIGNED_SHORT
+              : gl.UNSIGNED_INT,
+            0,
+            instance.instanceCount,
+          );
+          this.frameStats.drawCalls += 1;
+        }
+      }
+    }
+    this.program.setInstancing(false);
+    this.program.setClipOffset(0, 0);
+    const batches = collectRenderBatches(frame.scene, this.batchesScratch);
+    for (const draw of batches) {
+      this.program.setClipOffset(0, 0);
+      mvp.elements.set(viewProjection.elements);
+      world.elements.set(draw.worldMatrix);
+      mvp.multiply(world);
+      this.program.setMatrix(mvp);
+      this.program.setColor(colorToRgba(draw.batch.material.color));
+      const geometry = this.geometryCache.retain(gl, draw.batch.geometry);
+      this.program.setVertexColors(Boolean(draw.batch.geometry.colors));
+      gl.bindVertexArray(geometry.vertexArray);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
+      gl.drawElements(
+        gl.TRIANGLES,
+        geometry.triangleCount,
+        draw.batch.geometry.indices instanceof Uint16Array
+          ? gl.UNSIGNED_SHORT
+          : gl.UNSIGNED_INT,
+        0,
+      );
+      this.frameStats.drawCalls += 1;
+      this.frameStats.renderedBatches += 1;
+      if (draw.batch.material.edgeColor) {
+        this.program.setVertexColors(false);
+        this.program.setColor(colorToRgba(draw.batch.material.edgeColor));
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.edgeIndexBuffer);
+        for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
+          this.program.setClipOffset(
+            offsetX * clipPixelX,
+            offsetY * clipPixelY,
+          );
+          gl.drawElements(
+            gl.LINES,
+            geometry.edgeCount,
+            draw.batch.geometry.edgeIndices instanceof Uint16Array
+              ? gl.UNSIGNED_SHORT
+              : gl.UNSIGNED_INT,
+            0,
+          );
+          this.frameStats.drawCalls += 1;
+        }
+      }
+    }
     for (const renderable of renderables) {
+      if (this.instancedMeshIds.has(renderable.id)) continue;
       this.program.setClipOffset(0, 0);
       mvp.elements.set(viewProjection.elements);
       world.elements.set(renderable.worldMatrix);
@@ -249,6 +377,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         SELECTION_TINT_ALPHA,
       ]);
       for (const renderable of renderables) {
+        if (this.instancedMeshIds.has(renderable.id)) continue;
         if (!selected.has(selectionIdentity(renderable.mesh))) continue;
         mvp.elements.set(viewProjection.elements);
         world.elements.set(renderable.worldMatrix);
@@ -274,6 +403,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         1,
       ]);
       for (const renderable of renderables) {
+        if (this.instancedMeshIds.has(renderable.id)) continue;
         if (!selected.has(selectionIdentity(renderable.mesh))) continue;
         const geometry = this.geometryCache.retain(gl, renderable.mesh.geometry);
         if (!geometry.edgeIndexBuffer || !renderable.mesh.geometry.edgeIndices) {
@@ -295,13 +425,84 @@ export class WebGL2RendererBackend implements ICERendererBackend {
           );
         }
       }
+      if (this.semanticProgram) {
+        this.semanticProgram.use();
+        this.semanticProgram.setInstancing(false);
+        for (const draw of batches) {
+          for (
+            let semanticIndex = 0;
+            semanticIndex < draw.batch.semanticSelectionIds.length;
+            semanticIndex += 1
+          ) {
+            if (!selected.has(
+              draw.batch.semanticSelectionIds[semanticIndex]!,
+            )) {
+              continue;
+            }
+            mvp.elements.set(viewProjection.elements);
+            world.elements.set(draw.worldMatrix);
+            mvp.multiply(world);
+            this.semanticProgram.setMatrix(mvp);
+            this.semanticProgram.setHighlight(semanticIndex);
+            const geometry = this.geometryCache.retain(
+              gl,
+              draw.batch.geometry,
+            );
+            gl.bindVertexArray(geometry.vertexArray);
+            gl.bindBuffer(
+              gl.ELEMENT_ARRAY_BUFFER,
+              geometry.triangleIndexBuffer,
+            );
+            gl.drawElements(
+              gl.TRIANGLES,
+              geometry.triangleCount,
+              draw.batch.geometry.indices instanceof Uint16Array
+                ? gl.UNSIGNED_SHORT
+                : gl.UNSIGNED_INT,
+              0,
+            );
+          }
+        }
+        this.semanticProgram.setInstancing(true);
+        mvp.elements.set(viewProjection.elements);
+        this.semanticProgram.setMatrix(mvp);
+        for (const batch of instances) {
+          const instance = this.instanceCache!.retain(
+            gl,
+            this.geometryCache,
+            batch,
+          );
+          if (!instance) continue;
+          for (
+            let semanticIndex = 0;
+            semanticIndex < batch.semanticIds.length;
+            semanticIndex += 1
+          ) {
+            if (!selected.has(batch.semanticIds[semanticIndex]!)) continue;
+            this.semanticProgram.setHighlight(semanticIndex);
+            gl.bindVertexArray(instance.vertexArray);
+            gl.drawElementsInstanced(
+              gl.TRIANGLES,
+              instance.triangleCount,
+              batch.geometry.indices instanceof Uint16Array
+                ? gl.UNSIGNED_SHORT
+                : gl.UNSIGNED_INT,
+              0,
+              instance.instanceCount,
+            );
+          }
+        }
+      }
       gl.depthMask(true);
       gl.disable(gl.BLEND);
       this.program.setClipOffset(0, 0);
     }
     gl.bindVertexArray(null);
     this.geometryCache.endFrame();
-    this.frameStats.gpuBytes = this.geometryCache.totalBytes;
+    this.instanceCache!.endFrame();
+    this.frameStats.instancingFallbacks = this.instanceCache!.fallbackCount;
+    this.frameStats.gpuBytes = this.geometryCache.totalBytes
+      + this.instanceCache!.totalBytes;
   }
 
   pick(frame: ICEFrame, point: ICEScreenPoint): string | undefined {
@@ -311,10 +512,20 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         'ICE3_PICK_UNAVAILABLE: picker is not initialized',
       );
     }
+    const renderables = collectRenderables(
+      frame.scene,
+      this.renderablesScratch,
+    );
     return this.picker.pick(
       { ...frame, point },
       this.geometryCache,
-      collectRenderables(frame.scene, this.renderablesScratch),
+      renderables,
+      collectRenderBatches(frame.scene, this.batchesScratch),
+      collectInstanceBatches(
+        renderables,
+        this.instancesScratch,
+      ),
+      this.instanceCache!,
     );
   }
 
@@ -329,10 +540,14 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     if (this.program) {
       this.program.dispose();
     }
+    this.semanticProgram?.dispose();
     this.picker?.dispose();
     this.geometryCache?.dispose();
+    this.instanceCache?.dispose();
     this.program = null;
+    this.semanticProgram = null;
     this.geometryCache = null;
+    this.instanceCache = null;
     this.picker = null;
     this.canvas = null;
     this.gl = null;
@@ -356,7 +571,9 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     const program = new WebGL2Program(gl);
     gl.lineWidth(2);
     this.program = program;
+    this.semanticProgram = new WebGL2SemanticProgram(gl);
     this.geometryCache = new WebGL2GeometryCache();
+    this.instanceCache = new WebGL2InstanceCache();
     this.picker = new WebGL2Picker(gl);
   }
 }
