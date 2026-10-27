@@ -101,9 +101,6 @@ function parseTile(
   if (input.viewerRequestVolume !== undefined) {
     throw unsupported('viewerRequestVolume is not supported');
   }
-  if (input.contents !== undefined) {
-    throw unsupported('multiple tile contents are not supported');
-  }
   if (
     Array.isArray(input.extensionsRequired)
     && input.extensionsRequired.length > 0
@@ -132,9 +129,16 @@ function parseTile(
   if (content?.boundingVolume && record(content.boundingVolume)?.region) {
     throw unsupported('region content bounds are not supported');
   }
-  const contentUri = content?.uri === undefined
-    ? undefined
-    : resolveContentUri(content.uri, baseUrl);
+  if (content && input.contents !== undefined) {
+    throw new Error(
+      'ICE3_TILESET_CONTENTS_INVALID: content and contents cannot both be present',
+    );
+  }
+  const contentUris = input.contents === undefined
+    ? content?.uri === undefined
+      ? []
+      : [resolveContentUri(content.uri, baseUrl)]
+    : parseContents(input.contents, baseUrl);
   const contentOutputIndex = output.length;
   const childrenInput = input.children;
   if (
@@ -161,7 +165,7 @@ function parseTile(
     }
     return parsed;
   });
-  if (!contentUri && children.length === 0) {
+  if (contentUris.length === 0 && children.length === 0) {
     throw invalid(`tile ${id} has neither content nor children`);
   }
   const engineTransform = multiplyMatrices(
@@ -171,15 +175,35 @@ function parseTile(
   const tile: ICETilesetTile = {
     id,
     bounds,
-    ...(contentUri === undefined ? {} : { contentUri }),
+    contentUris,
+    ...(contentUris.length === 1 ? { contentUri: contentUris[0]! } : {}),
     children,
     geometricError,
     ...(isIdentity(engineTransform)
       ? {}
       : { transform: [...engineTransform] }),
   };
-  if (contentUri) output.splice(contentOutputIndex, 0, tile);
+  if (contentUris.length > 0) output.splice(contentOutputIndex, 0, tile);
   return tile;
+}
+
+function parseContents(value: unknown, baseUrl: URL): readonly string[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error('ICE3_TILESET_CONTENTS_INVALID: contents must be non-empty');
+  }
+  const uris = value.map((entry, index) => {
+    const item = record(entry);
+    if (!item || item.uri === undefined) {
+      throw new Error(
+        `ICE3_TILESET_CONTENTS_INVALID: contents[${index}] has no uri`,
+      );
+    }
+    return resolveContentUri(item.uri, baseUrl);
+  });
+  if (new Set(uris).size !== uris.length) {
+    throw new Error('ICE3_TILESET_CONTENTS_INVALID: duplicate content uri');
+  }
+  return uris;
 }
 
 function parseBounds(
