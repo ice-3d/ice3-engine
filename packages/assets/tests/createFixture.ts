@@ -12,6 +12,7 @@ type FixtureOptions = {
   readonly floatOffset4?: boolean;
   readonly withVertexColors?: boolean;
   readonly contract?: 'active' | 'legacy' | 'unsupported' | 'conversion';
+  readonly missingBufferViewBuffer?: boolean;
 };
 
 export function createMinimalPreparedGLB(
@@ -163,7 +164,11 @@ export function createMinimalPreparedGLB(
       }] : []),
     ],
     bufferViews: [
-      { buffer: 0, byteOffset: positionOffset, byteLength: 36 },
+      {
+        ...(options.missingBufferViewBuffer ? {} : { buffer: 0 }),
+        byteOffset: positionOffset,
+        byteLength: 36,
+      },
       { buffer: 0, byteOffset: indexOffset, byteLength: 6 },
       { buffer: 0, byteOffset: edgeOffset, byteLength: 12 },
       ...(options.withVertexColors ? [{
@@ -191,6 +196,10 @@ export function createOutOfRangeAccessorGLB(): ArrayBuffer {
 
 export function createTRSNodeGLB(): ArrayBuffer {
   return createMinimalPreparedGLB({ trsNode: true });
+}
+
+export function createMissingBufferViewBufferGLB(): ArrayBuffer {
+  return createMinimalPreparedGLB({ missingBufferViewBuffer: true });
 }
 
 export function createBadDigestGLB(): ArrayBuffer {
