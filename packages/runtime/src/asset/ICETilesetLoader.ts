@@ -165,13 +165,13 @@ export class ICETilesetHandle extends ICEEventDispatcher {
 
   get stats(): ICETilesetStats {
     const values = [...this.states.values()];
-    return {
+    return Object.freeze({
       total: values.length,
       pending: values.filter((value) => value === 'pending').length,
       loading: values.filter((value) => value === 'loading').length,
       loaded: values.filter((value) => value === 'loaded').length,
       failed: values.filter((value) => value === 'failed').length,
-    };
+    });
   }
 
   tileState(tileId: string): ICETilesetTileState | undefined {

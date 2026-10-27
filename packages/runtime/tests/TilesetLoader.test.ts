@@ -34,6 +34,7 @@ it('opens before all tiles finish and commits completed tiles progressively', as
     'https://example.test/spatial-demo/tileset.json',
   );
 
+  expect(Object.isFrozen(tileset.stats)).toBe(true);
   expect(tileset.stats.loaded).toBe(0);
   await tileset.whenReady();
   expect(tileset.stats.loaded).toBe(1);
