@@ -153,8 +153,13 @@ test('loads and renders the prepared industrial asset', async ({ page }) => {
   )).toBe(true);
   expect(await page.evaluate(() => window.__ice3M1.assetStats())).toEqual({
     nodeCount: 1,
+    maxNodeDepth: 0,
     meshCount: 1,
+    primitiveCount: 2,
     triangleCount: 12,
+    edgeSegmentCount: 12,
+    materialCount: 5,
+    selectionGroupCount: 1,
   });
 
   const center = await page.evaluate(() => window.__ice3M1.assetCenter());

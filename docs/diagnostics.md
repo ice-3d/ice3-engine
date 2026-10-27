@@ -36,6 +36,10 @@ Diagnostics use stable codes. Callers should branch on `code`, not on message te
 | `ICE3_ASSET_UNSUPPORTED_FEATURE` | The profile contains animation, texture, camera, light, or another M1-forbidden feature | Re-export only the supported scene subset |
 | `ICE3_ASSET_DUPLICATE_ID` | Node or mesh semantic IDs collide | Regenerate deterministic IDs with the toolchain |
 | `ICE3_ASSET_INTEGRITY_FAILED` | Explicit BIN digest verification fails | Rebuild or redownload the asset |
+| `ICE3_ASSET_CONTRACT_MISSING` | A legacy prepared asset has no collaboration contract | Rebuild with a current toolchain when possible |
+| `ICE3_ASSET_CONTRACT_UNSUPPORTED` | Contract version or budget metadata is unsupported | Rebuild with a compatible toolchain/runtime pair |
+| `ICE3_ASSET_STATS_MISMATCH` | Embedded asset stats differ from the prepared structure | Rebuild the asset and inspect toolchain output |
+| `ICE3_TOOL_RUNTIME_CONVERSION_REQUIRED` | Asset declares that runtime conversion is required | Move conversion into the external toolchain |
 
 ## Rendering
 

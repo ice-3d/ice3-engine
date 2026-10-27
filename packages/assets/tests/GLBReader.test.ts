@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, it } from 'node-test';
 import { readPreparedGLB } from '../src/index';
 import {
@@ -117,4 +118,25 @@ it('loads legacy assets without a contract', () => {
   expect(readPreparedGLB(
     createMinimalPreparedGLB({ contract: 'legacy' }),
   ).contract.status).toBe('legacy');
+});
+
+it('reads the frozen toolchain fixture with its active contract', () => {
+  const bytes = readFileSync(new URL(
+    '../../../examples/m1/assets/prepared-cube.glb',
+    import.meta.url,
+  ));
+  const snapshot = readPreparedGLB(Uint8Array.from(bytes).buffer);
+  expect(snapshot.contract).toMatchObject({
+    status: 'active',
+    version: '1.0',
+    budget: {
+      profile: 'interactive-desktop-v1',
+      status: 'pass',
+    },
+  });
+  expect(snapshot.stats).toMatchObject({
+    triangleCount: 12,
+    edgeSegmentCount: 12,
+    selectionGroupCount: 1,
+  });
 });

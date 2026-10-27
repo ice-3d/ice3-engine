@@ -14,6 +14,10 @@ ICE3 Engine is a modern, programmable 3D engine for industrial applications. M0 
 
 Consumers import only from `ice3`. Internal package paths are private.
 
+Cross-repository asset formats, shared metrics, budgets, compatibility, and
+diagnostic codes are defined by the canonical
+[Asset Preparation Contract v1](../ice3-doc/docs/contracts/asset-preparation-contract-v1.md).
+
 ## M0 capabilities
 
 - Create an engine, scene, perspective camera, box geometry, and flat basic material.
@@ -66,6 +70,8 @@ reuse existing example servers.
 - Render prepared triangle and crease-edge buffers.
 - Cache immutable decoded bytes while creating independent scene instances.
 - Cancel loads, dispose assets idempotently, and release GPU buffers.
+- Validate and expose the embedded asset preparation contract and runtime
+  renderer diagnostics.
 - Show an accessible staging overlay while large prepared assets load and keep
   actionable failure feedback in place when loading cannot complete.
 - Keep a compact, non-blocking control hint visible after the scene is ready.

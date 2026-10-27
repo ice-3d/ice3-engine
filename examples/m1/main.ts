@@ -191,8 +191,13 @@ window.__ice3M1 = {
   disposeAsset,
   assetStats: () => handle?.stats ?? {
     nodeCount: 0,
+    maxNodeDepth: 0,
     meshCount: 0,
+    primitiveCount: 0,
     triangleCount: 0,
+    edgeSegmentCount: 0,
+    materialCount: 0,
+    selectionGroupCount: 0,
   },
 };
 
