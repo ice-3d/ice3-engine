@@ -1,11 +1,12 @@
 import {
   ICE3,
   ICEAssetLoader,
+  ICELabel,
   ICEOrbitController,
   ICEPerspectiveCamera,
+  ICEScreenLayer,
   type ICEEngineDiagnostics,
-  type ICEInputEvent,
-  type ICEInputTarget,
+  type ICENode,
   type ICEProjectedPoint,
 } from 'ice3';
 
@@ -32,24 +33,66 @@ const camera = new ICEPerspectiveCamera({
   position: [3.2, 2.4, 4.5],
   target: [0, 0, 0],
 });
+const selectionLayer = new ICEScreenLayer({
+  id: 'selection-layer',
+  order: 20,
+  interactive: false,
+});
+const selectionLabel = new ICELabel({
+  id: 'selection-label',
+  text: '',
+  screenPosition: [0, 0],
+  color: '#e8f2fa',
+  background: 'rgba(7, 20, 30, 0.94)',
+  padding: 8,
+});
+selectionLabel.visible = false;
+selectionLayer.addChild(selectionLabel);
+engine.addLayer(selectionLayer);
 const loader = new ICEAssetLoader(engine);
 let handle: Awaited<ReturnType<ICEAssetLoader['load']>> | null = null;
 let orbit: ICEOrbitController | null = null;
+let selectedNode: ICENode | null = null;
+let assetReleased = false;
 let assetCenter: readonly [number, number, number] = [0, 0, 0];
 const requestedAsset = new URLSearchParams(window.location.search).get('asset')
   ?? 'prepared-cube.glb';
 const assetName = requestedAsset.replace(/[^a-zA-Z0-9._-]/g, '');
 
 engine.on<{ selection: readonly string[] }>('SELECTION_CHANGE', (event) => {
-  const selection = event.param?.selection ?? [];
-  status.textContent = selection.length > 0
-    ? `已选中 ${selection[0]}`
-    : status.textContent === '资产已释放' ? '资产已释放' : '资产已加载';
+  const selectedId = event.param?.selection[0];
+  selectedNode = selectedId
+    ? handle?.scene.findByID(selectedId) ?? null
+    : null;
+  selectionLabel.setText(selectedNode?.displayName ?? '');
+  selectionLabel.visible = Boolean(selectedNode);
+  status.textContent = selectedNode
+    ? `已选中 ${selectedNode.displayName}`
+    : assetReleased ? '资产已释放' : '资产已加载';
 });
-engine.on<{ target: ICEInputTarget; event: ICEInputEvent }>(
-  'POINTER_DOWN',
-  () => {},
-);
+engine.on('BEFORE_RENDER', () => {
+  if (!selectedNode) {
+    selectionLabel.visible = false;
+    return;
+  }
+  const anchor = engine.project(selectedNode.getWorldPosition().toArray());
+  if (!anchor.visible) {
+    selectionLabel.visible = false;
+    return;
+  }
+  const viewport = engine.getDiagnostics().viewport;
+  const rect = selectionLabel.getRect();
+  const x = Math.min(
+    Math.max(12, anchor.x - rect.width / 2),
+    Math.max(12, viewport.width - rect.width - 12),
+  );
+  const y = Math.min(
+    Math.max(12, anchor.y - rect.height - 24),
+    Math.max(12, viewport.height - rect.height - 12),
+  );
+  selectionLabel.setScreenPosition([x, y]);
+  selectionLabel.visible = true;
+});
 
 function scenePixelAtProjection(): readonly [number, number, number, number] {
   const point = engine.project(assetCenter);
@@ -74,10 +117,15 @@ function scenePixelAtProjection(): readonly [number, number, number, number] {
 
 function disposeAsset(): void {
   if (!handle) return;
+  assetReleased = true;
   orbit?.dispose();
   orbit = null;
+  engine.setSelection([]);
   handle.dispose();
   handle = null;
+  selectedNode = null;
+  selectionLabel.setText('');
+  selectionLabel.visible = false;
   controlsHint.dataset.state = 'hidden';
   controlsHint.setAttribute('aria-hidden', 'true');
   status.textContent = '资产已释放';
@@ -111,6 +159,7 @@ async function start(): Promise<void> {
     ]);
     orbit = new ICEOrbitController(engine, camera).start();
     engine.setScene(handle.scene).setCamera(camera).start();
+    assetReleased = false;
     await new Promise<void>((resolve) => {
       requestAnimationFrame(() => resolve());
     });
@@ -121,6 +170,9 @@ async function start(): Promise<void> {
     controlsHint.dataset.state = 'visible';
     controlsHint.setAttribute('aria-hidden', 'false');
   } catch (error) {
+    selectedNode = null;
+    selectionLabel.setText('');
+    selectionLabel.visible = false;
     loading.dataset.state = 'error';
     loading.setAttribute('aria-label', '工业模型加载失败');
     loadingTitle.textContent = '模型加载失败';
@@ -142,6 +194,9 @@ window.__ice3M1 = {
   cameraTarget: () => camera.getTarget().toArray(),
   scenePixelAtProjection,
   selectedIds: () => engine.getSelection(),
+  selectedLabelText: () => selectionLabel.visible
+    ? selectionLabel.text
+    : undefined,
   disposeAsset,
   assetStats: () => handle?.stats ?? {
     nodeCount: 0,

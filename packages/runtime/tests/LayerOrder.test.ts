@@ -1,3 +1,5 @@
+// @node-test-environment jsdom
+
 import { expect, it } from 'node-test';
 import {
   ICE2DLayer,
@@ -33,4 +35,21 @@ it('removes a label and its cached bounds', () => {
   expect(layer.hitTest({ x: 12, y: 12 })).toBe(label);
   layer.removeChild(label);
   expect(layer.hitTest({ x: 12, y: 12 })).toBeUndefined();
+});
+
+it('updates label text and remeasures without replacing the label', () => {
+  const label = new ICELabel({
+    id: 'selection',
+    text: 'A',
+    screenPosition: [10, 20],
+  });
+  const context = {
+    measureText: (text: string) => ({ width: [...text].length * 14 }),
+  } as unknown as CanvasRenderingContext2D;
+  const before = label.measure(context).width;
+  label.setText('A much longer equipment name');
+  const after = label.measure(context);
+  expect(label.text).toBe('A much longer equipment name');
+  expect(after.width).toBeGreaterThan(before);
+  expect(after.y).toBe(20);
 });

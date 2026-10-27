@@ -20,7 +20,6 @@ export interface ICELabelRect {
 
 export class ICELabel extends ICEEventDispatcher {
   readonly id: string;
-  readonly text: string;
   readonly anchorId: string | undefined;
   readonly screenPosition: readonly [number, number] | undefined;
   readonly color: string;
@@ -29,12 +28,13 @@ export class ICELabel extends ICEEventDispatcher {
   readonly interactive: boolean;
   visible = true;
 
+  private currentText: string;
   private rect: ICELabelRect;
 
   constructor(options: ICELabelOptions) {
     super();
     this.id = options.id;
-    this.text = options.text;
+    this.currentText = options.text;
     this.anchorId = options.anchorId;
     this.screenPosition = options.screenPosition
       ? [options.screenPosition[0], options.screenPosition[1]]
@@ -47,6 +47,19 @@ export class ICELabel extends ICEEventDispatcher {
     const height = 20 + this.padding * 2;
     const [x, y] = this.screenPosition ?? [0, 0];
     this.rect = { x, y, width, height };
+  }
+
+  get text(): string {
+    return this.currentText;
+  }
+
+  setText(text: string): this {
+    this.currentText = text;
+    this.visible = text.length > 0;
+    const width = Math.max(28, [...text].length * 14) + this.padding * 2;
+    const height = 20 + this.padding * 2;
+    this.rect = { ...this.rect, width, height };
+    return this;
   }
 
   setScreenPosition(position: readonly [number, number]): this {

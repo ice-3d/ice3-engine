@@ -14,6 +14,7 @@ declare global {
       cameraTarget(): readonly [number, number, number];
       scenePixelAtProjection(): readonly [number, number, number, number];
       selectedIds(): readonly string[];
+      selectedLabelText(): string | undefined;
       disposeAsset(): void;
       assetStats(): ICEAssetHandle['stats'];
     };
