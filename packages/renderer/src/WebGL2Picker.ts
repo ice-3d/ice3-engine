@@ -6,6 +6,8 @@ import {
   encodeSelectionIndex,
 } from './WebGL2PickCodec.js';
 import { WebGL2Program } from './WebGL2Program.js';
+import type { ICERenderBatchDraw } from './WebGL2RenderBatch.js';
+import { WebGL2SemanticProgram } from './WebGL2SemanticProgram.js';
 import type { ICEFrame, ICEScreenPoint } from './types.js';
 
 export type ICEPickFrame = ICEFrame & {
@@ -14,6 +16,7 @@ export type ICEPickFrame = ICEFrame & {
 
 export class WebGL2Picker {
   private readonly program: WebGL2Program;
+  private readonly semanticProgram: WebGL2SemanticProgram;
   private framebuffer: WebGLFramebuffer | null = null;
   private colorTexture: WebGLTexture | null = null;
   private depthBuffer: WebGLRenderbuffer | null = null;
@@ -22,13 +25,16 @@ export class WebGL2Picker {
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     this.program = new WebGL2Program(gl);
+    this.semanticProgram = new WebGL2SemanticProgram(gl);
   }
 
   pick(
     frame: ICEPickFrame,
     cache: WebGL2GeometryCache,
     renderables: readonly ICEGeometryRenderable[],
+    batches: readonly ICERenderBatchDraw[] = [],
   ): string | undefined {
+    const pickIds = new Map<number, string>();
     const selectionIds = new Map<string, number>();
     for (const renderable of renderables) {
       const id = renderable.mesh.selectionId;
@@ -39,7 +45,9 @@ export class WebGL2Picker {
             'ICE3_PICK_CAPACITY: too many selectable devices',
           );
         }
-        selectionIds.set(id, selectionIds.size + 1);
+        const index = selectionIds.size + 1;
+        selectionIds.set(id, index);
+        pickIds.set(index, id);
       }
     }
     this.ensureTarget(
@@ -86,6 +94,37 @@ export class WebGL2Picker {
         0,
       );
     }
+    this.semanticProgram.use();
+    let nextPickId = selectionIds.size + 1;
+    for (const draw of batches) {
+      const base = nextPickId - 1;
+      for (const id of draw.batch.semanticSelectionIds) {
+        if (nextPickId > 0xffffff) {
+          throw new ICEEngineError(
+            'ICE3_PICK_CAPACITY',
+            'ICE3_PICK_CAPACITY: too many selectable batch devices',
+          );
+        }
+        pickIds.set(nextPickId, id);
+        nextPickId += 1;
+      }
+      mvp.elements.set(viewProjection.elements);
+      world.elements.set(draw.worldMatrix);
+      mvp.multiply(world);
+      this.semanticProgram.setMatrix(mvp);
+      this.semanticProgram.setPick(base);
+      const geometry = cache.retain(gl, draw.batch.geometry);
+      gl.bindVertexArray(geometry.vertexArray);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
+      gl.drawElements(
+        gl.TRIANGLES,
+        geometry.triangleCount,
+        draw.batch.geometry.indices instanceof Uint16Array
+          ? gl.UNSIGNED_SHORT
+          : gl.UNSIGNED_INT,
+        0,
+      );
+    }
     const pixelX = Math.max(
       0,
       Math.min(
@@ -111,14 +150,13 @@ export class WebGL2Picker {
       frame.viewport.height * frame.dpr,
     );
     const index = decodeSelectionIndex(pixel);
-    return index === undefined
-      ? undefined
-      : [...selectionIds].find(([, value]) => value === index)?.[0];
+    return index === undefined ? undefined : pickIds.get(index);
   }
 
   dispose(): void {
     this.releaseTarget();
     this.program.dispose();
+    this.semanticProgram.dispose();
   }
 
   private ensureTarget(width: number, height: number): void {

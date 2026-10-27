@@ -11,6 +11,7 @@ import {
 import { WebGL2GeometryCache } from './WebGL2GeometryCache.js';
 import { WebGL2Picker } from './WebGL2Picker.js';
 import { WebGL2Program } from './WebGL2Program.js';
+import { WebGL2SemanticProgram } from './WebGL2SemanticProgram.js';
 import type {
   ICERendererBackend,
   ICERendererCapabilities,
@@ -76,6 +77,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private onContextLost: (() => void) | undefined;
   private onContextRestored: (() => void) | undefined;
   private program: WebGL2Program | null = null;
+  private semanticProgram: WebGL2SemanticProgram | null = null;
   private geometryCache: WebGL2GeometryCache | null = null;
   private picker: WebGL2Picker | null = null;
   private readonly mvpScratch = new ICEMatrix4();
@@ -353,6 +355,44 @@ export class WebGL2RendererBackend implements ICERendererBackend {
           );
         }
       }
+      if (this.semanticProgram) {
+        this.semanticProgram.use();
+        for (const draw of batches) {
+          for (
+            let semanticIndex = 0;
+            semanticIndex < draw.batch.semanticSelectionIds.length;
+            semanticIndex += 1
+          ) {
+            if (!selected.has(
+              draw.batch.semanticSelectionIds[semanticIndex]!,
+            )) {
+              continue;
+            }
+            mvp.elements.set(viewProjection.elements);
+            world.elements.set(draw.worldMatrix);
+            mvp.multiply(world);
+            this.semanticProgram.setMatrix(mvp);
+            this.semanticProgram.setHighlight(semanticIndex);
+            const geometry = this.geometryCache.retain(
+              gl,
+              draw.batch.geometry,
+            );
+            gl.bindVertexArray(geometry.vertexArray);
+            gl.bindBuffer(
+              gl.ELEMENT_ARRAY_BUFFER,
+              geometry.triangleIndexBuffer,
+            );
+            gl.drawElements(
+              gl.TRIANGLES,
+              geometry.triangleCount,
+              draw.batch.geometry.indices instanceof Uint16Array
+                ? gl.UNSIGNED_SHORT
+                : gl.UNSIGNED_INT,
+              0,
+            );
+          }
+        }
+      }
       gl.depthMask(true);
       gl.disable(gl.BLEND);
       this.program.setClipOffset(0, 0);
@@ -373,6 +413,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       { ...frame, point },
       this.geometryCache,
       collectRenderables(frame.scene, this.renderablesScratch),
+      collectRenderBatches(frame.scene, this.batchesScratch),
     );
   }
 
@@ -387,9 +428,11 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     if (this.program) {
       this.program.dispose();
     }
+    this.semanticProgram?.dispose();
     this.picker?.dispose();
     this.geometryCache?.dispose();
     this.program = null;
+    this.semanticProgram = null;
     this.geometryCache = null;
     this.picker = null;
     this.canvas = null;
@@ -414,6 +457,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     const program = new WebGL2Program(gl);
     gl.lineWidth(2);
     this.program = program;
+    this.semanticProgram = new WebGL2SemanticProgram(gl);
     this.geometryCache = new WebGL2GeometryCache();
     this.picker = new WebGL2Picker(gl);
   }

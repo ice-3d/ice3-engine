@@ -28,6 +28,9 @@ export function buildAssetScene(
       indices: geometry.indices,
       ...(geometry.edgeIndices ? { edgeIndices: geometry.edgeIndices } : {}),
       ...(geometry.colors ? { colors: geometry.colors } : {}),
+      ...(geometry.semanticIndices
+        ? { semanticIndices: geometry.semanticIndices }
+        : {}),
     })
   ));
   const materials = snapshot.materials.map((material) => (

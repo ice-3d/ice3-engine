@@ -237,6 +237,7 @@ function validatePreparedStats(json: JSONRecord, profile: JSONRecord): void {
       }
     }
   }
+  const batchingSelectionIds = record(profile.batching)?.semanticSelectionIds;
   const expected = {
     nodeCount: nodes.length,
     maxNodeDepth: sceneDepth(json),
@@ -245,7 +246,9 @@ function validatePreparedStats(json: JSONRecord, profile: JSONRecord): void {
     triangleCount,
     edgeSegmentCount,
     materialCount: records(json.materials).length,
-    selectionGroupCount: selectionNodes.size,
+    selectionGroupCount: Array.isArray(batchingSelectionIds)
+      ? new Set(batchingSelectionIds).size
+      : selectionNodes.size,
   };
   for (const [key, value] of Object.entries(expected)) {
     if (stats?.[key] !== value) {

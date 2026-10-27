@@ -11,6 +11,7 @@ import {
   collectRenderables,
   collectRenderBatches,
   selectionIdentity,
+  semanticSelectionId,
   type ICEGeometryRenderable,
 } from '../src/WebGL2GeometryBatch';
 
@@ -96,6 +97,13 @@ it('collects visible render batches without traversing device meshes', () => {
 
   expect(collectRenderBatches(scene).map((draw) => draw.id))
     .toEqual(['batch']);
+});
+
+it('maps batch semantic indices back to device selection identities', () => {
+  const batch = new TestBatchNode('batch');
+
+  expect(semanticSelectionId(batch, 0)).toBe('device:0');
+  expect(semanticSelectionId(batch, 1)).toBeUndefined();
 });
 
 it('uses the declared equipment identity for rendering selection', () => {

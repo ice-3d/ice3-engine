@@ -56,3 +56,12 @@ function isRenderBatch(node: ICENode): node is ICERenderBatchNode {
     && typeof candidate.materialKey === 'string',
   );
 }
+
+export function semanticSelectionId(
+  batch: Pick<ICERenderBatchNode, 'semanticSelectionIds'>,
+  semanticIndex: number,
+): string | undefined {
+  return Number.isInteger(semanticIndex) && semanticIndex >= 0
+    ? batch.semanticSelectionIds[semanticIndex]
+    : undefined;
+}

@@ -37,6 +37,7 @@ export const selectionIdentity = (mesh: ICEMesh): string => mesh.selectionId;
 
 export {
   collectRenderBatches,
+  semanticSelectionId,
   type ICERenderBatchDraw,
   type ICERenderBatchNode,
 } from './WebGL2RenderBatch.js';
