@@ -378,6 +378,33 @@ it('does not request offscreen leaf content outside the LOD target', async () =>
     .not.toBe('ICE3_TILESET_TILE_FAILED');
 });
 
+it('commits one logical container after all tile contents finish', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('tileset.json')) {
+      const value = JSON.parse(fixture('tileset.json').toString('utf8'));
+      delete value.root.content;
+      value.root.contents = [
+        { uri: 'parts/part-000.glb' },
+        { uri: 'parts/part-001.glb' },
+      ];
+      return new Response(JSON.stringify(value));
+    }
+    return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
+  });
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch,
+    camera: camera(),
+  }).open('https://example.test/spatial-demo/tileset.json');
+  await tileset.whenReady();
+
+  expect(tileset.scene.children).toHaveLength(1);
+  expect(tileset.scene.children[0]!.children).toHaveLength(2);
+  expect(tileset.stats.resident).toBe(1);
+  expect(tileset.stats.residentContents).toBe(2);
+});
+
 it('does not retain offscreen prefetch beyond the resident tile budget', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const orbitCamera = new ICEPerspectiveCamera({
