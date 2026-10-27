@@ -56,4 +56,15 @@ describe('scene ownership', () => {
 
     expect(() => child.addChild(root)).toThrowError(/cycle/i);
   });
+
+  it('rejects a subtree containing an ID already owned by the scene', () => {
+    const scene = new ICEScene({ id: 'scene' });
+    scene.addChild(mesh('duplicate'));
+    const branch = mesh('branch');
+    branch.addChild(mesh('duplicate'));
+
+    expect(() => scene.addChild(branch)).toThrowError(/duplicate/i);
+    expect(scene.findByID('branch')).toBeUndefined();
+    expect(scene.children).toHaveLength(1);
+  });
 });

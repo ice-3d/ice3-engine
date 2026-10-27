@@ -1,7 +1,6 @@
 import {
   ICEEngineError,
   ICEEventDispatcher,
-  ICEMesh,
   ICEPerspectiveCamera,
   ICEScene,
   type ICEDiagnostic,
@@ -21,6 +20,7 @@ import {
   type ICEInputEvent,
   type ICEInputTarget,
 } from './input/ICEInputRouter';
+import { pickSceneNode } from './input/ICEScenePicker';
 import { ICEInteractionState } from './ICEInteractionState';
 import { projectWorldPoint, type ICEProjectedPoint } from './ICEProjection';
 import {
@@ -74,7 +74,7 @@ export class ICE3 extends ICEEventDispatcher {
         : undefined;
     },
     pickScene: (point) => {
-      const node = this.pickScene(point);
+      const node = this.pick(point);
       return {
         kind: 'scene',
         ...(node?.id ? { nodeId: node.id } : {}),
@@ -100,6 +100,9 @@ export class ICE3 extends ICEEventDispatcher {
   private contextLossCount = 0;
   private lastDiagnostic: ICEDiagnostic | undefined;
   private readonly removeInputListeners: Array<() => void> = [];
+  private readonly handleWindowResize = (): void => {
+    this.resize();
+  };
 
   constructor(options: ICE3Options = {}) {
     super();
@@ -133,28 +136,50 @@ export class ICE3 extends ICEEventDispatcher {
       throw new ICEEngineError('ICE3_INVALID_TARGET', 'ICE3 canvas was not created');
     }
 
-    this.backend.initialize({
-      canvas,
-      onContextLost: () => {
-        this.contextLossCount += 1;
-        this.recordDiagnostic(
-          'ICE3_CONTEXT_LOST',
-          'The GPU context was lost; waiting for restoration',
-          'warning',
-        );
-        this.trigger('CONTEXT_LOST');
-      },
-      onContextRestored: () => {
-        this.recordDiagnostic(
-          'ICE3_CONTEXT_RESTORED',
-          'The GPU context was restored',
-          'info',
-        );
-        this.trigger('CONTEXT_RESTORED');
-        this.requestRender('context-restored');
-      },
-    });
-    this.installInputEvents();
+    try {
+      this.backend.initialize({
+        canvas,
+        onContextLost: () => {
+          this.contextLossCount += 1;
+          this.recordDiagnostic(
+            'ICE3_CONTEXT_LOST',
+            'The GPU context was lost; waiting for restoration',
+            'warning',
+          );
+          this.trigger('CONTEXT_LOST');
+        },
+        onContextRestored: () => {
+          this.recordDiagnostic(
+            'ICE3_CONTEXT_RESTORED',
+            'The GPU context was restored',
+            'info',
+          );
+          this.trigger('CONTEXT_RESTORED');
+          this.requestRender('context-restored');
+        },
+      });
+      window.addEventListener('resize', this.handleWindowResize);
+      this.removeInputListeners.push(() =>
+        window.removeEventListener('resize', this.handleWindowResize),
+      );
+      this.installInputEvents();
+    } catch (error) {
+      for (const remove of this.removeInputListeners.splice(0)) {
+        remove();
+      }
+      if (this.generatedOverlayCanvas) {
+        this.overlayCanvas?.remove();
+      }
+      if (this.generatedBaseCanvas) {
+        this.baseCanvas?.remove();
+      }
+      this.overlayCanvas = null;
+      this.baseCanvas = null;
+      this.host = null;
+      this.generatedOverlayCanvas = false;
+      this.generatedBaseCanvas = false;
+      throw error;
+    }
     this.state = 'initialized';
     this.resize();
     return this;
@@ -255,6 +280,13 @@ export class ICE3 extends ICEEventDispatcher {
     this.trigger('SELECTION_CHANGE', { selection: this.getSelection() });
     this.requestRender('selection-changed');
     return this;
+  }
+
+  pick(point: { readonly x: number; readonly y: number }): ICENode | undefined {
+    this.assertActive();
+    return this.scene && this.camera
+      ? pickSceneNode(this.scene, this.camera, this.viewport, point)
+      : undefined;
   }
 
   getDiagnostics(): Readonly<ICEEngineDiagnostics> {
@@ -480,68 +512,6 @@ export class ICE3 extends ICEEventDispatcher {
     this.trigger(eventName, { target, event });
   }
 
-  private pickScene(point: { readonly x: number; readonly y: number }): ICENode | undefined {
-    if (!this.scene || !this.camera) {
-      return undefined;
-    }
-    const eye = this.camera.getPosition();
-    const target = this.camera.getTarget();
-    const forward = normalize([
-      target.x - eye.x,
-      target.y - eye.y,
-      target.z - eye.z,
-    ]);
-    const right = normalize(cross(forward, [0, 1, 0]));
-    const up = normalize(cross(right, forward));
-    const aspect = this.viewport.width / Math.max(this.viewport.height, 1);
-    const tan = Math.tan((this.camera.fov * Math.PI) / 360);
-    const ndcX = (point.x / this.viewport.width) * 2 - 1;
-    const ndcY = 1 - (point.y / this.viewport.height) * 2;
-    const direction = normalize([
-      forward[0] + right[0] * ndcX * aspect * tan + up[0] * ndcY * tan,
-      forward[1] + right[1] * ndcX * aspect * tan + up[1] * ndcY * tan,
-      forward[2] + right[2] * ndcX * aspect * tan + up[2] * ndcY * tan,
-    ]);
-
-    let nearest: ICENode | undefined;
-    let nearestDistance = Number.POSITIVE_INFINITY;
-    const visit = (node: ICENode, parentVisible: boolean) => {
-      const visible = parentVisible && node.visible;
-      if (!visible) {
-        return;
-      }
-      if (node instanceof ICEMesh) {
-        const center = node.getWorldPosition().toArray();
-        const halfX = node.geometry.width / 2;
-        const halfY = node.geometry.height / 2;
-        const halfZ = node.geometry.depth / 2;
-        const distance = rayBoxDistance(
-          eye.toArray(),
-          direction,
-          [
-            center[0] - halfX,
-            center[1] - halfY,
-            center[2] - halfZ,
-          ],
-          [
-            center[0] + halfX,
-            center[1] + halfY,
-            center[2] + halfZ,
-          ],
-        );
-        if (distance !== undefined && distance < nearestDistance) {
-          nearest = node;
-          nearestDistance = distance;
-        }
-      }
-      for (const child of node.children) {
-        visit(child, visible);
-      }
-    };
-    visit(this.scene, true);
-    return nearest;
-  }
-
   private assertActive(): void {
     if (this.state === 'destroyed') {
       throw new ICEEngineError('ICE3_ENGINE_DESTROYED', 'ICE3 engine is destroyed');
@@ -560,48 +530,3 @@ export class ICE3 extends ICEEventDispatcher {
 
 const countNodes = (node: ICENode): number =>
   1 + node.children.reduce((total, child) => total + countNodes(child), 0);
-
-const normalize = (
-  value: readonly [number, number, number],
-): [number, number, number] => {
-  const length = Math.hypot(...value);
-  return length > 0
-    ? [value[0] / length, value[1] / length, value[2] / length]
-    : [0, 0, 0];
-};
-
-const cross = (
-  left: readonly [number, number, number],
-  right: readonly [number, number, number],
-): [number, number, number] => [
-  left[1] * right[2] - left[2] * right[1],
-  left[2] * right[0] - left[0] * right[2],
-  left[0] * right[1] - left[1] * right[0],
-];
-
-const rayBoxDistance = (
-  origin: readonly [number, number, number],
-  direction: readonly [number, number, number],
-  min: readonly [number, number, number],
-  max: readonly [number, number, number],
-): number | undefined => {
-  let near = -Number.POSITIVE_INFINITY;
-  let far = Number.POSITIVE_INFINITY;
-  for (let axis = 0; axis < 3; axis += 1) {
-    const value = direction[axis]!;
-    if (Math.abs(value) < 1e-9) {
-      if (origin[axis]! < min[axis]! || origin[axis]! > max[axis]!) {
-        return undefined;
-      }
-      continue;
-    }
-    const first = (min[axis]! - origin[axis]!) / value;
-    const second = (max[axis]! - origin[axis]!) / value;
-    near = Math.max(near, Math.min(first, second));
-    far = Math.min(far, Math.max(first, second));
-    if (far < near || far < 0) {
-      return undefined;
-    }
-  }
-  return near >= 0 ? near : far >= 0 ? far : undefined;
-};

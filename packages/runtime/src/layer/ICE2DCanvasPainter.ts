@@ -12,8 +12,14 @@ export class ICE2DCanvasPainter {
     if (!context) {
       return;
     }
-    canvas.width = Math.max(1, Math.round(viewport.width * dpr));
-    canvas.height = Math.max(1, Math.round(viewport.height * dpr));
+    const width = Math.max(1, Math.round(viewport.width * dpr));
+    const height = Math.max(1, Math.round(viewport.height * dpr));
+    if (canvas.width !== width) {
+      canvas.width = width;
+    }
+    if (canvas.height !== height) {
+      canvas.height = height;
+    }
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.clearRect(0, 0, viewport.width, viewport.height);
 

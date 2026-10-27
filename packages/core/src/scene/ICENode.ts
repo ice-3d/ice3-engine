@@ -63,13 +63,15 @@ export class ICENode extends ICEEventDispatcher {
     }
 
     const root = this.getRoot();
-    const duplicate = root.findByID(node.id);
-    if (duplicate && duplicate !== node) {
-      throw new ICEEngineError(
-        'ICE3_DUPLICATE_OBJECT_ID',
-        `Duplicate ICE node ID: ${node.id}`,
-        { id: node.id },
-      );
+    for (const id of collectIDs(node)) {
+      const duplicate = root.findByID(id);
+      if (duplicate && duplicate !== node.findByID(id)) {
+        throw new ICEEngineError(
+          'ICE3_DUPLICATE_OBJECT_ID',
+          `Duplicate ICE node ID: ${id}`,
+          { id },
+        );
+      }
     }
 
     if (node._parent) {
@@ -191,3 +193,8 @@ export class ICENode extends ICEEventDispatcher {
     return target;
   }
 }
+
+const collectIDs = (node: ICENode): string[] => [
+  node.id,
+  ...node.children.flatMap((child) => collectIDs(child)),
+];

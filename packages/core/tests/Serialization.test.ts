@@ -66,3 +66,39 @@ it('reports unknown types and continues with valid siblings', () => {
   expect(restored.scene.findByID('unknown')).toBeUndefined();
   expect(restored.scene.findByID('block')).toBeDefined();
 });
+
+it('reports malformed registered nodes without throwing', () => {
+  const registry = new ICETypeRegistry();
+  registry.register('ice3:Mesh', ICEMesh);
+  const snapshot = {
+    schemaVersion: 1 as const,
+    typeId: 'ice3:Scene' as const,
+    scene: {
+      id: 'scene',
+      typeId: 'ice3:Scene',
+      visible: true,
+      position: [0, 0, 0] as const,
+      rotation: [0, 0, 0] as const,
+      scale: [1, 1, 1] as const,
+      children: [
+        {
+          id: 'broken',
+          typeId: 'ice3:Mesh',
+          visible: true,
+          position: [0, 0, 0] as const,
+          rotation: [0, 0, 0] as const,
+          scale: [1, 1, 1] as const,
+          children: [],
+          geometry: { typeId: 'ice3:BoxGeometry', width: 0, height: 1, depth: 1 },
+          material: { typeId: 'ice3:BasicMaterial', color: '#ffffff' },
+        },
+      ],
+    },
+  };
+
+  const restored = deserializeScene(snapshot, registry);
+  expect(restored.report.errors.map((item) => item.code)).toContain(
+    'ICE3_INVALID_NODE_DATA',
+  );
+  expect(restored.scene.findByID('broken')).toBeUndefined();
+});

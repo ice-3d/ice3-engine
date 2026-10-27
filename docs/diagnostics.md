@@ -22,6 +22,7 @@ Diagnostics use stable codes. Callers should branch on `code`, not on message te
 | `ICE3_LAYER_ORDER_CONFLICT` | A layer conflicts with an existing layer identity | Use one stable ID per layer |
 | `ICE3_UNKNOWN_ANCHOR` | A world label references an ID absent from the active scene | Correct the anchor ID or add the target node |
 | `ICE3_UNKNOWN_TYPE` | Deserialization finds an unregistered type ID | Register the type before loading |
+| `ICE3_INVALID_NODE_DATA` | Deserialization finds malformed data for a registered node type | Repair the snapshot or migrate it to the current schema |
 
 ## Rendering
 

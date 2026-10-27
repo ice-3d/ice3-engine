@@ -47,9 +47,20 @@ export function deserializeScene(
         });
         return;
       }
-      const node = type.fromJSON(child);
-      parent.addChild(node);
-      buildChildren(child, node, `${path}.children[${index}]`);
+      try {
+        const node = type.fromJSON(child);
+        parent.addChild(node);
+        buildChildren(child, node, `${path}.children[${index}]`);
+      } catch (error) {
+        errors.push({
+          severity: 'error',
+          code: 'ICE3_INVALID_NODE_DATA',
+          message: `Invalid ICE node data: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          path: `${path}.children[${index}]`,
+        });
+      }
     });
   };
 

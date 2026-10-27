@@ -81,3 +81,16 @@ it('does not render before a scene and camera are configured', () => {
   expect(backend.frames).toHaveLength(0);
   engine.destroy();
 });
+
+it('removes generated canvases when backend initialization fails', () => {
+  const host = createHost();
+  const backend = new FakeRendererBackend();
+  backend.initialize = () => {
+    throw new Error('backend failed');
+  };
+  const engine = new ICE3({ backend });
+
+  expect(() => engine.init(host)).toThrowError('backend failed');
+  expect(host.children).toHaveLength(0);
+  expect(engine.getDiagnostics().canvas).toEqual({ width: 0, height: 0 });
+});
