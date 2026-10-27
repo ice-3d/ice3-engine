@@ -58,6 +58,7 @@ export {
   type ICELodSelection,
   type ICELodSelectionInput,
 } from './asset/ICELodSelector.js';
+export type { ICELodStats } from './asset/ICETilesetLoader.js';
 export type {
   ICEPreparedContract,
   ICEPreparedStats,

@@ -19,6 +19,10 @@ import {
   ICETilesetScheduler,
   type ICETilesetWorkSet,
 } from './ICETilesetScheduler.js';
+import {
+  ICELodSelector,
+  type ICELodSelection,
+} from './ICELodSelector.js';
 
 export type ICETilesetTileState =
   | 'pending'
@@ -37,6 +41,17 @@ export interface ICETilesetStats {
   readonly visible: number;
   readonly resident: number;
   readonly residentBytes: number;
+  readonly lod: ICELodStats;
+}
+
+export interface ICELodStats {
+  readonly target: number;
+  readonly resident: number;
+  readonly coarseResident: number;
+  readonly fineResident: number;
+  readonly transitioning: number;
+  readonly fallback: number;
+  readonly maxScreenSpaceErrorPixels: number;
 }
 
 export interface ICETilesetEvent {
@@ -53,6 +68,7 @@ export interface ICETilesetLoaderOptions {
   readonly prefetchMarginRatio?: number;
   readonly unloadMarginRatio?: number;
   readonly maxCommitsPerFrame?: number;
+  readonly maxScreenSpaceErrorPixels?: number;
 }
 
 export interface ICETilesetOpenOptions {
@@ -65,6 +81,7 @@ export class ICETilesetLoader {
   private readonly maxConcurrentTiles: number;
   private readonly maxCommitsPerFrame: number;
   private readonly scheduler: ICETilesetScheduler;
+  private readonly maxScreenSpaceErrorPixels: number;
 
   constructor(
     private readonly engine: ICE3,
@@ -79,6 +96,7 @@ export class ICETilesetLoader {
     this.camera = options.camera;
     this.maxConcurrentTiles = options.maxConcurrentTiles ?? 2;
     this.maxCommitsPerFrame = options.maxCommitsPerFrame ?? 1;
+    this.maxScreenSpaceErrorPixels = options.maxScreenSpaceErrorPixels ?? 16;
     if (
       !Number.isInteger(this.maxConcurrentTiles)
       || this.maxConcurrentTiles < 1
@@ -87,6 +105,14 @@ export class ICETilesetLoader {
     ) {
       throw new Error(
         'ICE3_TILESET_INVALID: concurrency and commit limits must be positive integers',
+      );
+    }
+    if (
+      !Number.isFinite(this.maxScreenSpaceErrorPixels)
+      || this.maxScreenSpaceErrorPixels <= 0
+    ) {
+      throw new Error(
+        'ICE3_TILESET_LOD_INVALID: maxScreenSpaceErrorPixels must be positive',
       );
     }
     this.scheduler = new ICETilesetScheduler({
@@ -136,6 +162,7 @@ export class ICETilesetLoader {
       this.fetcher,
       this.maxConcurrentTiles,
       this.maxCommitsPerFrame,
+      this.maxScreenSpaceErrorPixels,
       options.signal,
     );
     handle.start();
@@ -147,11 +174,13 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   readonly scene: ICEScene;
   readonly bounds: ICEGeometryBounds;
   private readonly states = new Map<string, ICETilesetTileState>();
+  private readonly tilesById = new Map<string, ICETilesetTile>();
   private readonly resident = new Map<string, ICEResidentTile>();
   private readonly candidates = new Map<string, ICETileCandidate>();
   private readonly activeIds = new Set<string>();
   private readonly idleWaiters: ICEIdleWaiter[] = [];
   private readonly assetLoader: ICEAssetLoader;
+  private readonly lodSelector = new ICELodSelector();
   private readonly abortController = new AbortController();
   private readonly readyPromise: Promise<void>;
   private requestQueue: ICETilesetTile[] = [];
@@ -171,6 +200,9 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   private commitScheduled = false;
   private budgetWarningActive = false;
   private idleEmitted = false;
+  private lodSelection: ICELodSelection | undefined;
+  private lastLodTarget = '';
+  private lastLodFallbacks = '';
 
   constructor(
     private readonly engine: ICE3,
@@ -180,6 +212,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     fetch: typeof globalThis.fetch,
     private readonly maxConcurrentTiles: number,
     private readonly maxCommitsPerFrame: number,
+    private readonly maxScreenSpaceErrorPixels: number,
     callerSignal?: AbortSignal,
   ) {
     super();
@@ -191,7 +224,10 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         signal: this.abortController.signal,
       }),
     });
-    for (const tile of snapshot.tiles) this.states.set(tile.id, 'pending');
+    for (const tile of snapshot.tiles) {
+      this.states.set(tile.id, 'pending');
+      this.tilesById.set(tile.id, tile);
+    }
     this.readyPromise = new Promise<void>((resolve, reject) => {
       this.resolveReady = resolve;
       this.rejectReady = reject;
@@ -211,6 +247,21 @@ export class ICETilesetHandle extends ICEEventDispatcher {
 
   get stats(): ICETilesetStats {
     const values = [...this.states.values()];
+    const targetResident = this.lodSelection?.target.filter((tile) => (
+      this.resident.has(tile.id)
+    )) ?? [];
+    const coarseResident = [...this.resident.keys()].filter((id) => (
+      (this.tilesById.get(id)?.children.length ?? 0) > 0
+    )).length;
+    const lod = Object.freeze({
+      target: this.lodSelection?.target.length ?? 0,
+      resident: targetResident.length,
+      coarseResident,
+      fineResident: this.resident.size - coarseResident,
+      transitioning: 0,
+      fallback: this.lodSelection?.fallbackByTargetId.size ?? 0,
+      maxScreenSpaceErrorPixels: this.maxScreenSpaceErrorPixels,
+    });
     return Object.freeze({
       total: this.states.size,
       pending: values.filter((value) => value === 'pending').length,
@@ -221,6 +272,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       visible: this.workSet?.visible.length ?? 0,
       resident: this.resident.size,
       residentBytes: this.residentBytes,
+      lod,
     });
   }
 
@@ -331,6 +383,35 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       ),
     });
     this.workSet = workSet;
+    const lodSelection = this.lodSelector.select({
+      root: this.snapshot.root,
+      camera: this.camera,
+      viewport,
+      residentIds: new Set(this.resident.keys()),
+      failedIds: new Set(
+        [...this.states]
+          .filter(([, state]) => state === 'failed')
+          .map(([id]) => id),
+      ),
+      maxScreenSpaceErrorPixels: this.maxScreenSpaceErrorPixels,
+    });
+    this.lodSelection = lodSelection;
+    const lodTarget = lodSelection.target.map((tile) => tile.id).join('|');
+    if (this.lastLodTarget && lodTarget !== this.lastLodTarget) {
+      this.trigger<ICETilesetEvent>('TILESET_LOD_CHANGED', {
+        stats: this.stats,
+      });
+    }
+    this.lastLodTarget = lodTarget;
+    const fallbacks = [...lodSelection.fallbackByTargetId]
+      .map(([targetId, fallbackId]) => `${targetId}:${fallbackId}`)
+      .join('|');
+    if (this.lastLodFallbacks && fallbacks !== this.lastLodFallbacks) {
+      this.trigger<ICETilesetEvent>('TILESET_LOD_FALLBACK', {
+        stats: this.stats,
+      });
+    }
+    this.lastLodFallbacks = fallbacks;
     this.idleEmitted = false;
 
     for (const id of [...this.resident.keys()]) {

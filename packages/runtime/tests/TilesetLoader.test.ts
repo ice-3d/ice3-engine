@@ -61,6 +61,35 @@ it('opens before all tiles finish and commits completed tiles progressively', as
   expect(tileset.scene.children).toHaveLength(0);
 });
 
+it('reports the selected LOD cut and SSE threshold', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('tileset.json')) {
+      return new Response(fixture('tileset.json'));
+    }
+    return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
+  });
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch,
+    camera: camera(),
+    maxScreenSpaceErrorPixels: 24,
+  }).open('https://example.test/spatial-demo/tileset.json');
+
+  await expect.poll(() => tileset.stats.lod.target).toBeGreaterThan(0);
+  expect(tileset.stats.lod.maxScreenSpaceErrorPixels).toBe(24);
+  expect(tileset.stats.lod.fallback).toBeGreaterThanOrEqual(0);
+});
+
+it('rejects an invalid SSE threshold', () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+
+  expect(() => new ICETilesetLoader(engine, {
+    camera: camera(),
+    maxScreenSpaceErrorPixels: 0,
+  })).toThrow(/ICE3_TILESET_LOD_INVALID/);
+});
+
 it('keeps successful tiles after one tile fails', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const fetch = vi.fn(async (input: RequestInfo | URL) => {
