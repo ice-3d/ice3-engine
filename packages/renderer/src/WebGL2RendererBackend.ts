@@ -1,11 +1,13 @@
 import { ICEEngineError, ICEMatrix4 } from '@ice3/core';
 import { collectRenderables } from './WebGL2GeometryBatch.js';
 import { WebGL2GeometryCache } from './WebGL2GeometryCache.js';
+import { WebGL2Picker } from './WebGL2Picker.js';
 import { WebGL2Program } from './WebGL2Program.js';
 import type {
   ICERendererBackend,
   ICERendererCapabilities,
   ICEFrame,
+  ICEScreenPoint,
   ICEViewport,
 } from './types.js';
 
@@ -48,6 +50,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private onContextRestored: (() => void) | undefined;
   private program: WebGL2Program | null = null;
   private geometryCache: WebGL2GeometryCache | null = null;
+  private picker: WebGL2Picker | null = null;
   private backgroundRgba: readonly [number, number, number, number] = [
     0.035,
     0.055,
@@ -57,6 +60,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private frameStats = { drawCalls: 0, renderedMeshes: 0, gpuBytes: 0 };
   private readonly handleContextLost = (event: Event): void => {
     event.preventDefault();
+    this.picker = null;
     this.program = null;
     this.geometryCache?.clear();
     this.geometryCache = null;
@@ -207,6 +211,20 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.frameStats.gpuBytes = this.geometryCache.totalBytes;
   }
 
+  pick(frame: ICEFrame, point: ICEScreenPoint): string | undefined {
+    if (!this.picker || !this.geometryCache) {
+      throw new ICEEngineError(
+        'ICE3_PICK_UNAVAILABLE',
+        'ICE3_PICK_UNAVAILABLE: picker is not initialized',
+      );
+    }
+    return this.picker.pick(
+      { ...frame, point },
+      this.geometryCache,
+      collectRenderables(frame.scene),
+    );
+  }
+
   dispose(): void {
     if (this.canvas) {
       this.canvas.removeEventListener('webglcontextlost', this.handleContextLost);
@@ -218,9 +236,11 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     if (this.program) {
       this.program.dispose();
     }
+    this.picker?.dispose();
     this.geometryCache?.dispose();
     this.program = null;
     this.geometryCache = null;
+    this.picker = null;
     this.canvas = null;
     this.gl = null;
     this.onContextLost = undefined;
@@ -244,5 +264,6 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     gl.lineWidth(2);
     this.program = program;
     this.geometryCache = new WebGL2GeometryCache();
+    this.picker = new WebGL2Picker(gl);
   }
 }

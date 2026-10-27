@@ -137,6 +137,9 @@ test('loads and renders the prepared industrial asset', async ({ page }) => {
     ]));
   const pixel = await page.evaluate(() => window.__ice3M1.scenePixelAtProjection());
   expect(pixel[2]).toBeGreaterThan(pixel[0]);
+  expect(await page.evaluate(
+    () => window.__ice3M1.diagnostics().backend.picking,
+  )).toBe(true);
   expect(await page.evaluate(() => window.__ice3M1.assetStats())).toEqual({
     nodeCount: 1,
     meshCount: 1,

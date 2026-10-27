@@ -42,6 +42,7 @@ export type ICEEngineDiagnostics = {
   readonly backend: Readonly<{
     backend: 'webgl2' | 'fake';
     maxTextureSize: number;
+    picking: boolean;
   }>;
   readonly nodeCount: number;
   readonly layerCount: number;

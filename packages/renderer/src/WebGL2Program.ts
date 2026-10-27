@@ -16,7 +16,7 @@ void main() {
 `;
 
 const FRAGMENT_SOURCE = `
-precision mediump float;
+precision highp float;
 uniform vec4 u_color;
 uniform float u_useVertexColor;
 varying vec3 v_color;
