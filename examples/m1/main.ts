@@ -231,7 +231,7 @@ async function start(): Promise<void> {
       handle.on<ICETilesetEvent>(type, (event) => onTilesetEvent(event.param));
     }
     void handle.whenReady().then(revealScene, () => {});
-    await handle.whenComplete();
+    await handle.whenIdle();
     loadFinished = true;
     const stats = handle.stats;
     updateTilesetProgress(stats);
@@ -333,6 +333,10 @@ window.__ice3M1 = {
     loading: 0,
     loaded: 0,
     failed: 0,
+    evicted: 0,
+    visible: 0,
+    resident: 0,
+    residentBytes: 0,
   },
 };
 

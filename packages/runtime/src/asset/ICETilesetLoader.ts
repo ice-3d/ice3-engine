@@ -1,7 +1,9 @@
 import {
   ICEEventDispatcher,
+  ICEMesh,
   ICENode,
   ICEScene,
+  type ICEGeometry,
   type ICEGeometryBounds,
   type ICEMatrix4Tuple,
   type ICEPerspectiveCamera,
@@ -18,7 +20,8 @@ export type ICETilesetTileState =
   | 'pending'
   | 'loading'
   | 'loaded'
-  | 'failed';
+  | 'failed'
+  | 'evicted';
 
 export interface ICETilesetStats {
   readonly total: number;
@@ -26,6 +29,10 @@ export interface ICETilesetStats {
   readonly loading: number;
   readonly loaded: number;
   readonly failed: number;
+  readonly evicted: number;
+  readonly visible: number;
+  readonly resident: number;
+  readonly residentBytes: number;
 }
 
 export interface ICETilesetEvent {
@@ -35,7 +42,7 @@ export interface ICETilesetEvent {
 
 export interface ICETilesetLoaderOptions {
   readonly fetch?: typeof globalThis.fetch;
-  readonly camera?: ICEPerspectiveCamera;
+  readonly camera: ICEPerspectiveCamera;
   readonly maxConcurrentTiles?: number;
 }
 
@@ -45,13 +52,18 @@ export interface ICETilesetOpenOptions {
 
 export class ICETilesetLoader {
   private readonly fetcher: typeof globalThis.fetch;
-  private readonly camera: ICEPerspectiveCamera | undefined;
+  private readonly camera: ICEPerspectiveCamera;
   private readonly maxConcurrentTiles: number;
 
   constructor(
     private readonly engine: ICE3,
-    options: ICETilesetLoaderOptions = {},
+    options: ICETilesetLoaderOptions,
   ) {
+    if (!options.camera) {
+      throw new Error(
+        'ICE3_TILESET_CAMERA_REQUIRED: Tileset scheduling requires a camera',
+      );
+    }
     this.fetcher = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.camera = options.camera;
     this.maxConcurrentTiles = options.maxConcurrentTiles ?? 2;
@@ -114,18 +126,18 @@ export class ICETilesetHandle extends ICEEventDispatcher {
   readonly scene: ICEScene;
   readonly bounds: ICEGeometryBounds;
   private readonly states = new Map<string, ICETilesetTileState>();
+  private readonly resident = new Map<string, ICEResidentTile>();
+  private residentBytes = 0;
   private readonly assetLoader: ICEAssetLoader;
   private readonly abortController = new AbortController();
   private readonly readyPromise: Promise<void>;
-  private readonly completePromise: Promise<void>;
+  private readonly idleWaiters: ICEIdleWaiter[] = [];
   private resolveReady!: () => void;
   private rejectReady!: (reason: unknown) => void;
-  private resolveComplete!: () => void;
   private cursor = 0;
   private active = 0;
   private settled = 0;
   private readySettled = false;
-  private completeSettled = false;
   private started = false;
   private disposed = false;
   private removeCallerAbort: (() => void) | undefined;
@@ -153,9 +165,6 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       this.rejectReady = reject;
     });
     void this.readyPromise.catch(() => {});
-    this.completePromise = new Promise<void>((resolve) => {
-      this.resolveComplete = resolve;
-    });
     if (callerSignal) {
       if (callerSignal.aborted) this.abort();
       else {
@@ -176,6 +185,10 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       loading: values.filter((value) => value === 'loading').length,
       loaded: values.filter((value) => value === 'loaded').length,
       failed: values.filter((value) => value === 'failed').length,
+      evicted: values.filter((value) => value === 'evicted').length,
+      visible: this.tiles.length,
+      resident: this.resident.size,
+      residentBytes: this.residentBytes,
     });
   }
 
@@ -187,8 +200,16 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     return this.readyPromise;
   }
 
-  whenComplete(): Promise<void> {
-    return this.completePromise;
+  whenIdle(): Promise<void> {
+    const watchedIds = new Set(
+      [...this.states]
+        .filter(([, state]) => state === 'pending' || state === 'loading')
+        .map(([id]) => id),
+    );
+    if (watchedIds.size === 0) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      this.idleWaiters.push({ watchedIds, resolve });
+    });
   }
 
   dispose(): void {
@@ -204,10 +225,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       this.readySettled = true;
       this.rejectReady(abortedTilesetError());
     }
-    if (!this.completeSettled) {
-      this.completeSettled = true;
-      this.resolveComplete();
-    }
+    for (const waiter of this.idleWaiters.splice(0)) waiter.resolve();
     this.scene.dispose();
     this.removeAllListeners();
   }
@@ -233,7 +251,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         this.active -= 1;
         this.settled += 1;
         if (this.settled === this.tiles.length) {
-          this.complete();
+          this.settleIdleWaiters();
         } else {
           this.pump();
         }
@@ -258,21 +276,31 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         return;
       }
       const moved = [...loaded.scene.children];
+      const containerId = `${this.snapshot.assetId}:tile:${tile.id}`;
+      if (this.scene.findByID(containerId)) {
+        throw new Error(`ICE3_TILESET_DUPLICATE_ID: ${containerId}`);
+      }
       for (const child of moved) {
         assertUniqueIDs(child, this.scene);
       }
-      if (tile.transform) {
-        const wrapper = new ICENode({
-          id: `${this.snapshot.assetId}:tile:${tile.id}`,
-          matrix: tile.transform as ICEMatrix4Tuple,
-        });
-        for (const child of moved) wrapper.addChild(child);
-        this.scene.addChild(wrapper);
-      } else {
-        for (const child of moved) this.scene.addChild(child);
-      }
+      const bytes = estimateSceneBytes(loaded.scene);
+      const container = new ICENode({
+        id: containerId,
+        ...(tile.transform
+          ? { matrix: tile.transform as ICEMatrix4Tuple }
+          : {}),
+      });
+      for (const child of moved) container.addChild(child);
+      this.scene.addChild(container);
       loaded.dispose();
       loaded = undefined;
+      this.resident.set(tile.id, {
+        tile,
+        container,
+        bytes,
+        contentUri: tile.contentUri!,
+      });
+      this.residentBytes += bytes;
       this.states.set(tile.id, 'loaded');
       this.engine.requestRender('tileset-tile-loaded');
       this.emit('TILESET_TILE_LOADED', tile.id);
@@ -299,13 +327,21 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     }
   }
 
-  private complete(): void {
-    if (this.disposed || this.completeSettled) return;
-    this.completeSettled = true;
-    this.resolveComplete();
-    this.trigger<ICETilesetEvent>('TILESET_COMPLETE', {
-      stats: this.stats,
-    });
+  private settleIdleWaiters(): void {
+    for (const waiter of [...this.idleWaiters]) {
+      if ([...waiter.watchedIds].every((id) => {
+        const state = this.states.get(id);
+        return state !== 'pending' && state !== 'loading';
+      })) {
+        this.idleWaiters.splice(this.idleWaiters.indexOf(waiter), 1);
+        waiter.resolve();
+      }
+    }
+    if (this.idleWaiters.length === 0 && this.settled === this.tiles.length) {
+      this.trigger<ICETilesetEvent>('TILESET_IDLE', {
+        stats: this.stats,
+      });
+    }
   }
 
   private abort(): void {
@@ -318,6 +354,35 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       stats: this.stats,
     });
   }
+}
+
+interface ICEResidentTile {
+  readonly tile: ICETilesetTile;
+  readonly container: ICENode;
+  readonly bytes: number;
+  readonly contentUri: string;
+}
+
+interface ICEIdleWaiter {
+  readonly watchedIds: ReadonlySet<string>;
+  readonly resolve: () => void;
+}
+
+function estimateSceneBytes(scene: ICEScene): number {
+  const geometries = new Set<ICEGeometry>();
+  const visit = (node: ICENode): void => {
+    if (node instanceof ICEMesh) geometries.add(node.geometry);
+    for (const child of node.children) visit(child);
+  };
+  visit(scene);
+  let total = 0;
+  for (const geometry of geometries) {
+    total += geometry.positions.byteLength;
+    total += geometry.indices.byteLength;
+    total += geometry.edgeIndices?.byteLength ?? 0;
+    total += geometry.colors?.byteLength ?? 0;
+  }
+  return total;
 }
 
 function prioritizeTiles(
