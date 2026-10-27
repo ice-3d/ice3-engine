@@ -103,6 +103,9 @@ reuse existing example servers.
   shared geometry buffer and a stable per-instance semantic index.
 - Fall back to ordinary mesh submission when instance-buffer allocation fails
   and expose the fallback count in renderer diagnostics.
+- Opt into idle-time adaptive render batching with bounded Workers, transferable
+  buffers, frame-budgeted candidate uploads, cancellation on camera motion, and
+  atomic generation activation.
 
 ## M0 boundaries
 

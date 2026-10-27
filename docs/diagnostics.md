@@ -68,6 +68,11 @@ Diagnostics use stable codes. Callers should branch on `code`, not on message te
 | `ICE3_SHADER_LINK_FAILED` | Program linking or uniform lookup fails | Verify shader compatibility with the active backend |
 | `ICE3_GPU_RESOURCE_FAILED` | GPU buffer or vertex-array allocation fails | Reduce resource pressure and recreate the context |
 | `ICE3_RENDER_INSTANCING_FALLBACK` | Instance buffers cannot be allocated and repeated geometry uses ordinary draws | Reduce GPU memory pressure; selection remains available |
+| `ICE3_RENDER_BATCH_ADAPTIVE_STARTED` | An idle-time adaptive render batch generation starts | Informational only; camera motion cancels it |
+| `ICE3_RENDER_BATCH_ADAPTIVE_COMPLETED` | A complete candidate generation atomically replaces the active batch layout | Continue normal rendering and selection |
+| `ICE3_RENDER_BATCH_ADAPTIVE_CANCELLED` | Camera motion, disposal, or a lifecycle change cancels a candidate generation | The previous active generation remains available |
+| `ICE3_RENDER_BATCH_ADAPTIVE_FAILED` | Worker preparation or frame-budgeted upload fails | Keep the active generation and inspect the reported cause |
+| `ICE3_RENDER_BATCH_MEMORY_REJECTED` | A candidate exceeds the configured extra GPU byte budget | Raise the optional budget or reduce the visible source set |
 
 ## Diagnostic shape
 
