@@ -13,13 +13,15 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --pretty false",
-    "typecheck:example": "tsc -p examples/m0/tsconfig.json --pretty false",
+    "typecheck:example": "tsc -p examples/m0/tsconfig.json --pretty false && tsc -p examples/m1/tsconfig.json --pretty false",
     "test": "node-test run",
     "test:architecture": "node --test tests/architecture/package-boundaries.test.mjs",
     "test:e2e": "npm run build && playwright test",
     "verify": "npm run test:architecture && npm run typecheck && npm run typecheck:example && npm test && npm run test:e2e",
     "build:example": "npm run build && webpack --config examples/m0/webpack.config.cjs",
-    "dev:example": "npm run build && webpack serve --config examples/m0/webpack.config.cjs"
+    "dev:example": "npm run build && webpack serve --config examples/m0/webpack.config.cjs",
+    "build:example:m1": "npm run build && webpack --config examples/m1/webpack.config.cjs",
+    "dev:example:m1": "npm run build && webpack serve --config examples/m1/webpack.config.cjs"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
