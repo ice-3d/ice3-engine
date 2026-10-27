@@ -6,6 +6,9 @@ export interface ICEBatchWorkerSource {
   readonly positions: ArrayBuffer;
   readonly indices: ArrayBuffer;
   readonly semanticIndices: ArrayBuffer;
+  readonly semanticIds: readonly string[];
+  readonly semanticNodeIds: readonly string[];
+  readonly semanticSelectionIds: readonly string[];
 }
 
 export interface ICEBatchWorkerOutput {
@@ -14,6 +17,9 @@ export interface ICEBatchWorkerOutput {
   readonly positions: ArrayBuffer;
   readonly indices: ArrayBuffer;
   readonly semanticIndices: ArrayBuffer;
+  readonly semanticIds: readonly string[];
+  readonly semanticNodeIds: readonly string[];
+  readonly semanticSelectionIds: readonly string[];
   readonly bounds: ICEGeometryBounds;
   readonly triangleCount: number;
 }
