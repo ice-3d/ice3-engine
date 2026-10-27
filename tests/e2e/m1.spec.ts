@@ -1,21 +1,4 @@
-import { expect, test, type Page, type Route } from '@playwright/test';
-import { readFileSync } from 'node:fs';
-import { extname, join } from 'node:path';
-
-async function fulfillAdaptiveAsset(
-  route: Route,
-): Promise<void> {
-  const relative = new URL(route.request().url()).pathname
-    .split('/assets/hierarchical-demo/')[1] ?? '';
-  const file = join('examples/m1/assets/adaptive-demo', relative);
-  await route.fulfill({
-    status: 200,
-    contentType: extname(file) === '.json'
-      ? 'application/json'
-      : 'model/gltf-binary',
-    body: readFileSync(file),
-  });
-}
+import { expect, test, type Page } from '@playwright/test';
 
 async function waitForAssetProjectionToSettle(page: Page): Promise<void> {
   await page.waitForFunction(() => new Promise<boolean>((resolve) => {
@@ -83,11 +66,7 @@ test('activates one adaptive generation only after idle', async ({ page }) => {
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text());
   });
-  await page.route(
-    '**/assets/hierarchical-demo/**',
-    fulfillAdaptiveAsset,
-  );
-  await page.goto('http://127.0.0.1:8104/?adaptive=1');
+  await page.goto('http://127.0.0.1:8104/?demo=adaptive');
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
 
   await expect.poll(

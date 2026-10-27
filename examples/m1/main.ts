@@ -44,8 +44,12 @@ const camera = new ICEPerspectiveCamera({
   position: [3.2, 2.4, 4.5],
   target: [0, 0, 0],
 });
-const adaptiveBatching =
-  new URLSearchParams(window.location.search).get('adaptive') === '1';
+const query = new URLSearchParams(window.location.search);
+const adaptiveDemo = query.get('demo') === 'adaptive';
+const adaptiveBatching = adaptiveDemo || query.get('adaptive') === '1';
+const assetUrl = adaptiveDemo
+  ? '/assets/adaptive-demo/tileset.json'
+  : '/assets/hierarchical-demo/tileset.json';
 const loader = new ICETilesetLoader(engine, {
   camera,
   ...(adaptiveBatching
@@ -284,7 +288,7 @@ function disposeAsset(): void {
 
 async function start(): Promise<void> {
   try {
-    handle = await loader.open('/assets/hierarchical-demo/tileset.json');
+    handle = await loader.open(assetUrl);
     const { min, max } = handle.bounds;
     assetCenter = [
       (min[0] + max[0]) / 2,
