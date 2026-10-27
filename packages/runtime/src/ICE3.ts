@@ -347,6 +347,13 @@ export class ICE3 extends ICEEventDispatcher {
     return result.kind === 'hit' ? result.node : undefined;
   }
 
+  pickItem(point: ICEScreenPoint): { readonly item?: ICESceneItem } {
+    const node = this.pick(point);
+    if (!node) return Object.freeze({});
+    const item = this.queryScene({ ids: [node.id], limit: 1 })[0];
+    return Object.freeze(item ? { item } : {});
+  }
+
   getDiagnostics(): Readonly<ICEEngineDiagnostics> {
     return {
       frameId: this.frameId,

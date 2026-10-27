@@ -211,6 +211,38 @@ export class ICEOrbitController {
     this.targetDistance = this.distance;
   }
 
+  focus(
+    target: { readonly bounds: { readonly min: readonly [number, number, number]; readonly max: readonly [number, number, number] } },
+    options: { readonly padding?: number; readonly animate?: boolean } = {},
+  ): this {
+    this.assertActive();
+    const padding = options.padding ?? 1.15;
+    if (!Number.isFinite(padding) || padding <= 0) {
+      throw new Error('ICE3_CAMERA_FOCUS_INVALID: padding must be positive');
+    }
+    const center: [number, number, number] = [
+      (target.bounds.min[0] + target.bounds.max[0]) / 2,
+      (target.bounds.min[1] + target.bounds.max[1]) / 2,
+      (target.bounds.min[2] + target.bounds.max[2]) / 2,
+    ];
+    const radius = Math.max(
+      0.1,
+      Math.hypot(
+        target.bounds.max[0] - target.bounds.min[0],
+        target.bounds.max[1] - target.bounds.min[1],
+        target.bounds.max[2] - target.bounds.min[2],
+      ) / 2,
+    );
+    this.target = center;
+    this.targetDistance = radius / Math.sin(this.camera.fov * Math.PI / 360) * padding;
+    if (options.animate === false) {
+      this.distance = this.targetDistance;
+      this.applyPosition();
+    }
+    this.engine.requestRender('camera-focus');
+    return this;
+  }
+
   rotateBy(deltaX: number, deltaY: number): this {
     this.assertActive();
     this.prepareMotion();
