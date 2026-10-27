@@ -68,3 +68,30 @@ it('combines triangle and edge accessors in one ICE mesh', () => {
   expect(mesh.geometry.edgeIndices).toHaveLength(24);
   expect(mesh.material.edgeColor).toBe('#e6f2ff');
 });
+
+it('preserves prepared display names and equipment identity', () => {
+  const built = buildAssetScene(snapshotWithEdges);
+  const mesh = built.scene.findByID('root/motor') as ICEMesh;
+  expect(mesh.displayName).toBe('motor');
+  expect(mesh.selectionId).toBe('root/motor');
+});
+
+it('keeps secondary primitives in the same equipment selection group', () => {
+  const snapshot = {
+    ...snapshotWithEdges,
+    meshes: [
+      ...snapshotWithEdges.meshes,
+      {
+        id: 'fixture/mesh/extra',
+        node: 1,
+        geometry: 0,
+        material: 0,
+      },
+    ],
+  };
+  const built = buildAssetScene(snapshot);
+  const sourceNode = built.scene.findByID('root/motor') as ICEMesh;
+  const secondary = sourceNode.children[0] as ICEMesh;
+  expect(secondary.selectionId).toBe('root/motor');
+  expect(secondary.displayName).toBe('motor');
+});

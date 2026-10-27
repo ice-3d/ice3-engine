@@ -51,6 +51,8 @@ export function buildAssetScene(
     const node = geometry && material
       ? new ICEMesh({
           id: source.id,
+          displayName: source.name,
+          selectionId: source.id,
           matrix: source.matrix,
           geometry,
           material,
@@ -64,6 +66,7 @@ export function buildAssetScene(
   });
 
   for (const [index, node] of nodes.entries()) {
+    const source = snapshot.nodes[index]!;
     const parentIndex = snapshot.nodes[index]!.parent;
     if (parentIndex === null) {
       scene.addChild(node);
@@ -83,6 +86,8 @@ export function buildAssetScene(
       }
       node.addChild(new ICEMesh({
         id: mesh.id,
+        displayName: source.name,
+        selectionId: source.id,
         geometry,
         material,
       }));
