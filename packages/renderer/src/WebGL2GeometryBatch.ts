@@ -16,7 +16,7 @@ const visit = (
     output.push({
       id: node.id,
       mesh: node,
-      worldMatrix: node.updateWorldMatrix().elements.slice(),
+      worldMatrix: node.updateWorldMatrix().elements,
     });
   }
   for (const child of node.children) {
@@ -26,8 +26,9 @@ const visit = (
 
 export function collectRenderables(
   scene: ICEScene,
+  output: ICEGeometryRenderable[] = [],
 ): readonly ICEGeometryRenderable[] {
-  const output: ICEGeometryRenderable[] = [];
+  output.length = 0;
   visit(scene, true, output);
   return output;
 }

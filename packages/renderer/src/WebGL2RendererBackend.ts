@@ -2,6 +2,7 @@ import { ICEEngineError, ICEMatrix4 } from '@ice3/core';
 import {
   collectRenderables,
   selectionIdentity,
+  type ICEGeometryRenderable,
 } from './WebGL2GeometryBatch.js';
 import { WebGL2GeometryCache } from './WebGL2GeometryCache.js';
 import { WebGL2Picker } from './WebGL2Picker.js';
@@ -24,8 +25,15 @@ const EDGE_PIXEL_OFFSETS = [
 
 const SELECTION_RGBA = [255 / 255, 208 / 255, 0] as const;
 const SELECTION_TINT_ALPHA = 0.65;
+const COLOR_CACHE_LIMIT = 128;
+const COLOR_CACHE = new Map<
+  string,
+  readonly [number, number, number, number]
+>();
 
-export function colorToRgba(color: string): [number, number, number, number] {
+export function colorToRgba(
+  color: string,
+): readonly [number, number, number, number] {
   const normalized = color.startsWith('#') ? color.slice(1) : color;
   const expanded = normalized.length === 3
     ? normalized.split('').map((part) => part + part).join('')
@@ -33,12 +41,21 @@ export function colorToRgba(color: string): [number, number, number, number] {
   if (!/^[0-9a-fA-F]{6}$/.test(expanded)) {
     throw new Error(`Unsupported ICE basic material color: ${color}`);
   }
-  return [
+  const key = expanded.toLowerCase();
+  const cached = COLOR_CACHE.get(key);
+  if (cached) return cached;
+  const rgba = Object.freeze([
     Number.parseInt(expanded.slice(0, 2), 16) / 255,
     Number.parseInt(expanded.slice(2, 4), 16) / 255,
     Number.parseInt(expanded.slice(4, 6), 16) / 255,
     1,
-  ];
+  ]) as readonly [number, number, number, number];
+  if (COLOR_CACHE.size >= COLOR_CACHE_LIMIT) {
+    const oldest = COLOR_CACHE.keys().next().value as string | undefined;
+    if (oldest !== undefined) COLOR_CACHE.delete(oldest);
+  }
+  COLOR_CACHE.set(key, rgba);
+  return rgba;
 }
 
 export class WebGL2RendererBackend implements ICERendererBackend {
@@ -57,6 +74,9 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private program: WebGL2Program | null = null;
   private geometryCache: WebGL2GeometryCache | null = null;
   private picker: WebGL2Picker | null = null;
+  private readonly mvpScratch = new ICEMatrix4();
+  private readonly worldScratch = new ICEMatrix4();
+  private readonly renderablesScratch: ICEGeometryRenderable[] = [];
   private backgroundRgba: readonly [number, number, number, number] = [
     0.035,
     0.055,
@@ -159,16 +179,19 @@ export class WebGL2RendererBackend implements ICERendererBackend {
 
     const aspect = frame.viewport.width / Math.max(frame.viewport.height, 1);
     const viewProjection = frame.camera.getViewProjectionMatrix(aspect);
-    const mvp = new ICEMatrix4();
+    const mvp = this.mvpScratch;
     this.frameStats = { drawCalls: 0, renderedMeshes: 0, gpuBytes: 0 };
 
     this.program.use();
     this.program.setClipOffset(0, 0);
     this.geometryCache.beginFrame();
-    const world = new ICEMatrix4();
+    const world = this.worldScratch;
     const clipPixelX = 2 / Math.max(1, frame.viewport.width * frame.dpr);
     const clipPixelY = 2 / Math.max(1, frame.viewport.height * frame.dpr);
-    const renderables = collectRenderables(frame.scene);
+    const renderables = collectRenderables(
+      frame.scene,
+      this.renderablesScratch,
+    );
     for (const renderable of renderables) {
       this.program.setClipOffset(0, 0);
       mvp.elements.set(viewProjection.elements);
@@ -291,7 +314,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     return this.picker.pick(
       { ...frame, point },
       this.geometryCache,
-      collectRenderables(frame.scene),
+      collectRenderables(frame.scene, this.renderablesScratch),
     );
   }
 
