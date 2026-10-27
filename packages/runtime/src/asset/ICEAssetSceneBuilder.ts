@@ -59,6 +59,7 @@ export function buildAssetScene(
         })
       : new ICENode({
           id: source.id,
+          displayName: source.name,
           matrix: source.matrix,
         });
     node.visible = source.visible;

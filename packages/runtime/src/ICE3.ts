@@ -529,7 +529,7 @@ export class ICE3 extends ICEEventDispatcher {
       overlay.setPointerCapture?.(event.pointerId);
       const point = pointOf(event);
       const target = this.inputRouter.pointerDown(point, event.pointerId);
-      if (target) {
+      if (target && event.button === 0) {
         this.pointerGestures.set(event.pointerId, {
           start: { ...point },
           target,

@@ -53,3 +53,20 @@ it('updates label text and remeasures without replacing the label', () => {
   expect(after.width).toBeGreaterThan(before);
   expect(after.y).toBe(20);
 });
+
+it('keeps an updated screen position after measuring', () => {
+  const label = new ICELabel({
+    id: 'selection',
+    text: '设备',
+    screenPosition: [10, 20],
+  });
+  const context = {
+    measureText: (text: string) => ({ width: [...text].length * 14 }),
+  } as unknown as CanvasRenderingContext2D;
+
+  label.setScreenPosition([30, 40]);
+  const measured = label.measure(context);
+
+  expect(measured.x).toBe(30);
+  expect(measured.y).toBe(40);
+});

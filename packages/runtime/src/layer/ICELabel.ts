@@ -21,7 +21,6 @@ export interface ICELabelRect {
 export class ICELabel extends ICEEventDispatcher {
   readonly id: string;
   readonly anchorId: string | undefined;
-  readonly screenPosition: readonly [number, number] | undefined;
   readonly color: string;
   readonly background: string;
   readonly padding: number;
@@ -29,6 +28,7 @@ export class ICELabel extends ICEEventDispatcher {
   visible = true;
 
   private currentText: string;
+  private currentScreenPosition: readonly [number, number] | undefined;
   private rect: ICELabelRect;
 
   constructor(options: ICELabelOptions) {
@@ -36,7 +36,7 @@ export class ICELabel extends ICEEventDispatcher {
     this.id = options.id;
     this.currentText = options.text;
     this.anchorId = options.anchorId;
-    this.screenPosition = options.screenPosition
+    this.currentScreenPosition = options.screenPosition
       ? [options.screenPosition[0], options.screenPosition[1]]
       : undefined;
     this.color = options.color ?? '#f8fafc';
@@ -45,12 +45,18 @@ export class ICELabel extends ICEEventDispatcher {
     this.interactive = options.interactive ?? false;
     const width = Math.max(28, [...this.text].length * 14) + this.padding * 2;
     const height = 20 + this.padding * 2;
-    const [x, y] = this.screenPosition ?? [0, 0];
+    const [x, y] = this.currentScreenPosition ?? [0, 0];
     this.rect = { x, y, width, height };
   }
 
   get text(): string {
     return this.currentText;
+  }
+
+  get screenPosition(): readonly [number, number] | undefined {
+    return this.currentScreenPosition
+      ? [this.currentScreenPosition[0], this.currentScreenPosition[1]]
+      : undefined;
   }
 
   setText(text: string): this {
@@ -63,6 +69,7 @@ export class ICELabel extends ICEEventDispatcher {
   }
 
   setScreenPosition(position: readonly [number, number]): this {
+    this.currentScreenPosition = [position[0], position[1]];
     const width = this.rect.width;
     const height = this.rect.height;
     this.rect = { x: position[0], y: position[1], width, height };
@@ -86,10 +93,10 @@ export class ICELabel extends ICEEventDispatcher {
     const width = Math.max(28, context.measureText(this.text).width)
       + this.padding * 2;
     const height = 20 + this.padding * 2;
-    if (this.screenPosition) {
+    if (this.currentScreenPosition) {
       this.rect = {
-        x: this.screenPosition[0],
-        y: this.screenPosition[1],
+        x: this.currentScreenPosition[0],
+        y: this.currentScreenPosition[1],
         width,
         height,
       };
