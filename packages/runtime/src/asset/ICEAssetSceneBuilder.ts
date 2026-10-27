@@ -1,4 +1,7 @@
-import type { ICEPreparedAssetSnapshot } from '@ice3/assets';
+import type {
+  ICEPreparedAssetSnapshot,
+  ICEPreparedStats,
+} from '@ice3/assets';
 import {
   ICEBasicMaterial,
   ICEIndexedGeometry,
@@ -11,11 +14,7 @@ import {
 export interface ICEBuiltAsset {
   readonly scene: ICEScene;
   readonly bounds: ICEGeometryBounds;
-  readonly stats: {
-    readonly nodeCount: number;
-    readonly meshCount: number;
-    readonly triangleCount: number;
-  };
+  readonly stats: ICEPreparedStats;
 }
 
 export function buildAssetScene(

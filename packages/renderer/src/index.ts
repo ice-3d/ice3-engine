@@ -8,6 +8,7 @@ export type { ICEGeometryRenderable } from './WebGL2GeometryBatch.js';
 export type {
   ICERendererBackend,
   ICERendererCapabilities,
+  ICERendererStats,
   ICEFrame,
   ICEScreenPoint,
   ICEViewport,

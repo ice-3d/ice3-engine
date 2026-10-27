@@ -1,5 +1,7 @@
 import type {
   ICEPreparedAssetSnapshot,
+  ICEPreparedContract,
+  ICEPreparedStats,
 } from '@ice3/assets';
 import {
   readPreparedGLB,
@@ -22,11 +24,8 @@ export interface ICEAssetHandle {
   readonly id: string;
   readonly scene: ICEScene;
   readonly bounds: ICEGeometryBounds;
-  readonly stats: Readonly<{
-    nodeCount: number;
-    meshCount: number;
-    triangleCount: number;
-  }>;
+  readonly stats: ICEPreparedStats;
+  readonly contract: ICEPreparedContract;
   dispose(): void;
 }
 
@@ -63,6 +62,13 @@ export class ICEAssetLoader {
     }
     const cached = await awaitWithAbort(pending, options.signal);
     assertNotAborted(options.signal);
+    if (cached.snapshot.contract.status === 'legacy') {
+      this.engine.reportDiagnostic(
+        'ICE3_ASSET_CONTRACT_MISSING',
+        'Prepared asset has no collaboration contract; using legacy statistics',
+        'warning',
+      );
+    }
     if (
       this.verifyIntegrity
       && !await verifyPreparedGLBIntegrity(cached.bytes)
@@ -77,6 +83,7 @@ export class ICEAssetLoader {
       scene: built.scene,
       bounds: built.bounds,
       stats: built.stats,
+      contract: cached.snapshot.contract,
       dispose: () => {
         if (disposed) return;
         disposed = true;

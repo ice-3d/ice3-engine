@@ -30,6 +30,8 @@ export type {
   ICEAssetHandle,
   ICEAssetLoaderOptions,
   ICEAssetLoadOptions,
+  ICEPreparedContract,
+  ICEPreparedStats,
   ICESerializedScene,
   ICEGeometry,
   ICEGeometryBounds,

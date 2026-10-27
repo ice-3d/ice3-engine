@@ -3,11 +3,13 @@ import type {
   ICERendererBackend,
   ICERendererCapabilities,
   ICEFrame,
+  ICERendererStats,
   ICEViewport,
 } from './types.js';
 
 export class FakeRendererBackend implements ICERendererBackend {
   readonly capabilities: Readonly<ICERendererCapabilities>;
+  readonly stats: Readonly<ICERendererStats>;
   readonly frames: ICEFrame[] = [];
   lastViewport: ICEViewport = { x: 0, y: 0, width: 1, height: 1 };
   lastBackgroundColor = '#09111f';
@@ -16,11 +18,19 @@ export class FakeRendererBackend implements ICERendererBackend {
   private disposed = false;
   private disposals = 0;
 
-  constructor(options: { readonly picking?: boolean } = {}) {
+  constructor(options: {
+    readonly picking?: boolean;
+    readonly stats?: ICERendererStats;
+  } = {}) {
     this.capabilities = {
       backend: 'fake',
       maxTextureSize: 4096,
       picking: options.picking ?? false,
+    };
+    this.stats = options.stats ?? {
+      drawCalls: 0,
+      renderedMeshes: 0,
+      gpuBytes: 0,
     };
   }
 

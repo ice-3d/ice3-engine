@@ -31,6 +31,28 @@ it('shares decoded bytes across concurrent loads', async () => {
   expect(first.id).toBe('fixture');
 });
 
+it('exposes the declared asset contract on the handle', async () => {
+  const { loader } = createLoader();
+  const handle = await loader.load('/asset.glb');
+  expect(handle.contract.status).toBe('active');
+  expect(handle.contract.budget?.profile).toBe('interactive-desktop-v1');
+});
+
+it('emits a warning when loading a legacy asset', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const diagnostics: string[] = [];
+  engine.on<{ code: string }>('DIAGNOSTIC', (event) => {
+    if (event.param) diagnostics.push(event.param.code);
+  });
+  const loader = new ICEAssetLoader(engine, {
+    fetch: vi.fn(async () => new Response(
+      createMinimalPreparedGLB({ contract: 'legacy' }),
+    )),
+  });
+  await loader.load('/legacy.glb');
+  expect(diagnostics).toContain('ICE3_ASSET_CONTRACT_MISSING');
+});
+
 it('aborts before scene instantiation', async () => {
   const { loader } = createLoader();
   const controller = new AbortController();

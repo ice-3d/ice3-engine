@@ -24,8 +24,15 @@ export interface ICERendererCapabilities {
   readonly picking: boolean;
 }
 
+export interface ICERendererStats {
+  readonly drawCalls: number;
+  readonly renderedMeshes: number;
+  readonly gpuBytes: number;
+}
+
 export interface ICERendererBackend {
   readonly capabilities: Readonly<ICERendererCapabilities>;
+  readonly stats?: Readonly<ICERendererStats>;
   initialize(options: {
     readonly canvas: HTMLCanvasElement;
     readonly onContextLost?: () => void;

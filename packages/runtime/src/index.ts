@@ -38,3 +38,7 @@ export {
   type ICEAssetLoaderOptions,
   type ICEAssetLoadOptions,
 } from './asset/ICEAssetLoader.js';
+export type {
+  ICEPreparedContract,
+  ICEPreparedStats,
+} from '@ice3/assets';

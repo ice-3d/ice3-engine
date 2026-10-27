@@ -57,6 +57,11 @@ export type ICEEngineDiagnostics = {
   readonly canvas: Readonly<{ width: number; height: number }>;
   readonly viewport: Readonly<ICEViewport>;
   readonly contextLossCount: number;
+  readonly renderer: Readonly<{
+    drawCalls: number;
+    renderedMeshes: number;
+    gpuBytes: number;
+  }>;
   readonly selectionCount: number;
   readonly lastPickTimeMs: number;
   readonly lastPickId?: string;
@@ -345,6 +350,11 @@ export class ICE3 extends ICEEventDispatcher {
       },
       viewport: { ...this.viewport },
       contextLossCount: this.contextLossCount,
+      renderer: this.backend.stats ?? {
+        drawCalls: 0,
+        renderedMeshes: 0,
+        gpuBytes: 0,
+      },
       selectionCount: this.interaction.getSelection().length,
       lastPickTimeMs: this.lastPickTimeMs,
       ...(this.lastPickId ? { lastPickId: this.lastPickId } : {}),
@@ -679,13 +689,23 @@ export class ICE3 extends ICEEventDispatcher {
     }
   }
 
+  reportDiagnostic(
+    code: string,
+    message: string,
+    severity: ICEDiagnostic['severity'] = 'error',
+  ): this {
+    this.assertActive();
+    this.lastDiagnostic = { severity, code, message };
+    this.trigger('DIAGNOSTIC', this.lastDiagnostic);
+    return this;
+  }
+
   private recordDiagnostic(
     code: string,
     message: string,
     severity: ICEDiagnostic['severity'] = 'error',
   ): void {
-    this.lastDiagnostic = { severity, code, message };
-    this.trigger('DIAGNOSTIC', this.lastDiagnostic);
+    this.reportDiagnostic(code, message, severity);
   }
 }
 
