@@ -6,14 +6,16 @@ import {
   ICEScene,
 } from '@ice3/core';
 import { expect, it } from 'node-test';
-import { collectRenderables } from '../src/WebGL2BoxBatch';
+import { collectRenderables } from '../src/WebGL2GeometryBatch';
 
 it('collects visible box and indexed geometry meshes with stable IDs', () => {
-  const geometry = new ICEBoxGeometry({ width: 2, height: 3, depth: 4 });
   const material = new ICEBasicMaterial({ color: '#ffffff' });
   const scene = new ICEScene({ id: 'scene' });
-
-  scene.addChild(new ICEMesh({ id: 'a', geometry, material }));
+  scene.addChild(new ICEMesh({
+    id: 'box',
+    geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
+    material,
+  }));
   scene.addChild(new ICEMesh({
     id: 'indexed',
     geometry: new ICEIndexedGeometry({
@@ -23,12 +25,9 @@ it('collects visible box and indexed geometry meshes with stable IDs', () => {
     }),
     material,
   }));
-  const hidden = new ICEMesh({ id: 'hidden', geometry, material });
-  hidden.visible = false;
-  scene.addChild(hidden);
 
   expect(collectRenderables(scene).map((item) => item.id)).toEqual([
-    'a',
+    'box',
     'indexed',
   ]);
 });

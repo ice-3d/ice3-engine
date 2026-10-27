@@ -3,15 +3,12 @@ import type { ICEMatrix4 } from '@ice3/core';
 
 const VERTEX_SOURCE = `
 attribute vec3 a_position;
-attribute vec3 a_normal;
 uniform mat4 u_worldViewProjection;
 uniform vec2 u_clipOffset;
-varying vec3 v_normal;
 
 void main() {
   gl_Position = u_worldViewProjection * vec4(a_position, 1.0);
   gl_Position.xy += u_clipOffset * gl_Position.w;
-  v_normal = a_normal;
 }
 `;
 
@@ -25,16 +22,13 @@ void main() {
 `;
 
 export class WebGL2Program {
+  static readonly POSITION_ATTRIBUTE = 0;
   readonly program: WebGLProgram;
   private readonly matrixLocation: WebGLUniformLocation;
   private readonly colorLocation: WebGLUniformLocation;
   private readonly clipOffsetLocation: WebGLUniformLocation;
 
-  constructor(
-    private readonly gl: WebGL2RenderingContext,
-    readonly positionLocation: number,
-    readonly normalLocation: number,
-  ) {
+  constructor(private readonly gl: WebGL2RenderingContext) {
     const program = this.createProgram(VERTEX_SOURCE, FRAGMENT_SOURCE);
     const matrixLocation = gl.getUniformLocation(program, 'u_worldViewProjection');
     const colorLocation = gl.getUniformLocation(program, 'u_color');
@@ -88,8 +82,7 @@ export class WebGL2Program {
 
     gl.attachShader(program, vertex);
     gl.attachShader(program, fragment);
-    gl.bindAttribLocation(program, this.positionLocation, 'a_position');
-    gl.bindAttribLocation(program, this.normalLocation, 'a_normal');
+    gl.bindAttribLocation(program, WebGL2Program.POSITION_ATTRIBUTE, 'a_position');
     gl.linkProgram(program);
     gl.deleteShader(vertex);
     gl.deleteShader(fragment);

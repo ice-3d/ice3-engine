@@ -1,12 +1,6 @@
 import { ICEEngineError, ICEMatrix4 } from '@ice3/core';
-import {
-  BOX_EDGE_INDICES,
-  BOX_INDICES,
-  BOX_NORMALS,
-  BOX_POSITIONS,
-  collectRenderables,
-  colorToRgba,
-} from './WebGL2BoxBatch.js';
+import { collectRenderables } from './WebGL2GeometryBatch.js';
+import { WebGL2GeometryCache } from './WebGL2GeometryCache.js';
 import { WebGL2Program } from './WebGL2Program.js';
 import type {
   ICERendererBackend,
@@ -23,6 +17,22 @@ const EDGE_PIXEL_OFFSETS = [
   [0, 1],
 ] as const;
 
+export function colorToRgba(color: string): [number, number, number, number] {
+  const normalized = color.startsWith('#') ? color.slice(1) : color;
+  const expanded = normalized.length === 3
+    ? normalized.split('').map((part) => part + part).join('')
+    : normalized;
+  if (!/^[0-9a-fA-F]{6}$/.test(expanded)) {
+    throw new Error(`Unsupported ICE basic material color: ${color}`);
+  }
+  return [
+    Number.parseInt(expanded.slice(0, 2), 16) / 255,
+    Number.parseInt(expanded.slice(2, 4), 16) / 255,
+    Number.parseInt(expanded.slice(4, 6), 16) / 255,
+    1,
+  ];
+}
+
 export class WebGL2RendererBackend implements ICERendererBackend {
   capabilities: Readonly<ICERendererCapabilities> = {
     backend: 'webgl2',
@@ -36,18 +46,13 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private onContextLost: (() => void) | undefined;
   private onContextRestored: (() => void) | undefined;
   private program: WebGL2Program | null = null;
-  private vertexBuffer: WebGLBuffer | null = null;
-  private indexBuffer: WebGLBuffer | null = null;
-  private edgeIndexBuffer: WebGLBuffer | null = null;
-  private vertexArray: WebGLVertexArrayObject | null = null;
+  private geometryCache: WebGL2GeometryCache | null = null;
   private frameStats = { drawCalls: 0, renderedMeshes: 0, gpuBytes: 0 };
   private readonly handleContextLost = (event: Event): void => {
     event.preventDefault();
     this.program = null;
-    this.vertexBuffer = null;
-    this.indexBuffer = null;
-    this.edgeIndexBuffer = null;
-    this.vertexArray = null;
+    this.geometryCache?.clear();
+    this.geometryCache = null;
     this.onContextLost?.();
   };
   private readonly handleContextRestored = (): void => {
@@ -62,7 +67,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         this.viewport.width * this.dpr,
         this.viewport.height * this.dpr,
       );
-      this.createGeometry(this.gl);
+      this.createProgram(this.gl);
     }
     this.onContextRestored?.();
   };
@@ -97,7 +102,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     gl.depthFunc(gl.LEQUAL);
     gl.enable(gl.POLYGON_OFFSET_FILL);
     gl.polygonOffset(2, 4);
-    this.createGeometry(gl);
+    this.createProgram(gl);
     this.canvas.addEventListener('webglcontextlost', this.handleContextLost);
     this.canvas.addEventListener('webglcontextrestored', this.handleContextRestored);
   }
@@ -122,9 +127,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     if (
       !this.gl
       || !this.program
-      || !this.vertexArray
-      || !this.indexBuffer
-      || !this.edgeIndexBuffer
+      || !this.geometryCache
     ) {
       throw new ICEEngineError('ICE3_ENGINE_NOT_READY', 'Renderer is not initialized');
     }
@@ -135,11 +138,11 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     const aspect = frame.viewport.width / Math.max(frame.viewport.height, 1);
     const viewProjection = frame.camera.getViewProjectionMatrix(aspect);
     const mvp = new ICEMatrix4();
-    this.frameStats = { drawCalls: 0, renderedMeshes: 0, gpuBytes: this.gpuBytes() };
+    this.frameStats = { drawCalls: 0, renderedMeshes: 0, gpuBytes: 0 };
 
     this.program.use();
     this.program.setClipOffset(0, 0);
-    gl.bindVertexArray(this.vertexArray);
+    this.geometryCache.beginFrame();
     const world = new ICEMatrix4();
     const clipPixelX = 2 / Math.max(1, frame.viewport.width * frame.dpr);
     const clipPixelY = 2 / Math.max(1, frame.viewport.height * frame.dpr);
@@ -150,14 +153,23 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       mvp.multiply(world);
       this.program.setMatrix(mvp);
       this.program.setColor(colorToRgba(renderable.mesh.material.color));
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-      gl.drawElements(gl.TRIANGLES, BOX_INDICES.length, gl.UNSIGNED_SHORT, 0);
+      const geometry = this.geometryCache.retain(gl, renderable.mesh.geometry);
+      gl.bindVertexArray(geometry.vertexArray);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
+      gl.drawElements(
+        gl.TRIANGLES,
+        geometry.triangleCount,
+        renderable.mesh.geometry.indices instanceof Uint16Array
+          ? gl.UNSIGNED_SHORT
+          : gl.UNSIGNED_INT,
+        0,
+      );
       this.frameStats.drawCalls += 1;
       if (renderable.mesh.material.edgeColor) {
         this.program.setColor(
           colorToRgba(renderable.mesh.material.edgeColor),
         );
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.edgeIndexBuffer);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.edgeIndexBuffer);
         for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
           this.program.setClipOffset(
             offsetX * clipPixelX,
@@ -165,8 +177,10 @@ export class WebGL2RendererBackend implements ICERendererBackend {
           );
           gl.drawElements(
             gl.LINES,
-            BOX_EDGE_INDICES.length,
-            gl.UNSIGNED_SHORT,
+            geometry.edgeCount,
+            renderable.mesh.geometry.edgeIndices instanceof Uint16Array
+              ? gl.UNSIGNED_SHORT
+              : gl.UNSIGNED_INT,
             0,
           );
           this.frameStats.drawCalls += 1;
@@ -175,6 +189,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.frameStats.renderedMeshes += 1;
     }
     gl.bindVertexArray(null);
+    this.geometryCache.endFrame();
+    this.frameStats.gpuBytes = this.geometryCache.totalBytes;
   }
 
   dispose(): void {
@@ -188,17 +204,9 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     if (this.program) {
       this.program.dispose();
     }
-    if (this.gl) {
-      this.gl.deleteBuffer(this.vertexBuffer);
-      this.gl.deleteBuffer(this.indexBuffer);
-      this.gl.deleteBuffer(this.edgeIndexBuffer);
-      this.gl.deleteVertexArray(this.vertexArray);
-    }
+    this.geometryCache?.dispose();
     this.program = null;
-    this.vertexBuffer = null;
-    this.indexBuffer = null;
-    this.edgeIndexBuffer = null;
-    this.vertexArray = null;
+    this.geometryCache = null;
     this.canvas = null;
     this.gl = null;
     this.onContextLost = undefined;
@@ -217,57 +225,10 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     return this.frameStats;
   }
 
-  private createGeometry(gl: WebGL2RenderingContext): void {
-    const vertexArray = gl.createVertexArray();
-    const vertexBuffer = gl.createBuffer();
-    const indexBuffer = gl.createBuffer();
-    const edgeIndexBuffer = gl.createBuffer();
-    const program = new WebGL2Program(gl, 0, 1);
-    if (!vertexArray || !vertexBuffer || !indexBuffer || !edgeIndexBuffer) {
-      program.dispose();
-      gl.deleteVertexArray(vertexArray);
-      gl.deleteBuffer(vertexBuffer);
-      gl.deleteBuffer(indexBuffer);
-      gl.deleteBuffer(edgeIndexBuffer);
-      throw new ICEEngineError(
-        'ICE3_GPU_RESOURCE_FAILED',
-        'ICE3_GPU_RESOURCE_FAILED: geometry allocation failed',
-      );
-    }
-
-    gl.bindVertexArray(vertexArray);
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-    const data = new Float32Array(BOX_POSITIONS.length + BOX_NORMALS.length);
-    for (let index = 0; index < BOX_POSITIONS.length / 3; index += 1) {
-      data.set(BOX_POSITIONS.slice(index * 3, index * 3 + 3), index * 6);
-      data.set(BOX_NORMALS.slice(index * 3, index * 3 + 3), index * 6 + 3);
-    }
-    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(program.positionLocation);
-    gl.vertexAttribPointer(program.positionLocation, 3, gl.FLOAT, false, 24, 0);
-    gl.enableVertexAttribArray(program.normalLocation);
-    gl.vertexAttribPointer(program.normalLocation, 3, gl.FLOAT, false, 24, 12);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, BOX_INDICES, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, edgeIndexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, BOX_EDGE_INDICES, gl.STATIC_DRAW);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+  private createProgram(gl: WebGL2RenderingContext): void {
+    const program = new WebGL2Program(gl);
     gl.lineWidth(2);
-    gl.bindVertexArray(null);
-
-    this.vertexArray = vertexArray;
-    this.vertexBuffer = vertexBuffer;
-    this.indexBuffer = indexBuffer;
-    this.edgeIndexBuffer = edgeIndexBuffer;
     this.program = program;
-  }
-
-  private gpuBytes(): number {
-    return (
-      BOX_POSITIONS.byteLength
-      + BOX_NORMALS.byteLength
-      + BOX_INDICES.byteLength
-      + BOX_EDGE_INDICES.byteLength
-    );
+    this.geometryCache = new WebGL2GeometryCache();
   }
 }
