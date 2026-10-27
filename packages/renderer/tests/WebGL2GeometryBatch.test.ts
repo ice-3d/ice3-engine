@@ -9,6 +9,7 @@ import { expect, it } from 'node-test';
 import {
   collectRenderables,
   selectionIdentity,
+  type ICEGeometryRenderable,
 } from '../src/WebGL2GeometryBatch';
 
 it('collects visible box and indexed geometry meshes with stable IDs', () => {
@@ -33,6 +34,33 @@ it('collects visible box and indexed geometry meshes with stable IDs', () => {
     'box',
     'indexed',
   ]);
+});
+
+it('reuses each node world matrix without a per-frame copy', () => {
+  const mesh = new ICEMesh({
+    id: 'box',
+    geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
+    material: new ICEBasicMaterial({ color: '#ffffff' }),
+  });
+  const scene = new ICEScene({ id: 'scene' });
+  scene.addChild(mesh);
+
+  const renderable = collectRenderables(scene)[0]!;
+
+  expect(renderable.worldMatrix).toBe(mesh.updateWorldMatrix().elements);
+});
+
+it('reuses a caller-provided renderable buffer', () => {
+  const scene = new ICEScene({ id: 'scene' });
+  scene.addChild(new ICEMesh({
+    id: 'box',
+    geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
+    material: new ICEBasicMaterial({ color: '#ffffff' }),
+  }));
+  const output: ICEGeometryRenderable[] = [];
+
+  expect(collectRenderables(scene, output)).toBe(output);
+  expect(output).toHaveLength(1);
 });
 
 it('uses the declared equipment identity for rendering selection', () => {
