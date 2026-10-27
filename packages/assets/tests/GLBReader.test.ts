@@ -35,6 +35,21 @@ it('reads an explicit selection identity for LOD content', () => {
   expect(snapshot.nodes[0]!.selectionId).toBe('semantic/device/7');
 });
 
+it('counts a shared mesh once while preserving every node selection', () => {
+  const snapshot = readPreparedGLB(
+    createMinimalPreparedGLB({ sharedNodeCount: 4 }),
+  );
+
+  expect(snapshot.stats).toMatchObject({
+    nodeCount: 4,
+    meshCount: 1,
+    primitiveCount: 2,
+    triangleCount: 1,
+    selectionGroupCount: 4,
+  });
+  expect(snapshot.meshes).toHaveLength(4);
+});
+
 it('rejects an ordinary GLB without the ICE3 profile', () => {
   expect(() => readPreparedGLB(createOrdinaryGLB())).toThrowError(
     /ICE3_ASSET_PROFILE_UNSUPPORTED/,

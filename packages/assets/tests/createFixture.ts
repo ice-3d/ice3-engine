@@ -12,6 +12,7 @@ type FixtureOptions = {
   readonly floatOffset4?: boolean;
   readonly withVertexColors?: boolean;
   readonly selectionId?: string;
+  readonly sharedNodeCount?: number;
   readonly contract?: 'active' | 'legacy' | 'unsupported' | 'conversion';
   readonly missingBufferViewBuffer?: boolean;
   readonly batchIssue?:
@@ -26,6 +27,7 @@ export function createMinimalPreparedGLB(
   options: FixtureOptions = {},
 ): ArrayBuffer {
   const contractMode = options.contract ?? 'active';
+  const nodeCount = options.sharedNodeCount ?? 1;
   const positions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]);
   const indices = new Uint16Array([0, 1, 2]);
   const edges = new Uint16Array([0, 1, 1, 2, 2, 0]);
@@ -90,34 +92,34 @@ export function createMinimalPreparedGLB(
               },
               bounds: { min: [0, 0, 0], max: [1, 1, 0] },
               stats: {
-                nodeCount: 1,
+                nodeCount,
                 maxNodeDepth: 0,
                 meshCount: 1,
                 primitiveCount: 2,
                 triangleCount: 1,
                 edgeSegmentCount: 3,
                 materialCount: 3,
-                selectionGroupCount: 1,
+                selectionGroupCount: nodeCount,
               },
             },
           },
     },
     scene: 0,
-    scenes: [{ nodes: [0] }],
-    nodes: [{
+    scenes: [{ nodes: Array.from({ length: nodeCount }, (_, index) => index) }],
+    nodes: Array.from({ length: nodeCount }, (_, index) => ({
       ...(options.trsNode
         ? { translation: [0, 0, 0] }
         : { matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] }),
       mesh: 0,
       extras: {
         ice3: {
-          id: 'fixture/node/0',
+          id: `fixture/node/${index}`,
           ...(options.selectionId
             ? { selectionId: options.selectionId }
             : {}),
         },
       },
-    }],
+    })),
     meshes: [{
       primitives: [
         {
