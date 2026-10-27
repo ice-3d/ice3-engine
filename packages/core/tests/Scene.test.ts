@@ -3,6 +3,7 @@ import {
   ICEBasicMaterial,
   ICEBoxGeometry,
   ICEEngineError,
+  ICEIndexedGeometry,
   ICEMesh,
   ICEScene,
 } from '../src/index';
@@ -66,5 +67,21 @@ describe('scene ownership', () => {
     expect(() => scene.addChild(branch)).toThrowError(/duplicate/i);
     expect(scene.findByID('branch')).toBeUndefined();
     expect(scene.children).toHaveLength(1);
+  });
+
+  it('accepts general indexed geometry on a mesh', () => {
+    const scene = new ICEScene({ id: 'scene' });
+    const block = new ICEMesh({
+      id: 'triangle',
+      geometry: new ICEIndexedGeometry({
+        id: 'triangle-geometry',
+        positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+        indices: new Uint16Array([0, 1, 2]),
+      }),
+      material: new ICEBasicMaterial({ color: '#ffffff' }),
+    });
+
+    scene.addChild(block);
+    expect(scene.findByID('triangle')).toBe(block);
   });
 });

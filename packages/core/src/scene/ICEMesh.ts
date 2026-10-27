@@ -1,18 +1,18 @@
-import type { ICEBoxGeometry } from '../geometry/ICEBoxGeometry.js';
+import type { ICEGeometry } from '../geometry/ICEGeometry.js';
 import { ICEBoxGeometry as BoxGeometry } from '../geometry/ICEBoxGeometry.js';
 import type { ICEBasicMaterial } from '../material/ICEBasicMaterial.js';
 import { ICEBasicMaterial as BasicMaterial } from '../material/ICEBasicMaterial.js';
 import { ICENode, type ICENodeOptions, type ICESerializedNode } from './ICENode.js';
 
 export interface ICEMeshOptions extends ICENodeOptions {
-  readonly geometry: ICEBoxGeometry;
+  readonly geometry: ICEGeometry;
   readonly material: ICEBasicMaterial;
 }
 
 export class ICEMesh extends ICENode {
   static readonly typeId = 'ice3:Mesh';
 
-  readonly geometry: ICEBoxGeometry;
+  readonly geometry: ICEGeometry;
   readonly material: ICEBasicMaterial;
 
   constructor(options: ICEMeshOptions) {
