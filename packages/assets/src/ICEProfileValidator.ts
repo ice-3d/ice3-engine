@@ -28,6 +28,22 @@ export function validatePreparedProfile(
       'required glTF extensions are unsupported',
     );
   }
+  for (const field of [
+    'animations',
+    'skins',
+    'cameras',
+    'textures',
+    'images',
+    'samplers',
+    'lights',
+  ]) {
+    if (Array.isArray(json[field]) && json[field].length > 0) {
+      throw assetError(
+        'ICE3_ASSET_UNSUPPORTED_FEATURE',
+        `${field} are unsupported by the M1 profile`,
+      );
+    }
+  }
   if (
     records(json.scenes).length !== 1
     || json.scene !== 0
@@ -37,9 +53,8 @@ export function validatePreparedProfile(
   ) {
     throw assetError('ICE3_ASSET_INVALID_GLB', 'profile container fields are invalid');
   }
-  const nodes = records(json.nodes);
   const ids = new Set<string>();
-  for (const node of nodes) {
+  for (const node of records(json.nodes)) {
     const id = record(record(node.extras)?.ice3)?.id;
     if (typeof id !== 'string' || !id || ids.has(id)) {
       throw assetError('ICE3_ASSET_DUPLICATE_ID', 'node profile ID is invalid');
@@ -58,6 +73,21 @@ export function validatePreparedProfile(
         'ICE3_ASSET_PROFILE_UNSUPPORTED',
         'nodes must use matrix transforms',
       );
+    }
+  }
+  for (const [field, kind] of [
+    ['meshes', 'mesh'],
+    ['materials', 'material'],
+  ] as const) {
+    for (const entry of records(json[field])) {
+      const id = record(record(entry.extras)?.ice3)?.id;
+      if (typeof id !== 'string' || !id || ids.has(id)) {
+        throw assetError(
+          'ICE3_ASSET_DUPLICATE_ID',
+          `${kind} profile ID is invalid`,
+        );
+      }
+      ids.add(id);
     }
   }
   const views = records(json.bufferViews);
@@ -90,6 +120,26 @@ export function validatePreparedProfile(
         'ICE3_ASSET_ACCESSOR_INVALID',
         `accessor ${index} is unsupported`,
       );
+    }
+  }
+  for (const mesh of records(json.meshes)) {
+    for (const primitive of records(mesh.primitives)) {
+      const mode = Number(primitive.mode ?? 4);
+      if (mode !== 4 && mode !== 1) {
+        throw assetError(
+          'ICE3_ASSET_UNSUPPORTED_FEATURE',
+          'only triangle and edge primitives are supported',
+        );
+      }
+      if (
+        mode === 1
+        && record(record(primitive.extras)?.ice3)?.role !== 'edges'
+      ) {
+        throw assetError(
+          'ICE3_ASSET_PROFILE_UNSUPPORTED',
+          'line primitives must use the edge role',
+        );
+      }
     }
   }
   return { json, binary, profile };

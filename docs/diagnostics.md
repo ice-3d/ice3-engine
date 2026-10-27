@@ -33,6 +33,7 @@ Diagnostics use stable codes. Callers should branch on `code`, not on message te
 | `ICE3_ASSET_INVALID_GLB` | GLB framing, scene graph, or required profile fields are invalid | Regenerate the asset with the toolchain |
 | `ICE3_ASSET_PROFILE_UNSUPPORTED` | GLB is not a supported ICE3 prepared profile | Process the source model with the toolchain |
 | `ICE3_ASSET_ACCESSOR_INVALID` | Accessor type, alignment, range, or indices violate the profile | Regenerate the prepared GLB |
+| `ICE3_ASSET_UNSUPPORTED_FEATURE` | The profile contains animation, texture, camera, light, or another M1-forbidden feature | Re-export only the supported scene subset |
 | `ICE3_ASSET_DUPLICATE_ID` | Node or mesh semantic IDs collide | Regenerate deterministic IDs with the toolchain |
 | `ICE3_ASSET_INTEGRITY_FAILED` | Explicit BIN digest verification fails | Rebuild or redownload the asset |
 

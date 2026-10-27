@@ -53,7 +53,7 @@ export class ICEAssetLoader {
     assertNotAborted(options.signal);
     let pending = this.cache.get(url);
     if (!pending) {
-      pending = this.fetchSnapshot(url, options.signal);
+      pending = this.fetchSnapshot(url);
       this.cache.set(url, pending);
       pending.catch(() => {
         if (this.cache.get(url) === pending) {
@@ -61,7 +61,7 @@ export class ICEAssetLoader {
         }
       });
     }
-    const cached = await pending;
+    const cached = await awaitWithAbort(pending, options.signal);
     assertNotAborted(options.signal);
     if (
       this.verifyIntegrity
@@ -92,16 +92,14 @@ export class ICEAssetLoader {
 
   private async fetchSnapshot(
     url: string,
-    signal?: AbortSignal,
   ): Promise<{
     readonly bytes: ArrayBuffer;
     readonly snapshot: ICEPreparedAssetSnapshot;
   }> {
     let response: Response;
     try {
-      response = await this.fetcher(url, signal ? { signal } : undefined);
+      response = await this.fetcher(url);
     } catch (error) {
-      if (signal?.aborted) throw abortedError();
       throw new Error(
         `ICE3_ASSET_FETCH_FAILED: ${
           error instanceof Error ? error.message : String(error)
@@ -111,11 +109,8 @@ export class ICEAssetLoader {
     if (!response.ok) {
       throw new Error(`ICE3_ASSET_FETCH_FAILED: HTTP ${response.status}`);
     }
-    assertNotAborted(signal);
     const bytes = await response.arrayBuffer();
-    assertNotAborted(signal);
     const snapshot = readPreparedGLB(bytes);
-    assertNotAborted(signal);
     return { bytes, snapshot };
   }
 }
@@ -124,6 +119,21 @@ function assertNotAborted(signal?: AbortSignal): void {
   if (signal?.aborted) {
     throw abortedError();
   }
+}
+
+async function awaitWithAbort<T>(
+  promise: Promise<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  if (!signal) return promise;
+  assertNotAborted(signal);
+  return new Promise<T>((resolve, reject) => {
+    const abort = (): void => reject(abortedError());
+    signal.addEventListener('abort', abort, { once: true });
+    void promise.then(resolve, reject).finally(() => {
+      signal.removeEventListener('abort', abort);
+    });
+  });
 }
 
 function abortedError(): Error {

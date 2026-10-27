@@ -257,6 +257,7 @@ function accessorOffset(
   if (
     !Number.isInteger(offset)
     || offset < 0
+    || offset % elementBytes !== 0
     || required > Number(view.byteLength)
     || offset + required > binary.byteLength
   ) {

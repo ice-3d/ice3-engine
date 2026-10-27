@@ -75,3 +75,27 @@ it('verifies the BIN digest only when explicitly requested', async () => {
     /ICE3_ASSET_INTEGRITY_FAILED/,
   );
 });
+
+it('does not abort other callers when one shared request is cancelled', async () => {
+  let release: ((response: Response) => void) | undefined;
+  const fetch = vi.fn((
+    _input: RequestInfo | URL,
+    init?: RequestInit,
+  ) => new Promise<Response>((resolve, reject) => {
+    release = resolve;
+    init?.signal?.addEventListener('abort', () => {
+      reject(new DOMException('Aborted', 'AbortError'));
+    });
+  }));
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const loader = new ICEAssetLoader(engine, { fetch });
+  const firstController = new AbortController();
+  const first = loader.load('/asset.glb', { signal: firstController.signal });
+  const second = loader.load('/asset.glb');
+
+  firstController.abort();
+  await expect(first).rejects.toThrow(/ICE3_ASSET_ABORTED/);
+  release!(new Response(fixtureBytes.slice(0)));
+
+  await expect(second).resolves.toBeDefined();
+});

@@ -5,6 +5,10 @@ type FixtureOptions = {
   readonly outOfRange?: boolean;
   readonly trsNode?: boolean;
   readonly badDigest?: boolean;
+  readonly oddAccessorOffset?: boolean;
+  readonly forbiddenFeature?: boolean;
+  readonly duplicateMeshId?: boolean;
+  readonly invalidPrimitiveMode?: boolean;
 };
 
 export function createMinimalPreparedGLB(
@@ -64,7 +68,7 @@ export function createMinimalPreparedGLB(
           attributes: { POSITION: 0 },
           indices: 1,
           material: 0,
-          mode: 4,
+          mode: options.invalidPrimitiveMode ? 3 : 4,
         },
         {
           attributes: { POSITION: 0 },
@@ -75,7 +79,10 @@ export function createMinimalPreparedGLB(
         },
       ],
       extras: { ice3: { id: 'fixture/mesh/0' } },
-    }],
+    }, ...(options.duplicateMeshId ? [{
+      primitives: [],
+      extras: { ice3: { id: 'fixture/mesh/0' } },
+    }] : [])],
     materials: [
       {
         pbrMetallicRoughness: { baseColorFactor: [0.2, 0.5, 0.9, 1] },
@@ -95,7 +102,13 @@ export function createMinimalPreparedGLB(
         min: [0, 0, 0],
         max: [1, 1, 0],
       },
-      { bufferView: 1, componentType: 5123, count: 3, type: 'SCALAR' },
+      {
+        bufferView: 1,
+        ...(options.oddAccessorOffset ? { byteOffset: 1 } : {}),
+        componentType: 5123,
+        count: 3,
+        type: 'SCALAR',
+      },
       { bufferView: 2, componentType: 5123, count: 6, type: 'SCALAR' },
     ],
     bufferViews: [
@@ -104,6 +117,9 @@ export function createMinimalPreparedGLB(
       { buffer: 0, byteOffset: 44, byteLength: 12 },
     ],
     buffers: [{ byteLength: 56 }],
+    ...(options.forbiddenFeature
+      ? { animations: [{}], textures: [{}] }
+      : {}),
   };
 
   return packGLB(json, binary);
@@ -123,6 +139,22 @@ export function createTRSNodeGLB(): ArrayBuffer {
 
 export function createBadDigestGLB(): ArrayBuffer {
   return createMinimalPreparedGLB({ badDigest: true });
+}
+
+export function createOddAccessorOffsetGLB(): ArrayBuffer {
+  return createMinimalPreparedGLB({ oddAccessorOffset: true });
+}
+
+export function createForbiddenFeatureGLB(): ArrayBuffer {
+  return createMinimalPreparedGLB({ forbiddenFeature: true });
+}
+
+export function createDuplicateMeshIdGLB(): ArrayBuffer {
+  return createMinimalPreparedGLB({ duplicateMeshId: true });
+}
+
+export function createInvalidPrimitiveModeGLB(): ArrayBuffer {
+  return createMinimalPreparedGLB({ invalidPrimitiveMode: true });
 }
 
 function packGLB(json: unknown, binary: Buffer): ArrayBuffer {

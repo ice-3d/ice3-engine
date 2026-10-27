@@ -2,6 +2,10 @@ import { expect, it } from 'node-test';
 import { readPreparedGLB } from '../src/index';
 import {
   createMinimalPreparedGLB,
+  createOddAccessorOffsetGLB,
+  createForbiddenFeatureGLB,
+  createDuplicateMeshIdGLB,
+  createInvalidPrimitiveModeGLB,
   createOrdinaryGLB,
   createOutOfRangeAccessorGLB,
   createTRSNodeGLB,
@@ -32,5 +36,29 @@ it('rejects an accessor extending past the BIN chunk', () => {
 it('rejects node TRS when the ICE3 profile requires matrix transforms', () => {
   expect(() => readPreparedGLB(createTRSNodeGLB())).toThrowError(
     /ICE3_ASSET_PROFILE_UNSUPPORTED/,
+  );
+});
+
+it('rejects misaligned accessor component offsets with a profile diagnostic', () => {
+  expect(() => readPreparedGLB(createOddAccessorOffsetGLB())).toThrowError(
+    /ICE3_ASSET_ACCESSOR_INVALID/,
+  );
+});
+
+it('rejects animation and texture content outside the M1 profile', () => {
+  expect(() => readPreparedGLB(createForbiddenFeatureGLB())).toThrowError(
+    /ICE3_ASSET_UNSUPPORTED_FEATURE/,
+  );
+});
+
+it('rejects duplicate mesh semantic IDs', () => {
+  expect(() => readPreparedGLB(createDuplicateMeshIdGLB())).toThrowError(
+    /ICE3_ASSET_DUPLICATE_ID/,
+  );
+});
+
+it('rejects primitive modes outside triangles and profile edges', () => {
+  expect(() => readPreparedGLB(createInvalidPrimitiveModeGLB())).toThrowError(
+    /ICE3_ASSET_UNSUPPORTED_FEATURE/,
   );
 });

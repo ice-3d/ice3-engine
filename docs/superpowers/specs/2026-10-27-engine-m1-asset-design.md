@@ -333,7 +333,6 @@ M1 至少定义以下稳定运行时错误码：
 | `ICE3_ASSET_UNSUPPORTED_FEATURE` | 资产包含动画、纹理等 M1 禁止内容 | 重新导出 M1 支持的子集 |
 | `ICE3_ASSET_DUPLICATE_ID` | 节点、网格或材质身份冲突 | 重新生成确定性 ID |
 | `ICE3_ASSET_ABORTED` | 加载被 `AbortSignal` 取消 | 不需要重试，除非调用方重新发起 |
-| `ICE3_ASSET_DISPOSED` | 已释放句柄被继续使用 | 重新加载资产 |
 
 工具链诊断使用独立的 `ICE3_TOOL_*` 前缀，不把源格式内部异常直接暴露为运行时错误。
 
