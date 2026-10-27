@@ -47,6 +47,10 @@ export class FakeRendererBackend implements ICERendererBackend {
     this.lastBackgroundColor = color;
   }
 
+  prepareBatchGeometry(): void {}
+
+  releaseBatchGeometry(): void {}
+
   render(frame: ICEFrame): void {
     this.assertActive();
     this.frames.push(frame);

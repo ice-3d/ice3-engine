@@ -107,8 +107,13 @@ export function queueBatchGeneration(
         cleanup();
         return;
       }
+      try {
+        options.onActivate?.(options.generation, resources);
+      } catch (error) {
+        failNow(error);
+        return;
+      }
       settled = true;
-      options.onActivate?.(options.generation, resources);
       options.onUploaded(options.generation);
       return;
     }

@@ -1,4 +1,8 @@
-import type { ICEPerspectiveCamera, ICEScene } from '@ice3/core';
+import type {
+  ICEGeometry,
+  ICEPerspectiveCamera,
+  ICEScene,
+} from '@ice3/core';
 
 export type ICEViewport = {
   readonly x: number;
@@ -42,6 +46,8 @@ export interface ICERendererBackend {
   }): void;
   resize(viewport: ICEViewport, dpr: number): void;
   setBackgroundColor?(color: string): void;
+  prepareBatchGeometry?(geometry: ICEGeometry): void;
+  releaseBatchGeometry?(geometry: ICEGeometry): void;
   pick?(frame: ICEFrame, point: ICEScreenPoint): string | undefined;
   render(frame: ICEFrame): void;
   capture?(): Promise<Blob>;

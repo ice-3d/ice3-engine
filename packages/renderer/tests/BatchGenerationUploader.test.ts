@@ -126,3 +126,30 @@ test('does not activate a superseded generation', () => {
 
   expect(activation).toBe(0);
 });
+
+test('releases the candidate when activation throws', () => {
+  const frames = scheduler();
+  const released: string[] = [];
+  let failure: unknown;
+  queueBatchGeneration([buffer('one')], {
+    generation: 5,
+    bytesPerFrame: 100,
+    upload: (value) => value.id,
+    release: (resource) => {
+      released.push(resource as string);
+    },
+    onActivate: () => {
+      throw new Error('activation failed');
+    },
+    schedule: frames.schedule,
+    cancelSchedule: frames.cancel,
+    onUploaded: () => undefined,
+    onFailed: (_generation, error) => {
+      failure = error;
+    },
+  });
+
+  expect(() => frames.frame()).not.toThrow();
+  expect(failure).toBeInstanceOf(Error);
+  expect(released).toEqual(['one']);
+});
