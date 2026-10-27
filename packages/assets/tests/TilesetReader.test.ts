@@ -69,18 +69,45 @@ test('rejects transforms that are not affine', () => {
     .toThrow(/ICE3_TILESET_INVALID/);
 });
 
-test('rejects content on a non-leaf tile until LOD scheduling is supported', () => {
-  const invalid = JSON.parse(tileset());
-  invalid.root.children = [{
+test('parses parent content and retains the complete hierarchy', () => {
+  const value = JSON.parse(tileset());
+  value.root.children = [{
     boundingVolume: {
       box: [1, -2, 0.5, 1, 0, 0, 0, 2, 0, 0, 0, 0.5],
     },
     geometricError: 0,
+    refine: 'REPLACE',
+    content: { uri: 'parts/part-001.glb' },
+  }];
+  const snapshot = readTileset(
+    JSON.stringify(value),
+    'https://example.test/scene/tileset.json',
+  );
+
+  expect(snapshot.root.contentUri).toBe(
+    'https://example.test/scene/parts/part-000.glb',
+  );
+  expect(snapshot.root.children).toHaveLength(1);
+  expect(snapshot.tiles.map((tile) => tile.contentUri)).toEqual([
+    'https://example.test/scene/parts/part-000.glb',
+    'https://example.test/scene/parts/part-001.glb',
+  ]);
+});
+
+test('rejects a tile whose error is above its parent', () => {
+  const value = JSON.parse(tileset());
+  value.root.geometricError = 1;
+  value.root.children = [{
+    boundingVolume: value.root.boundingVolume,
+    geometricError: 2,
+    refine: 'REPLACE',
     content: { uri: 'parts/part-001.glb' },
   }];
 
-  expect(() => readTileset(JSON.stringify(invalid), 'https://x.test/'))
-    .toThrow(/ICE3_TILESET_UNSUPPORTED/);
+  expect(() => readTileset(
+    JSON.stringify(value),
+    'https://example.test/scene/tileset.json',
+  )).toThrow(/ICE3_TILESET_INVALID/);
 });
 
 test('rejects unsupported viewer volumes and multi-content tiles', () => {
