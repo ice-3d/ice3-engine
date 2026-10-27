@@ -294,10 +294,9 @@ it('unloads a partition after the camera leaves it', async () => {
 
   orbitCamera.setTarget([12, 0, 0]).setPosition([12, 0, 8]);
   engine.trigger('AFTER_RENDER');
-  await tileset.whenIdle();
-
-  expect([...tileset.scene.children].map((node) => node.id))
-    .not.toEqual(initialIds);
+  await expect.poll(() => (
+    [...tileset.scene.children].map((node) => node.id)
+  )).not.toEqual(initialIds);
   expect(tileset.stats.evicted).toBeGreaterThan(0);
 });
 

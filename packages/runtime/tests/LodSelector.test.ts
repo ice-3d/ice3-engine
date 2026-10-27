@@ -76,6 +76,24 @@ test('refines into visible children when screen-space error is high', () => {
   expect(result.fallbackByTargetId.get('far')).toBe('root');
 });
 
+test('keeps refined children until screen-space error falls below hysteresis', () => {
+  const refined = selector.select(input(500));
+  const previousTargetIds = new Set(refined.target.map((tile) => tile.id));
+  const withinHysteresis = selector.select(input(620, 800, {
+    previousTargetIds,
+  }));
+  const coarsened = selector.select(input(900, 800, {
+    previousTargetIds: new Set(
+      withinHysteresis.target.map((tile) => tile.id),
+    ),
+  }));
+
+  expect(refined.target.map((tile) => tile.id)).toEqual(['near', 'far']);
+  expect(withinHysteresis.target.map((tile) => tile.id))
+    .toEqual(['near', 'far']);
+  expect(coarsened.target.map((tile) => tile.id)).toEqual(['root']);
+});
+
 test('changes the visible target when only viewport width changes', () => {
   const root = tree();
   root.children = [child('center', 1), child('lateral', 20)];
@@ -105,13 +123,13 @@ test('continues through an uncontented internal node with zero error', () => {
   expect(result.target.map((tile) => tile.id)).toEqual(['near', 'far']);
 });
 
-test('falls back to ancestor content when a target has failed', () => {
+test('collapses descendants under a failed ancestor fallback', () => {
   const result = selector.select(input(2, 800, {
     failedIds: new Set(['near']),
   }));
 
-  expect(result.target.map((tile) => tile.id)).toEqual(['root', 'far']);
-  expect(result.fallbackByTargetId.get('far')).toBe('root');
+  expect(result.target.map((tile) => tile.id)).toEqual(['root']);
+  expect(result.fallbackByTargetId.size).toBe(0);
 });
 
 test('never refines content with zero geometric error', () => {

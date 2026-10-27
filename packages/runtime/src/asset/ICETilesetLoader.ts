@@ -511,6 +511,9 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     }
     this.workSetForce = false;
     this.lastSignature = signature;
+    const previousTargetIds = new Set(
+      this.lodSelection?.target.map((tile) => tile.id) ?? [],
+    );
     const lodSelection = this.lodSelector.select({
       root: this.snapshot.root,
       camera: this.camera,
@@ -521,6 +524,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
           .filter(([, state]) => state === 'failed')
           .map(([id]) => id),
       ),
+      previousTargetIds,
       maxScreenSpaceErrorPixels: this.maxScreenSpaceErrorPixels,
     });
     this.lodSelection = lodSelection;
@@ -570,14 +574,18 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     this.workSet = workSet;
     this.idleEmitted = false;
 
-    for (const id of [...this.resident.keys()]) {
-      if (!workSet.retainIds.has(id)) this.unloadTile(id);
+    const retainingTransitionCoverage = this.hasPendingVisibleTargets();
+    if (!retainingTransitionCoverage) {
+      this.promoteReadyVisibleTargets();
+      for (const id of [...this.resident.keys()]) {
+        if (!workSet.retainIds.has(id)) this.unloadTile(id);
+      }
     }
     for (const id of [...this.candidates.keys()]) {
       if (!workSet.retainIds.has(id)) this.discardCandidate(id);
     }
 
-    this.enforceResidentBudget();
+    if (!retainingTransitionCoverage) this.enforceResidentBudget();
     const desired = [...nextTiles, ...prefetchTiles];
     const desiredIds = new Set(desired.map((tile) => tile.id));
     const pending: ICETilesetTile[] = [];
@@ -770,6 +778,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         if (this.scene.findByID(candidate.container.id)) {
           throw new Error(`ICE3_TILESET_DUPLICATE_ID: ${candidate.container.id}`);
         }
+        candidate.container.visible = false;
         this.scene.addChild(candidate.container);
         this.resident.set(tileId, {
           tile: candidate.tile,
@@ -779,21 +788,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         });
         this.residentBytes += candidate.bytes;
         this.states.set(tileId, 'loaded');
-        const fallbackId = this.lodSelection?.fallbackByTargetId.get(tileId);
-        if (fallbackId) this.failedLodFallbacks.delete(fallbackId);
-        this.engine.requestRender('tileset-tile-committed');
         this.emit('TILESET_TILE_LOADED', tileId);
-        if (
-          !this.readySettled
-          && !this.prefetchIds.has(tileId)
-          && this.workSet?.visible.some((tile) => tile.id === tileId)
-        ) {
-          this.readySettled = true;
-          this.resolveReady();
-          this.trigger<ICETilesetEvent>('TILESET_READY', {
-            stats: this.stats,
-          });
-        }
       } catch (error) {
         candidate.container.dispose();
         for (const uri of candidate.contentUris) this.assetLoader.clear(uri);
@@ -806,8 +801,9 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         this.rejectReadyIfVisibleSetFailed();
       }
     }
+    this.promoteReadyVisibleTargets();
     if (this.lodSelection) this.requestWorkSetUpdate(true);
-    this.enforceResidentBudget();
+    if (!this.hasPendingVisibleTargets()) this.enforceResidentBudget();
     this.updateBudgetWarning();
     this.scheduleCommit();
     this.settleIdleWaiters();
@@ -845,6 +841,45 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       );
     }
     this.engine.requestRender('tileset-tile-unloaded');
+  }
+
+  private hasPendingVisibleTargets(): boolean {
+    return (this.lodSelection?.target ?? []).some((tile) => (
+      !this.resident.has(tile.id)
+    ));
+  }
+
+  private promoteReadyVisibleTargets(): void {
+    const targets = this.lodSelection?.target ?? [];
+    if (
+      targets.length === 0
+      || targets.some((tile) => !this.resident.has(tile.id))
+    ) {
+      return;
+    }
+    const targetIds = new Set(targets.map((tile) => tile.id));
+    for (const tileId of targetIds) {
+      const resident = this.resident.get(tileId);
+      if (resident) resident.container.visible = true;
+      const fallbackId = this.lodSelection?.fallbackByTargetId.get(tileId);
+      if (fallbackId) this.failedLodFallbacks.delete(fallbackId);
+    }
+    for (const tileId of [...this.resident.keys()]) {
+      if (
+        !targetIds.has(tileId)
+        && !this.prefetchIds.has(tileId)
+      ) {
+        this.unloadTile(tileId);
+      }
+    }
+    this.engine.requestRender('tileset-visible-target-committed');
+    if (!this.readySettled) {
+      this.readySettled = true;
+      this.resolveReady();
+      this.trigger<ICETilesetEvent>('TILESET_READY', {
+        stats: this.stats,
+      });
+    }
   }
 
   private rejectReadyIfVisibleSetFailed(): void {

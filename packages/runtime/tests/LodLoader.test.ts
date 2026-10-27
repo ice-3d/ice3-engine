@@ -5,7 +5,10 @@ import {
   ICE3,
   ICEPerspectiveCamera,
 } from '../src/index';
-import { ICETilesetLoader } from '../src/asset/ICETilesetLoader';
+import {
+  ICETilesetLoader,
+  type ICETilesetEvent,
+} from '../src/asset/ICETilesetLoader';
 
 const fixture = (path: string): Uint8Array => readFileSync(
   new URL(`../../..//tests/fixtures/hierarchical-demo/${path}`, import.meta.url),
@@ -66,6 +69,68 @@ it('keeps coarse parent coverage until focused fine content commits', async () =
   expect(tileset.stats.lod.coarseResident).toBe(0);
   expect(tileset.stats.lod.fineResident).toBeGreaterThan(0);
   expect(tileset.stats.lod.transitioning).toBe(0);
+});
+
+it('does not expose overlapping ancestor and descendant levels', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const lodCamera = camera();
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const path = relative(input);
+    if (path.startsWith('parts/')) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    return new Response(fixture(path));
+  });
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch,
+    camera: lodCamera,
+    maxScreenSpaceErrorPixels: 0.000001,
+  }).open('https://example.test/hierarchical-demo/tileset.json');
+  await tileset.whenReady();
+
+  const overlaps: string[][] = [];
+  tileset.on<ICETilesetEvent>('TILESET_TILE_LOADED', () => {
+    const visibleTileIds = tileset.scene.children
+      .filter((node) => node.visible)
+      .map((node) => node.id.slice('hierarchical-demo:tile:'.length));
+    for (const ancestor of visibleTileIds) {
+      for (const candidate of visibleTileIds) {
+        if (candidate.startsWith(`${ancestor}/`)) {
+          overlaps.push([ancestor, candidate]);
+        }
+      }
+    }
+  });
+
+  lodCamera.setPosition([5.5, 0, 20]).setTarget([5.5, 0, 0]);
+  engine.trigger('AFTER_RENDER');
+  await tileset.whenIdle();
+
+  expect(overlaps).toEqual([]);
+});
+
+it('keeps the current representation visible until coarse content commits', async () => {
+  const engine = new ICE3({ backend: new FakeRendererBackend() });
+  const lodCamera = camera(true);
+  const tileset = await new ICETilesetLoader(engine, {
+    fetch: immediateFetch(),
+    camera: lodCamera,
+    maxScreenSpaceErrorPixels: 0.01,
+  }).open('https://example.test/hierarchical-demo/tileset.json');
+  await tileset.whenReady();
+  await expect.poll(() => tileset.stats.lod.fineResident)
+    .toBeGreaterThan(0);
+  await tileset.whenIdle();
+  expect(tileset.scene.children.some((node) => node.visible)).toBe(true);
+
+  lodCamera.setPosition([15.5, 0, 200]).setTarget([15.5, 0, 0]);
+  engine.trigger('AFTER_RENDER');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(tileset.scene.children.some((node) => node.visible)).toBe(true);
+  await tileset.whenIdle();
+  expect(tileset.stats.lod.coarseResident).toBeGreaterThan(0);
+  expect(tileset.stats.lod.fineResident).toBe(0);
 });
 
 it('keeps parent coverage when focused fine content fails', async () => {
