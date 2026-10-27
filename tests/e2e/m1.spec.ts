@@ -41,3 +41,22 @@ test('disposes the asset exactly once', async ({ page }) => {
   await page.getByRole('button', { name: '释放资产' }).click();
   await expect(page.locator('[data-role="status"]')).toHaveText('资产已释放');
 });
+
+test('uses a light technical background with material contrast', async ({ page }) => {
+  await page.goto('http://127.0.0.1:8104/');
+  await expect(page.locator('[data-role="status"]')).toHaveText('资产已加载');
+  const background = await page.evaluate(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>(
+      'canvas[data-layer="scene"]',
+    );
+    const gl = canvas?.getContext('webgl2');
+    if (!canvas || !gl) throw new Error('WebGL2 canvas missing');
+    const pixel = new Uint8Array(4);
+    gl.readPixels(5, 5, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+    return [...pixel];
+  });
+
+  expect(background[0]).toBeGreaterThanOrEqual(150);
+  expect(background[1]).toBeGreaterThanOrEqual(150);
+  expect(background[2]).toBeGreaterThanOrEqual(150);
+});

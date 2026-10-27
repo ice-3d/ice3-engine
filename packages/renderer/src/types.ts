@@ -28,6 +28,7 @@ export interface ICERendererBackend {
     readonly onContextRestored?: () => void;
   }): void;
   resize(viewport: ICEViewport, dpr: number): void;
+  setBackgroundColor?(color: string): void;
   render(frame: ICEFrame): void;
   capture?(): Promise<Blob>;
   dispose(): void;

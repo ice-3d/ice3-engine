@@ -13,6 +13,7 @@ export class FakeRendererBackend implements ICERendererBackend {
   };
   readonly frames: ICEFrame[] = [];
   lastViewport: ICEViewport = { x: 0, y: 0, width: 1, height: 1 };
+  lastBackgroundColor = '#09111f';
   private disposed = false;
   private disposals = 0;
 
@@ -21,6 +22,10 @@ export class FakeRendererBackend implements ICERendererBackend {
   resize(viewport: ICEViewport): void {
     this.assertActive();
     this.lastViewport = { ...viewport };
+  }
+
+  setBackgroundColor(color: string): void {
+    this.lastBackgroundColor = color;
   }
 
   render(frame: ICEFrame): void {

@@ -141,3 +141,23 @@ it('waits for context restoration before rendering', () => {
   expect(backend.frames).toHaveLength(1);
   engine.destroy();
 });
+
+it('passes a configured background color to the renderer', () => {
+  const backend = new FakeRendererBackend();
+  const engine = new ICE3({ backend }).init(createHost());
+  engine.setScene(new ICEScene({ id: 'scene' })).setCamera(
+    new ICEPerspectiveCamera({
+      id: 'camera',
+      fov: 45,
+      near: 0.1,
+      far: 100,
+      position: [0, 0, 5],
+      target: [0, 0, 0],
+    }),
+  );
+
+  engine.setBackgroundColor('#aeb8c4').start();
+
+  expect(backend.lastBackgroundColor).toBe('#aeb8c4');
+  engine.destroy();
+});

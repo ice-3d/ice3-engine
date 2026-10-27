@@ -47,6 +47,12 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private onContextRestored: (() => void) | undefined;
   private program: WebGL2Program | null = null;
   private geometryCache: WebGL2GeometryCache | null = null;
+  private backgroundRgba: readonly [number, number, number, number] = [
+    0.035,
+    0.055,
+    0.09,
+    1,
+  ];
   private frameStats = { drawCalls: 0, renderedMeshes: 0, gpuBytes: 0 };
   private readonly handleContextLost = (event: Event): void => {
     event.preventDefault();
@@ -123,6 +129,10 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     );
   }
 
+  setBackgroundColor(color: string): void {
+    this.backgroundRgba = colorToRgba(color);
+  }
+
   render(frame: ICEFrame): void {
     if (
       !this.gl
@@ -132,7 +142,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       throw new ICEEngineError('ICE3_ENGINE_NOT_READY', 'Renderer is not initialized');
     }
     const gl = this.gl;
-    gl.clearColor(0.035, 0.055, 0.09, 1);
+    gl.clearColor(...this.backgroundRgba);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     const aspect = frame.viewport.width / Math.max(frame.viewport.height, 1);

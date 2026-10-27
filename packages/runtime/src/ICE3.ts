@@ -204,6 +204,13 @@ export class ICE3 extends ICEEventDispatcher {
     return this;
   }
 
+  setBackgroundColor(color: string): this {
+    this.assertActive();
+    this.backend.setBackgroundColor?.(color);
+    this.requestRender('background-color');
+    return this;
+  }
+
   addLayer(layer: ICE2DLayer): this {
     this.assertActive();
     if (this.layers.some((item) => item.id === layer.id)) {
