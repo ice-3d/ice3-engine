@@ -367,7 +367,14 @@ export class ICETilesetHandle extends ICEEventDispatcher {
 
   private recordLodFailure(tileId: string): void {
     const coverage = this.lodCoverageId(this.tilesById.get(tileId));
-    if (coverage) this.failedLodFallbacks.add(coverage);
+    if (coverage && !this.failedLodFallbacks.has(coverage)) {
+      this.failedLodFallbacks.add(coverage);
+      this.engine.reportDiagnostic(
+        'ICE3_TILESET_LOD_FALLBACK',
+        'Finer Tileset content is unavailable; retaining coarse coverage',
+        'warning',
+      );
+    }
   }
 
   tileState(tileId: string): ICETilesetTileState | undefined {
