@@ -10,6 +10,7 @@ export class FakeRendererBackend implements ICERendererBackend {
   readonly capabilities: Readonly<ICERendererCapabilities> = {
     backend: 'fake',
     maxTextureSize: 4096,
+    picking: false,
   };
   readonly frames: ICEFrame[] = [];
   lastViewport: ICEViewport = { x: 0, y: 0, width: 1, height: 1 };

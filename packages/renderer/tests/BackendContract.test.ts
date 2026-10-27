@@ -10,6 +10,7 @@ it('records frames without exposing GPU objects', () => {
     camera: {} as never,
     viewport: { x: 0, y: 0, width: 320, height: 180 },
     dpr: 2,
+    selection: [],
   });
 
   expect(backend.frames).toHaveLength(1);
@@ -25,4 +26,9 @@ it('rejects a target without WebGL2 using a stable diagnostic code', () => {
   expect(() => new WebGL2RendererBackend().initialize({ canvas })).toThrowError(
     /ICE3_WEBGL2_UNAVAILABLE/,
   );
+});
+
+it('declares whether the backend supports exact picking', () => {
+  expect(new FakeRendererBackend().capabilities.picking).toBe(false);
+  expect(new WebGL2RendererBackend().capabilities.picking).toBe(true);
 });

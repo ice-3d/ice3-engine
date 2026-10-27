@@ -37,6 +37,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   capabilities: Readonly<ICERendererCapabilities> = {
     backend: 'webgl2',
     maxTextureSize: 0,
+    picking: true,
   };
 
   private canvas: HTMLCanvasElement | null = null;
@@ -103,6 +104,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.capabilities = {
       backend: 'webgl2',
       maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE) as number,
+      picking: true,
     };
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);

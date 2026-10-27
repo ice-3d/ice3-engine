@@ -444,6 +444,7 @@ export class ICE3 extends ICEEventDispatcher {
       camera: this.camera,
       viewport: this.viewport,
       dpr: this.dpr,
+      selection: this.interaction.getSelection(),
     });
     if (this.overlayCanvas && this.layers.length > 0) {
       if (this.scene) {

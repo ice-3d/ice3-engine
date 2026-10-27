@@ -7,17 +7,21 @@ export type ICEViewport = {
   readonly height: number;
 };
 
+export type ICEScreenPoint = Readonly<{ x: number; y: number }>;
+
 export type ICEFrame = {
   readonly frameId: number;
   readonly scene: ICEScene;
   readonly camera: ICEPerspectiveCamera;
   readonly viewport: ICEViewport;
   readonly dpr: number;
+  readonly selection: readonly string[];
 };
 
 export interface ICERendererCapabilities {
   readonly backend: 'webgl2' | 'fake';
   readonly maxTextureSize: number;
+  readonly picking: boolean;
 }
 
 export interface ICERendererBackend {
@@ -29,6 +33,7 @@ export interface ICERendererBackend {
   }): void;
   resize(viewport: ICEViewport, dpr: number): void;
   setBackgroundColor?(color: string): void;
+  pick?(frame: ICEFrame, point: ICEScreenPoint): string | undefined;
   render(frame: ICEFrame): void;
   capture?(): Promise<Blob>;
   dispose(): void;
