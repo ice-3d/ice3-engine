@@ -95,7 +95,11 @@ type PointerGesture = {
 };
 
 type ICEPickResult =
-  | { readonly kind: 'hit'; readonly node: ICENode }
+  | {
+      readonly kind: 'hit';
+      readonly node: ICENode;
+      readonly selectionId: string;
+    }
   | { readonly kind: 'empty' }
   | { readonly kind: 'error' };
 
@@ -649,9 +653,7 @@ export class ICE3 extends ICEEventDispatcher {
         const outcome: ICEPickOutcome = result.kind === 'hit'
           ? {
               kind: 'hit',
-              id: result.node instanceof ICEMesh
-                ? result.node.selectionId
-                : result.node.id,
+              id: result.selectionId,
             }
           : result;
         const nextSelection = selectionForOutcome(outcome);
@@ -741,9 +743,11 @@ export class ICE3 extends ICEEventDispatcher {
         }, point);
         this.lastPickId = selectionId;
         const node = selectionId
-          ? findNodeBySelectionId(this.scene, selectionId)
+          ? findNodeForPickedSelectionId(this.scene, selectionId)
           : undefined;
-        return node ? { kind: 'hit', node } : { kind: 'empty' };
+        return node && selectionId
+          ? { kind: 'hit', node, selectionId }
+          : { kind: 'empty' };
       } catch (error) {
         this.recordDiagnostic(
           'ICE3_PICK_UNAVAILABLE',
@@ -755,7 +759,13 @@ export class ICE3 extends ICEEventDispatcher {
       }
     }
     const node = pickSceneNode(this.scene, this.camera, this.viewport, point);
-    return node ? { kind: 'hit', node } : { kind: 'empty' };
+    return node
+      ? {
+          kind: 'hit',
+          node,
+          selectionId: node instanceof ICEMesh ? node.selectionId : node.id,
+        }
+      : { kind: 'empty' };
   }
 
   private assertActive(): void {
@@ -784,15 +794,21 @@ export class ICE3 extends ICEEventDispatcher {
   }
 }
 
-const findNodeBySelectionId = (
+const findNodeForPickedSelectionId = (
   node: ICENode,
   selectionId: string,
 ): ICENode | undefined => {
   if (node.selectionId === selectionId) {
     return node;
   }
+  const semanticIds = (
+    node as ICENode & { readonly semanticSelectionIds?: readonly string[] }
+  ).semanticSelectionIds;
+  if (semanticIds?.includes(selectionId)) {
+    return node;
+  }
   for (const child of node.children) {
-    const found = findNodeBySelectionId(child, selectionId);
+    const found = findNodeForPickedSelectionId(child, selectionId);
     if (found) return found;
   }
   return undefined;

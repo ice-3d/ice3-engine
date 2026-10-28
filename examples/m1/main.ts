@@ -514,6 +514,7 @@ disposeButton.addEventListener('click', disposeAsset);
 window.__ice3M1 = {
   diagnostics: (): Readonly<ICEEngineDiagnostics> => engine.getDiagnostics(),
   projection: (): ICEProjectedPoint => engine.project([0, 0, 0]),
+  projectWorldPoint: (point) => engine.project(point),
   assetCenter: () => engine.project(selectedScenePoint()),
   cameraPosition: () => camera.getPosition().toArray(),
   cameraTarget: () => camera.getTarget().toArray(),
@@ -550,13 +551,6 @@ window.__ice3M1 = {
       ? firstSelectionIdentity(handle.scene)
       : undefined;
     engine.setSelection(selectionId ? [selectionId] : []);
-  },
-  selectWastewaterEquipment: () => {
-    const selectionId = wastewaterEquipmentSelectionIds()[0];
-    if (selectionId) {
-      engine.setSelection([selectionId]);
-    }
-    return selectionId;
   },
   equipmentSelectionIds: wastewaterEquipmentSelectionIds,
   whenLodIdle: async () => {
