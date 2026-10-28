@@ -92,11 +92,17 @@ test('loads a same-origin asset selected by a local preview override', async ({
     .toHaveAttribute('aria-busy', 'false');
 });
 
-test('prefers a local preview when the root URL is opened', async ({ page }) => {
+test('loads wastewater instead of a local preview from the root URL', async ({
+  page,
+}) => {
   const previewRequests: string[] = [];
+  const wastewaterRequests: string[] = [];
   page.on('request', (request) => {
     if (request.url().includes('/assets/local-preview.local.json')) {
       previewRequests.push(request.method());
+    }
+    if (request.url().includes('/assets/wastewater-plant/')) {
+      wastewaterRequests.push(request.method());
     }
   });
   await page.unroute('**/assets/local-preview.local.json');
@@ -141,10 +147,10 @@ test('prefers a local preview when the root URL is opened', async ({ page }) => 
   await expect(page.locator('[data-role="status"]'))
     .toHaveText('当前视角已就绪');
   expect(await page.evaluate(
-    () => window.__ice3M1.assetStats().meshCount,
-  )).toBeGreaterThan(0);
-  expect(previewRequests).toContain('HEAD');
-  expect(previewRequests).toContain('GET');
+    () => window.__ice3M1.equipmentSelectionIds().length,
+  )).toBe(65);
+  expect(wastewaterRequests.length).toBeGreaterThan(0);
+  expect(previewRequests).toEqual([]);
 });
 
 test('activates one adaptive generation only after idle', async ({ page }) => {

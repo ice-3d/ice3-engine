@@ -53,7 +53,6 @@ const defaultAssetUrl = adaptiveDemo
   ? '/assets/adaptive-demo/tileset.json'
   : '/assets/wastewater-plant/tiled/tileset.json';
 const assetOverride = query.get('asset');
-const localPreviewAssetUrl = '/assets/local-preview.local.json';
 const loader = new ICETilesetLoader(engine, {
   camera,
   ...(adaptiveBatching
@@ -90,21 +89,6 @@ function resolveAssetOverride(value: string): string {
 async function resolveAssetUrl(): Promise<string> {
   if (assetOverride !== null) {
     return resolveAssetOverride(assetOverride);
-  }
-  if (adaptiveDemo || query.has('adaptive')) {
-    return defaultAssetUrl;
-  }
-  try {
-    const response = await fetch(localPreviewAssetUrl, {
-      method: 'HEAD',
-      cache: 'no-store',
-    });
-    const contentType = response.headers.get('content-type') ?? '';
-    if (response.ok && contentType.includes('application/json')) {
-      return localPreviewAssetUrl;
-    }
-  } catch {
-    // The checked-in synthetic asset remains available without local data.
   }
   return defaultAssetUrl;
 }
