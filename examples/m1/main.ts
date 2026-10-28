@@ -552,16 +552,16 @@ window.__ice3M1 = {
       : undefined;
     engine.setSelection(selectionId ? [selectionId] : []);
   },
-      equipmentSelectionIds: wastewaterEquipmentSelectionIds,
-      whenLodIdle: async () => {
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        await handle?.whenIdle();
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        await handle?.whenIdle();
-        viewUpdating = false;
-        loadFinished = true;
-        updateStatus();
-      },
+  equipmentSelectionIds: wastewaterEquipmentSelectionIds,
+  whenLodIdle: async () => {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await handle?.whenIdle();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await handle?.whenIdle();
+    viewUpdating = false;
+    loadFinished = true;
+    updateStatus();
+  },
   visibleMeshCount: () => {
     let count = 0;
     const visit = (node: ICENode): void => {
@@ -571,9 +571,9 @@ window.__ice3M1 = {
     if (handle) visit(handle.scene);
     return count;
   },
-      scenePixelAtProjection,
-      selectedIds: () => engine.getSelection(),
-      disposeAsset,
+  scenePixelAtProjection,
+  selectedIds: () => engine.getSelection(),
+  disposeAsset,
   assetStats: sceneStats,
   adaptiveStats: () => handle?.adaptiveStats ?? {
     mode: 'asset',
