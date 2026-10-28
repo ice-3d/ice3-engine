@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { expect, it } from 'node-test';
+import { it } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
 import { readPreparedGLB } from '../src/index';
 import {
   createMinimalPreparedGLB,
@@ -137,16 +138,18 @@ it('reads validated render batch metadata', () => {
   );
 });
 
-it.each([
+for (const issue of [
   'missing-semantic-attribute',
   'out-of-range-semantic-index',
   'duplicate-batch-id',
   'mismatched-semantic-arrays',
   'unsupported-version',
-] as const)('rejects invalid render batch metadata: %s', (issue) => {
-  expect(() => readPreparedGLB(createBatchedPreparedGLB(issue)))
-    .toThrowError(/ICE3_ASSET_BATCH_INVALID/);
-});
+] as const) {
+  it(`rejects invalid render batch metadata: ${issue}`, () => {
+    expect(() => readPreparedGLB(createBatchedPreparedGLB(issue)))
+      .toThrowError(/ICE3_ASSET_BATCH_INVALID/);
+  });
+}
 
 it('reads v1 contract, preparation, extended stats, and budget', () => {
   const snapshot = readPreparedGLB(createMinimalPreparedGLB());

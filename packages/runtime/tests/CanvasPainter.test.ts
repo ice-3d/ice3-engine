@@ -1,17 +1,19 @@
-import { expect, it, vi } from 'node-test';
+import { it } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
+import * as mockApi from '../../../tests/test-mocks.ts';
 import { ICEScreenLayer } from '../src/index';
 import { ICE2DCanvasPainter } from '../src/layer/ICE2DCanvasPainter';
 
 it('does not reset an unchanged Canvas backing store', () => {
   const layer = new ICEScreenLayer({ id: 'screen' });
   const context = {
-    setTransform: vi.fn(),
-    clearRect: vi.fn(),
-    save: vi.fn(),
-    restore: vi.fn(),
-    fillRect: vi.fn(),
-    fillText: vi.fn(),
-    measureText: vi.fn(() => ({ width: 20 })),
+    setTransform: mockApi.fn(),
+    clearRect: mockApi.fn(),
+    save: mockApi.fn(),
+    restore: mockApi.fn(),
+    fillRect: mockApi.fn(),
+    fillText: mockApi.fn(),
+    measureText: mockApi.fn(() => ({ width: 20 })),
     font: '',
     textBaseline: 'top',
     fillStyle: '',
@@ -35,7 +37,7 @@ it('does not reset an unchanged Canvas backing store', () => {
       height = value;
       heightWrites += 1;
     },
-    getContext: vi.fn(() => context),
+    getContext: mockApi.fn(() => context),
   } as unknown as HTMLCanvasElement;
   const painter = new ICE2DCanvasPainter();
 

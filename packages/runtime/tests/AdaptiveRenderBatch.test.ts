@@ -1,4 +1,6 @@
-import { expect, test, vi } from 'node-test';
+import { test } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
+import * as mockApi from '../../../tests/test-mocks.ts';
 import {
   ICEAdaptiveRenderBatchController,
   type ICEAdaptiveBatchExecutionResult,
@@ -27,7 +29,7 @@ const controller = (
   },
 ) => {
   const diagnostics: string[] = [];
-  const execute = vi.fn(async () => result);
+  const execute = mockApi.fn(async () => result);
   return {
     controller: new ICEAdaptiveRenderBatchController({
       mode: 'adaptive',
@@ -111,7 +113,7 @@ test('memory rejection never starts a worker', () => {
 });
 
 test('adaptive mode disabled bypasses planning and execution', () => {
-  const execute = vi.fn(async (): Promise<ICEAdaptiveBatchExecutionResult> => ({
+  const execute = mockApi.fn(async (): Promise<ICEAdaptiveBatchExecutionResult> => ({
     kind: 'completed',
     estimatedBytes: 0,
   }));

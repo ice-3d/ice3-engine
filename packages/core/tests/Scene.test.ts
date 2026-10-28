@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'node-test';
+import { describe, it } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
 import {
   ICEBasicMaterial,
   ICEBoxGeometry,

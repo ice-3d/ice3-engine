@@ -1,4 +1,5 @@
-import { expect, test } from 'node-test';
+import { test } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
 import { ICEFrustum } from '../src/culling/ICEFrustum';
 import { ICEPerspectiveCamera } from '../src/camera/ICEPerspectiveCamera';
 

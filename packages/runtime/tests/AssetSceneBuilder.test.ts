@@ -1,4 +1,5 @@
-import { expect, it } from 'node-test';
+import { it } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
 import type { ICEPreparedAssetSnapshot } from '@ice3/assets';
 import { ICEMesh, ICENode } from '@ice3/core';
 import { buildAssetScene } from '../src/asset/ICEAssetSceneBuilder';

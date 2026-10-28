@@ -74,7 +74,7 @@ M0 明确不包含：
 - 首版图形后端使用 WebGL2。
 - 不维护 WebGL1 回退。
 - 仓库使用 npm workspaces。
-- 单元测试使用 node-test。
+- 单元测试使用 Node.js test runner。
 - 浏览器交互测试使用 Playwright。
 - 运行环境遵循当前与上一代 Node LTS 的支持策略。
 

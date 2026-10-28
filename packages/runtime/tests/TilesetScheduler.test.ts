@@ -1,6 +1,7 @@
 import type { ICETilesetTile } from '@ice3/assets';
 import { ICEPerspectiveCamera } from '@ice3/core';
-import { expect, test } from 'node-test';
+import { test } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
 import { ICETilesetScheduler } from '../src/asset/ICETilesetScheduler';
 
 const tile = (id: string, x: number): ICETilesetTile => ({

@@ -1,6 +1,5 @@
-// @node-test-environment jsdom
-
-import { expect, it } from 'node-test';
+import { it } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
 import { FakeRendererBackend } from '@ice3/renderer';
 import {
   ICE3,

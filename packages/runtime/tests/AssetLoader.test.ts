@@ -1,5 +1,7 @@
 import { FakeRendererBackend } from '@ice3/renderer';
-import { expect, it, vi } from 'node-test';
+import { it } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
+import * as mockApi from '../../../tests/test-mocks.ts';
 import { ICE3 } from '../src/index';
 import { ICEAssetLoader } from '../src/asset/ICEAssetLoader';
 import {
@@ -11,7 +13,7 @@ const fixtureBytes = createMinimalPreparedGLB();
 
 const createLoader = () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
-  const fetch = vi.fn(async () => new Response(fixtureBytes.slice(0)));
+  const fetch = mockApi.fn(async () => new Response(fixtureBytes.slice(0)));
   return {
     engine,
     fetch,
@@ -45,7 +47,7 @@ it('emits a warning when loading a legacy asset', async () => {
     if (event.param) diagnostics.push(event.param.code);
   });
   const loader = new ICEAssetLoader(engine, {
-    fetch: vi.fn(async () => new Response(
+    fetch: mockApi.fn(async () => new Response(
       createMinimalPreparedGLB({ contract: 'legacy' }),
     )),
   });
@@ -61,7 +63,7 @@ it('emits the legacy warning once per cached asset URL', async () => {
   });
   const bytes = createMinimalPreparedGLB({ contract: 'legacy' });
   const loader = new ICEAssetLoader(engine, {
-    fetch: vi.fn(async () => new Response(bytes.slice(0))),
+    fetch: mockApi.fn(async () => new Response(bytes.slice(0))),
   });
 
   await loader.load('/legacy.glb');
@@ -104,10 +106,10 @@ it('verifies the BIN digest only when explicitly requested', async () => {
   const bytes = createBadDigestGLB();
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const defaultLoader = new ICEAssetLoader(engine, {
-    fetch: vi.fn(async () => new Response(bytes.slice(0))),
+    fetch: mockApi.fn(async () => new Response(bytes.slice(0))),
   });
   const verifiedLoader = new ICEAssetLoader(engine, {
-    fetch: vi.fn(async () => new Response(bytes.slice(0))),
+    fetch: mockApi.fn(async () => new Response(bytes.slice(0))),
     verifyIntegrity: true,
   });
 
@@ -119,7 +121,7 @@ it('verifies the BIN digest only when explicitly requested', async () => {
 
 it('does not abort other callers when one shared request is cancelled', async () => {
   let release: ((response: Response) => void) | undefined;
-  const fetch = vi.fn((
+  const fetch = mockApi.fn((
     _input: RequestInfo | URL,
     init?: RequestInit,
   ) => new Promise<Response>((resolve, reject) => {
@@ -143,7 +145,7 @@ it('does not abort other callers when one shared request is cancelled', async ()
 
 it('clears one cached URL without clearing another', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
-  const fetch = vi.fn(async () => new Response(fixtureBytes.slice(0)));
+  const fetch = mockApi.fn(async () => new Response(fixtureBytes.slice(0)));
   const loader = new ICEAssetLoader(engine, { fetch });
 
   await loader.load('/first.glb');

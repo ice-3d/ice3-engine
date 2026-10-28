@@ -1,5 +1,6 @@
 import { ICEIndexedGeometry } from '@ice3/core';
-import { expect, test } from 'node-test';
+import { test } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
 import { WebGL2GeometryCache } from '../src/WebGL2GeometryCache.js';
 
 test('keeps pinned geometry across frames without uploading it again', () => {
