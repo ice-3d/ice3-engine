@@ -11,6 +11,12 @@ export interface GeometryEntry {
   readonly triangleCount: number;
   readonly edgeCount: number;
   readonly bytes: number;
+  lastUsedFrame: number;
+}
+
+export interface WebGL2GeometryCacheOptions {
+  readonly inactiveGraceFrames?: number;
+  readonly maxBytes?: number;
 }
 
 export class WebGL2GeometryCache {
@@ -18,6 +24,24 @@ export class WebGL2GeometryCache {
   private active = new Set<ICEGeometry>();
   private readonly pinned = new Set<ICEGeometry>();
   private gl: WebGL2RenderingContext | null = null;
+  private uploads = 0;
+  private evictions = 0;
+  private frameId = 0;
+  private readonly inactiveGraceFrames: number;
+  private readonly maxBytes: number;
+
+  constructor(options: WebGL2GeometryCacheOptions = {}) {
+    this.inactiveGraceFrames = options.inactiveGraceFrames ?? 60;
+    this.maxBytes = options.maxBytes ?? 768 * 1024 * 1024;
+    if (
+      !Number.isInteger(this.inactiveGraceFrames)
+      || this.inactiveGraceFrames < 0
+      || !Number.isInteger(this.maxBytes)
+      || this.maxBytes < 1
+    ) {
+      throw new Error('ICE3_GPU_CACHE_INVALID: cache options are invalid');
+    }
+  }
 
   retain(
     gl: WebGL2RenderingContext,
@@ -27,6 +51,7 @@ export class WebGL2GeometryCache {
     this.active.add(geometry);
     const existing = this.entries.get(geometry);
     if (existing) {
+      existing.lastUsedFrame = this.frameId;
       return existing;
     }
 
@@ -110,12 +135,15 @@ export class WebGL2GeometryCache {
         + (geometry.edgeIndices?.byteLength ?? 0)
         + (geometry.colors?.byteLength ?? 0)
         + (geometry.semanticIndices?.byteLength ?? 0),
+      lastUsedFrame: this.frameId,
     };
     this.entries.set(geometry, entry);
+    this.uploads += 1;
     return entry;
   }
 
   beginFrame(): void {
+    this.frameId += 1;
     this.active = new Set();
   }
 
@@ -124,7 +152,17 @@ export class WebGL2GeometryCache {
     geometry: ICEGeometry,
   ): Readonly<GeometryEntry> {
     this.pinned.add(geometry);
-    return this.retain(gl, geometry);
+    const entry = this.retain(gl, geometry);
+    this.enforceBudget();
+    if (this.totalBytes > this.maxBytes) {
+      this.pinned.delete(geometry);
+      this.deleteEntry(entry);
+      this.entries.delete(geometry);
+      throw new Error(
+        'ICE3_GPU_RESOURCE_FAILED: geometry exceeds the GPU residency budget',
+      );
+    }
+    return entry;
   }
 
   unpin(geometry: ICEGeometry): void {
@@ -136,9 +174,16 @@ export class WebGL2GeometryCache {
       if (this.active.has(geometry) || this.pinned.has(geometry)) {
         continue;
       }
+      if (
+        this.frameId - entry.lastUsedFrame
+        < this.inactiveGraceFrames
+      ) {
+        continue;
+      }
       this.deleteEntry(entry);
       this.entries.delete(geometry);
     }
+    this.enforceBudget();
   }
 
   clear(): void {
@@ -161,6 +206,14 @@ export class WebGL2GeometryCache {
     return [...this.entries.values()].reduce((sum, entry) => sum + entry.bytes, 0);
   }
 
+  get uploadCount(): number {
+    return this.uploads;
+  }
+
+  get evictionCount(): number {
+    return this.evictions;
+  }
+
   private deleteEntry(
     entry: GeometryEntry,
   ): void {
@@ -171,5 +224,22 @@ export class WebGL2GeometryCache {
     this.gl.deleteBuffer(entry.colorBuffer);
     this.gl.deleteBuffer(entry.semanticBuffer);
     this.gl.deleteVertexArray(entry.vertexArray);
+    this.evictions += 1;
+  }
+
+  private enforceBudget(): void {
+    let total = this.totalBytes;
+    if (total <= this.maxBytes) return;
+    const candidates = [...this.entries]
+      .filter(([geometry]) => !this.pinned.has(geometry))
+      .sort((left, right) => (
+        left[1].lastUsedFrame - right[1].lastUsedFrame
+      ));
+    for (const [geometry, entry] of candidates) {
+      if (total <= this.maxBytes) break;
+      this.deleteEntry(entry);
+      this.entries.delete(geometry);
+      total -= entry.bytes;
+    }
   }
 }

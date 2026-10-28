@@ -107,6 +107,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     renderedMeshes: 0,
     renderedBatches: 0,
     instancingFallbacks: 0,
+    gpuUploads: 0,
+    gpuEvictions: 0,
     gpuBytes: 0,
   };
   private readonly handleContextLost = (event: Event): void => {
@@ -226,6 +228,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       renderedMeshes: 0,
       renderedBatches: 0,
       instancingFallbacks: 0,
+      gpuUploads: 0,
+      gpuEvictions: 0,
       gpuBytes: 0,
     };
 
@@ -520,6 +524,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.geometryCache.endFrame();
     this.instanceCache!.endFrame();
     this.frameStats.instancingFallbacks = this.instanceCache!.fallbackCount;
+    this.frameStats.gpuUploads = this.geometryCache.uploadCount;
+    this.frameStats.gpuEvictions = this.geometryCache.evictionCount;
     this.frameStats.gpuBytes = this.geometryCache.totalBytes
       + this.instanceCache!.totalBytes;
   }

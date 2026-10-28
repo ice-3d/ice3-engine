@@ -32,6 +32,8 @@ export class FakeRendererBackend implements ICERendererBackend {
       renderedMeshes: 0,
       renderedBatches: 0,
       instancingFallbacks: 0,
+      gpuUploads: 0,
+      gpuEvictions: 0,
       gpuBytes: 0,
     };
   }

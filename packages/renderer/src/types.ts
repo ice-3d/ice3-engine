@@ -33,6 +33,8 @@ export interface ICERendererStats {
   readonly renderedMeshes: number;
   readonly renderedBatches: number;
   readonly instancingFallbacks: number;
+  readonly gpuUploads: number;
+  readonly gpuEvictions: number;
   readonly gpuBytes: number;
 }
 

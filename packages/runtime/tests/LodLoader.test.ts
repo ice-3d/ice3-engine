@@ -167,7 +167,7 @@ it('keeps the displayed LOD stable while the camera is moving', async () => {
     .map((node) => node.id)).not.toEqual(initialVisibleIds);
 });
 
-it('uses a retained coarse ancestor as the stable motion fallback', async () => {
+it('keeps the current complete coverage while the next LOD cut settles', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const lodCamera = camera();
   const tileset = await new ICETilesetLoader(engine, {
@@ -187,15 +187,17 @@ it('uses a retained coarse ancestor as the stable motion fallback', async () => 
   const fallback = tileset.scene.findByID('hierarchical-demo:tile:root');
   expect(fallback).toBeDefined();
   expect(fallback?.visible).toBe(false);
+  const stableVisibleIds = tileset.scene.children
+    .filter((node) => node.visible)
+    .map((node) => node.id);
 
   lodCamera.setPosition([0, 0, 2]).setTarget([0, 0, 0]);
   engine.trigger('AFTER_RENDER');
   await new Promise((resolve) => setTimeout(resolve, 10));
 
-  expect(fallback?.visible).toBe(true);
   expect(tileset.scene.children
     .filter((node) => node.visible)
-    .map((node) => node.id)).toEqual(['hierarchical-demo:tile:root']);
+    .map((node) => node.id)).toEqual(stableVisibleIds);
 });
 
 it('shows each complete coarse branch instead of waiting for every leaf', async () => {

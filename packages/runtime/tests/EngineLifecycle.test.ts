@@ -170,6 +170,8 @@ it('reports renderer metrics alongside engine frame metrics', () => {
         renderedMeshes: 1,
         renderedBatches: 0,
         instancingFallbacks: 0,
+        gpuUploads: 0,
+        gpuEvictions: 0,
         gpuBytes: 2048,
       },
     }),
@@ -180,6 +182,8 @@ it('reports renderer metrics alongside engine frame metrics', () => {
     renderedMeshes: 1,
     renderedBatches: 0,
     instancingFallbacks: 0,
+    gpuUploads: 0,
+    gpuEvictions: 0,
     gpuBytes: 2048,
   });
 });
@@ -191,6 +195,8 @@ it('reports instancing fallback once while it remains active', () => {
       renderedMeshes: 4,
       renderedBatches: 0,
       instancingFallbacks: 1,
+      gpuUploads: 0,
+      gpuEvictions: 0,
       gpuBytes: 512,
     },
   });

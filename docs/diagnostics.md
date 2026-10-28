@@ -87,3 +87,7 @@ interface ICEDiagnostic {
 ```
 
 `ICE3` exposes the most recent diagnostic through `getDiagnostics().lastDiagnostic` and emits `DIAGNOSTIC` when a new diagnostic is recorded.
+
+Renderer diagnostics also expose cumulative `gpuUploads` and `gpuEvictions`
+counts. These counters make unexpected GPU buffer churn visible during camera,
+LOD, and residency regression tests.

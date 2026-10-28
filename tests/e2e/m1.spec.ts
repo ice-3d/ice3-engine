@@ -114,6 +114,41 @@ test('activates one adaptive generation only after idle', async ({ page }) => {
   expect(consoleErrors).toEqual([]);
 });
 
+test('reuses resident GPU buffers while rotating through covered content', async ({ page }) => {
+  await page.goto('http://127.0.0.1:8104/?demo=adaptive&adaptive=0');
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
+  expect(await page.evaluate(() => window.__ice3M1.adaptiveStats().mode))
+    .toBe('asset');
+  const before = await page.evaluate(
+    () => window.__ice3M1.diagnostics().renderer,
+  );
+  expect(before.gpuUploads).toBeGreaterThan(0);
+  const stage = await page.locator('[data-role="stage"]').boundingBox();
+  if (!stage) throw new Error('Stage bounds missing');
+
+  await page.mouse.move(stage.width * 0.35, stage.height * 0.5);
+  await page.mouse.down();
+  await page.mouse.move(
+    stage.width * 0.8,
+    stage.height * 0.5,
+    { steps: 20 },
+  );
+  await page.mouse.move(
+    stage.width * 0.35,
+    stage.height * 0.5,
+    { steps: 20 },
+  );
+  await page.mouse.up();
+  await page.waitForTimeout(500);
+
+  const after = await page.evaluate(
+    () => window.__ice3M1.diagnostics().renderer,
+  );
+  expect(after.gpuUploads).toBe(before.gpuUploads);
+  expect(after.gpuEvictions).toBe(before.gpuEvictions);
+  expect(after.gpuBytes).toBeGreaterThan(0);
+});
+
 test('shows an accessible loading state until the asset is ready', async ({ page }) => {
   await page.route('**/assets/hierarchical-demo/tileset.json', async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 600));
