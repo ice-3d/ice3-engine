@@ -9,6 +9,9 @@ declare global {
     __ice3M1: {
       diagnostics(): Readonly<ICEEngineDiagnostics>;
       projection(): ICEProjectedPoint;
+      projectWorldPoint(
+        point: readonly [number, number, number],
+      ): ICEProjectedPoint;
       assetCenter(): ICEProjectedPoint;
       cameraPosition(): readonly [number, number, number];
       cameraTarget(): readonly [number, number, number];
@@ -19,6 +22,7 @@ declare global {
       showLodOverview(): void;
       focusLodBranch(): void;
       selectOverviewDevice(): void;
+      equipmentSelectionIds(): readonly string[];
       whenLodIdle(): Promise<void>;
       visibleMeshCount(): number;
       scenePixelAtProjection(): readonly [number, number, number, number];
