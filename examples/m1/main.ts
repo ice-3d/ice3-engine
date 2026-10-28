@@ -391,7 +391,13 @@ function sceneStats(): {
   let primitiveCount = 0;
   let triangleCount = 0;
   let edgeSegmentCount = 0;
-  const visit = (node: ICENode, depth: number): void => {
+  const visit = (
+    node: ICENode,
+    depth: number,
+    parentVisible = true,
+  ): void => {
+    const visible = parentVisible && node.visible;
+    if (!visible) return;
     nodeCount += 1;
     maxNodeDepth = Math.max(maxNodeDepth, depth);
     if (node instanceof ICEMesh) {
@@ -402,7 +408,7 @@ function sceneStats(): {
       selections.add(node.selectionId);
       primitiveCount += node.geometry.edgeIndices ? 2 : 1;
     }
-    for (const child of node.children) visit(child, depth + 1);
+    for (const child of node.children) visit(child, depth + 1, visible);
   };
   for (const child of handle.scene.children) visit(child, 0);
   return {

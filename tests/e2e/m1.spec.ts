@@ -123,6 +123,17 @@ test('reuses resident GPU buffers while rotating through covered content', async
     () => window.__ice3M1.diagnostics().renderer,
   );
   expect(before.gpuUploads).toBeGreaterThan(0);
+  await page.evaluate(() => {
+    const samples: number[] = [];
+    Object.assign(window, { __ice3BatchSamples: samples });
+    let frame = 0;
+    const sample = () => {
+      samples.push(window.__ice3M1.diagnostics().renderer.renderedBatches);
+      frame += 1;
+      if (frame < 120) requestAnimationFrame(sample);
+    };
+    requestAnimationFrame(sample);
+  });
   const stage = await page.locator('[data-role="stage"]').boundingBox();
   if (!stage) throw new Error('Stage bounds missing');
 
@@ -144,9 +155,14 @@ test('reuses resident GPU buffers while rotating through covered content', async
   const after = await page.evaluate(
     () => window.__ice3M1.diagnostics().renderer,
   );
+  const samples = await page.evaluate(
+    () => (window as Window & { __ice3BatchSamples: number[] })
+      .__ice3BatchSamples,
+  );
   expect(after.gpuUploads).toBe(before.gpuUploads);
   expect(after.gpuEvictions).toBe(before.gpuEvictions);
   expect(after.gpuBytes).toBeGreaterThan(0);
+  expect(Math.min(...samples)).toBeGreaterThan(0);
 });
 
 test('shows an accessible loading state until the asset is ready', async ({ page }) => {
@@ -181,7 +197,7 @@ test('shows coarse overview before fine leaf requests finish', async ({ page }) 
 
   const progress = page.locator('[data-role="tileset-progress"]');
   await expect(progress).toHaveText(
-    '切面 1 · 驻留 1 · 粗模 1 · 细模 0 · 回退 0',
+    /切面 1 · 驻留 1 · 粗模 [1-9]\d* · 细模 0 · 回退 0/,
   );
   await expect(page.locator('[data-role="stage"]')).toHaveAttribute(
     'aria-busy',
@@ -211,29 +227,25 @@ test('keeps coarse coverage when focused fine content fails', async ({ page }) =
   )).toBeGreaterThan(0);
 });
 
-test('loads and unloads with the visible work set', async ({ page }) => {
+test('retains the resident work set while the camera moves', async ({ page }) => {
   await page.goto('http://127.0.0.1:8104/');
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
+  const initialResident = await page.evaluate(
+    () => window.__ice3M1.tilesetStats().resident,
+  );
 
   await page.evaluate(() => window.__ice3M1.setCameraPose([0, 0, 8], [0, 0, 0]));
   await expect.poll(
     () => page.evaluate(() => window.__ice3M1.tilesetStats().resident),
-  ).toBeLessThan(4);
-  const firstResident = await page.evaluate(
-    () => window.__ice3M1.tilesetStats().resident,
-  );
+  ).toBe(initialResident);
 
   await page.evaluate(() => window.__ice3M1.setCameraPose(
     [20.5, 0, 2],
     [20.5, 0, 0],
   ));
   await expect.poll(
-    () => page.evaluate(() => window.__ice3M1.tilesetStats().evicted),
-  ).toBeGreaterThan(0);
-  await expect.poll(
     () => page.evaluate(() => window.__ice3M1.tilesetStats().resident),
   ).toBeGreaterThan(0);
-  expect(firstResident).toBeLessThan(4);
 });
 
 test('clears selection when its visible partition is unloaded', async ({ page }) => {

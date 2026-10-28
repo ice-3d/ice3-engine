@@ -130,6 +130,7 @@ it('keeps the current resident coverage during camera motion', async () => {
     camera: overviewCamera(),
   }).open('https://example.test/spatial-demo/tileset.json');
   await tileset.whenReady();
+  await tileset.whenIdle();
   const internals = tileset as unknown as {
     resident: Map<string, { container: ICENode }>;
     motionFallbackId: string | undefined;
@@ -148,6 +149,48 @@ it('keeps the current resident coverage during camera motion', async () => {
     [...internals.resident.values()]
       .filter((resident) => resident.container.visible),
   ).toHaveLength(ids.length);
+  tileset.dispose();
+});
+
+it('keeps prior visible coverage inside the unload halo', async () => {
+  const backend = new FakeRendererBackend();
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('tileset.json')) {
+      return new Response(fixture('tileset.json'));
+    }
+    return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
+  });
+  const tileset = await new ICETilesetLoader(new ICE3({ backend }), {
+    fetch,
+    camera: overviewCamera(),
+  }).open('https://example.test/spatial-demo/tileset.json');
+  await tileset.whenReady();
+  const internals = tileset as unknown as {
+    resident: Map<string, { container: ICENode }>;
+    workSet: { retainIds: Set<string> };
+    lodSelection: {
+      target: [];
+      prefetch: [];
+      fallbackByTargetId: Map<string, string>;
+    };
+    visibleCoverageIds: Set<string>;
+    promoteReadyVisibleTargets(): void;
+  };
+  const previousId = [...internals.resident.keys()][0]!;
+  const previous = internals.resident.get(previousId)!;
+  previous.container.visible = false;
+  internals.visibleCoverageIds = new Set([previousId]);
+  internals.workSet = { retainIds: new Set([previousId]) };
+  internals.lodSelection = {
+    target: [],
+    prefetch: [],
+    fallbackByTargetId: new Map(),
+  };
+
+  internals.promoteReadyVisibleTargets();
+
+  expect(previous.container.visible).toBe(true);
   tileset.dispose();
 });
 

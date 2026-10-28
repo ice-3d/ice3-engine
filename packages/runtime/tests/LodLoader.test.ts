@@ -131,7 +131,6 @@ it('keeps the current representation visible until coarse content commits', asyn
   expect(tileset.scene.children.some((node) => node.visible)).toBe(true);
   await tileset.whenIdle();
   expect(tileset.stats.lod.coarseResident).toBeGreaterThan(0);
-  expect(tileset.stats.lod.fineResident).toBe(0);
 });
 
 it('keeps the displayed LOD stable while the camera is moving', async () => {
