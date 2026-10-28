@@ -55,6 +55,19 @@ test('shows compact camera hints after the asset is ready', async ({ page }) => 
   expect(layout.panelRight).toBeLessThan(layout.stageCenterX);
 });
 
+test('loads a same-origin asset selected by a local preview override', async ({
+  page,
+}) => {
+  await page.goto(
+    'http://127.0.0.1:8104/?asset=/assets/hierarchical-demo/tileset.json',
+  );
+
+  await expect(page.locator('[data-role="status"]'))
+    .toHaveText('当前视角已就绪');
+  await expect(page.locator('[data-role="stage"]'))
+    .toHaveAttribute('aria-busy', 'false');
+});
+
 test('activates one adaptive generation only after idle', async ({ page }) => {
   const errors: string[] = [];
   const failedRequests: string[] = [];

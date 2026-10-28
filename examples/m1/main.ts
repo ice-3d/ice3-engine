@@ -49,9 +49,13 @@ const adaptiveDemo = query.get('demo') === 'adaptive';
 const adaptiveBatching = query.get('adaptive') === '0'
   ? false
   : adaptiveDemo || query.get('adaptive') === '1';
-const assetUrl = adaptiveDemo
+const defaultAssetUrl = adaptiveDemo
   ? '/assets/adaptive-demo/tileset.json'
   : '/assets/hierarchical-demo/tileset.json';
+const assetOverride = query.get('asset');
+const assetUrl = assetOverride === null
+  ? defaultAssetUrl
+  : resolveAssetOverride(assetOverride);
 const loader = new ICETilesetLoader(engine, {
   camera,
   ...(adaptiveBatching
@@ -73,6 +77,17 @@ let loadFinished = false;
 let viewUpdating = false;
 let sceneRevealed = false;
 let assetCenter: readonly [number, number, number] = [0, 0, 0];
+
+function resolveAssetOverride(value: string): string {
+  const url = new URL(value, window.location.href);
+  if (
+    url.origin !== window.location.origin
+    || !url.pathname.startsWith('/assets/')
+  ) {
+    throw new Error('本地资产必须位于当前站点的 /assets/ 目录');
+  }
+  return `${url.pathname}${url.search}`;
+}
 
 engine.on<{ selection: readonly string[] }>('SELECTION_CHANGE', (event) => {
   const selectedId = event.param?.selection[0];
