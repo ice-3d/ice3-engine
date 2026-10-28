@@ -57,6 +57,22 @@ test('retains recently inactive geometry for reuse', () => {
   expect(cache.totalBytes).toBe(0);
 });
 
+test('rejects a pinned upload that exceeds the GPU geometry budget', () => {
+  const geometry = new ICEIndexedGeometry({
+    id: 'oversized',
+    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    indices: new Uint16Array([0, 1, 2]),
+  });
+  const cache = new WebGL2GeometryCache({
+    inactiveGraceFrames: 0,
+    maxBytes: 20,
+  });
+
+  expect(() => cache.pin(fakeWebGL2(), geometry))
+    .toThrow(/ICE3_GPU_RESOURCE_FAILED/);
+  expect(cache.totalBytes).toBe(0);
+});
+
 function fakeWebGL2(): WebGL2RenderingContext {
   return {
     ARRAY_BUFFER: 0x8892,

@@ -152,7 +152,17 @@ export class WebGL2GeometryCache {
     geometry: ICEGeometry,
   ): Readonly<GeometryEntry> {
     this.pinned.add(geometry);
-    return this.retain(gl, geometry);
+    const entry = this.retain(gl, geometry);
+    this.enforceBudget();
+    if (this.totalBytes > this.maxBytes) {
+      this.pinned.delete(geometry);
+      this.deleteEntry(entry);
+      this.entries.delete(geometry);
+      throw new Error(
+        'ICE3_GPU_RESOURCE_FAILED: geometry exceeds the GPU residency budget',
+      );
+    }
+    return entry;
   }
 
   unpin(geometry: ICEGeometry): void {
