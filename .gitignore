@@ -3,6 +3,7 @@ dist/
 dist-example/
 dist-example-m1/
 examples/m1/assets/*.local.glb
+examples/m1/assets/*.local.json
 coverage/
 .superpowers/
 .worktrees/
