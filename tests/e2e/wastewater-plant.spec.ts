@@ -48,13 +48,19 @@ test('selects a virtual wastewater device from the default scene', async ({
     .toHaveText('当前视角已就绪');
 
   await page.evaluate(
-    () => window.__ice3M1.setCameraPose([140, 24, 60], [140, 1, 36]),
+    () => window.__ice3M1.setCameraPose([142, 24, 60], [142, 2.7, 36]),
   );
   await page.evaluate(() => window.__ice3M1.whenLodIdle());
   await expect(page.locator('[data-role="status"]'))
     .toHaveText('当前视角已就绪');
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.tilesetStats().lod.fineResident),
+  ).toBeGreaterThan(0);
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
   const center = await page.evaluate(
-    () => window.__ice3M1.projectWorldPoint([140, 0.25, 36]),
+    () => window.__ice3M1.projectWorldPoint([142, 2.7, 36]),
   );
   const stage = await page.locator('[data-role="stage"]').boundingBox();
   if (!stage) throw new Error('Stage bounds missing');
