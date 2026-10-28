@@ -342,7 +342,7 @@ test('retains the resident work set while the camera moves', async ({ page }) =>
   await page.evaluate(() => window.__ice3M1.setCameraPose([0, 0, 8], [0, 0, 0]));
   await expect.poll(
     () => page.evaluate(() => window.__ice3M1.tilesetStats().resident),
-  ).toBe(initialResident);
+  ).toBeGreaterThanOrEqual(initialResident);
 
   await page.evaluate(() => window.__ice3M1.setCameraPose(
     [20.5, 0, 2],

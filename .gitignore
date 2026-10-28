@@ -6,6 +6,7 @@ examples/m1/assets/*.local.glb
 examples/m1/assets/*.local.json
 coverage/
 .superpowers/
+.playwright-cli/
 .worktrees/
 test-results/
 playwright-report/
