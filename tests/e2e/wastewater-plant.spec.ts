@@ -72,5 +72,5 @@ test('selects a virtual wastewater device from the default scene', async ({
     () => page.evaluate(() => window.__ice3M1.selectedIds()[0]),
   ).toBe('ice3-virtual-wwtp/equipment/SC-101');
   await expect(page.locator('[data-role="selection-info"]')).toBeVisible();
-  await expect(page.locator('[data-role="selection-name"]')).not.toBeEmpty();
+  await expect(page.locator('[data-role="selection-name"]')).toContainText('SC-101');
 });
