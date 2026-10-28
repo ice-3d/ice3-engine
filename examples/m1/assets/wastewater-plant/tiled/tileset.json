@@ -13,7 +13,7 @@
     "boundingVolume": {
       "box": [
         135,
-        -0.03657295182347298,
+        -17.036572951823473,
         6.2499998435378075,
         159,
         0,
@@ -22,7 +22,7 @@
         0,
         6.549999855458736,
         0,
-        112.03657295182347,
+        95.03657295182347,
         0
       ]
     },
@@ -52,10 +52,10 @@
       {
         "boundingVolume": {
           "box": [
-            69.98433583602309,
+            75.96433537825942,
             -17.036572951823473,
             6.38499984703958,
-            88.05566507950425,
+            94.03566462174058,
             0,
             0,
             0,
@@ -66,7 +66,7 @@
             0
           ]
         },
-        "geometricError": 0.2960780020549265,
+        "geometricError": 0.29776140506045934,
         "refine": "REPLACE",
         "contents": [
           {
@@ -97,7 +97,7 @@
                 0
               ]
             },
-            "geometricError": 0.2960780020549265,
+            "geometricError": 0.29776140506045934,
             "refine": "REPLACE",
             "contents": [
               {
@@ -112,7 +112,7 @@
                 "boundingVolume": {
                   "box": [
                     35.124461110681295,
-                    -0.25,
+                    0.536572951823473,
                     5.984999997541308,
                     53.195790354162455,
                     0,
@@ -121,11 +121,11 @@
                     0,
                     6.015000002458692,
                     0,
-                    66.75,
+                    67.53657295182347,
                     0
                   ]
                 },
-                "geometricError": 0.2960780020549265,
+                "geometricError": 0.29776140506045934,
                 "refine": "REPLACE",
                 "content": {
                   "uri": "coarse/group-root-0-0-0.glb"
@@ -135,7 +135,7 @@
                     "boundingVolume": {
                       "box": [
                         35.124461110681295,
-                        5,
+                        5.786572951823473,
                         5.997500002384186,
                         53.195790354162455,
                         0,
@@ -144,11 +144,11 @@
                         0,
                         6.002499997615814,
                         0,
-                        61.5,
+                        62.28657295182347,
                         0
                       ]
                     },
-                    "geometricError": 0.2960780020549265,
+                    "geometricError": 0.29776140506045934,
                     "refine": "REPLACE",
                     "content": {
                       "uri": "coarse/group-root-0-0-0-0.glb"
@@ -158,7 +158,7 @@
                         "boundingVolume": {
                           "box": [
                             35.124461110681295,
-                            5,
+                            5.786572951823473,
                             5.3950000405311584,
                             53.195790354162455,
                             0,
@@ -167,11 +167,11 @@
                             0,
                             5.400000035762787,
                             0,
-                            61.5,
+                            62.28657295182347,
                             0
                           ]
                         },
-                        "geometricError": 0.2960780020549265,
+                        "geometricError": 0.29776140506045934,
                         "refine": "REPLACE",
                         "content": {
                           "uri": "coarse/group-root-0-0-0-0-0.glb"
@@ -180,25 +180,85 @@
                           {
                             "boundingVolume": {
                               "box": [
-                                25.481837209314108,
-                                5,
+                                32.96433609351516,
+                                5.786572951823473,
                                 5.3950000405311584,
-                                43.55316645279527,
+                                51.03566533699632,
                                 0,
                                 0,
                                 0,
                                 0,
                                 5.400000035762787,
                                 0,
-                                61.5,
+                                62.28657295182347,
                                 0
                               ]
                             },
-                            "geometricError": 0,
+                            "geometricError": 0.17720152862332839,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-000.glb"
+                              "uri": "coarse/group-root-0-0-0-0-0-0.glb"
                             },
+                            "children": [
+                              {
+                                "boundingVolume": {
+                                  "box": [
+                                    25.481837209314108,
+                                    5.786572951823473,
+                                    5.3950000405311584,
+                                    43.55316645279527,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    5.400000035762787,
+                                    0,
+                                    62.28657295182347,
+                                    0
+                                  ]
+                                },
+                                "geometricError": 0,
+                                "refine": "REPLACE",
+                                "content": {
+                                  "uri": "parts/part-000.glb"
+                                },
+                                "extras": {
+                                  "ice3": {
+                                    "assetId": "ice3-virtual-wwtp",
+                                    "partitionId": "group-root-0-0-0-0-0-0-0"
+                                  }
+                                }
+                              },
+                              {
+                                "boundingVolume": {
+                                  "box": [
+                                    57.46087068319321,
+                                    21.536572951823473,
+                                    4.887500107288361,
+                                    26.539130747318268,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    4.892500102519989,
+                                    0,
+                                    46.53657295182347,
+                                    0
+                                  ]
+                                },
+                                "geometricError": 0,
+                                "refine": "REPLACE",
+                                "content": {
+                                  "uri": "parts/part-001.glb"
+                                },
+                                "extras": {
+                                  "ice3": {
+                                    "assetId": "ice3-virtual-wwtp",
+                                    "partitionId": "group-root-0-0-0-0-0-0-1"
+                                  }
+                                }
+                              }
+                            ],
                             "extras": {
                               "ice3": {
                                 "assetId": "ice3-virtual-wwtp",
@@ -209,24 +269,24 @@
                           {
                             "boundingVolume": {
                               "box": [
-                                63.68512535095215,
-                                12.836572963744402,
-                                4.887500107288361,
-                                24.6351261138916,
+                                35.124461110681295,
+                                -25.999999940395355,
+                                5.325000055134296,
+                                53.195790354162455,
                                 0,
                                 0,
                                 0,
                                 0,
-                                4.892500102519989,
+                                5.325000070035458,
                                 0,
-                                49.236572939902544,
+                                10.400000035762787,
                                 0
                               ]
                             },
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-001.glb"
+                              "uri": "parts/part-002.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -286,7 +346,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-002.glb"
+                              "uri": "parts/part-003.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -315,7 +375,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-003.glb"
+                              "uri": "parts/part-004.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -406,7 +466,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-004.glb"
+                              "uri": "parts/part-005.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -435,7 +495,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-005.glb"
+                              "uri": "parts/part-006.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -495,7 +555,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-006.glb"
+                              "uri": "parts/part-007.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -524,7 +584,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-007.glb"
+                              "uri": "parts/part-008.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -669,7 +729,7 @@
                                 "geometricError": 0,
                                 "refine": "REPLACE",
                                 "content": {
-                                  "uri": "parts/part-008.glb"
+                                  "uri": "parts/part-009.glb"
                                 },
                                 "extras": {
                                   "ice3": {
@@ -698,7 +758,7 @@
                                 "geometricError": 0,
                                 "refine": "REPLACE",
                                 "content": {
-                                  "uri": "parts/part-009.glb"
+                                  "uri": "parts/part-010.glb"
                                 },
                                 "extras": {
                                   "ice3": {
@@ -735,7 +795,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-010.glb"
+                              "uri": "parts/part-011.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -772,7 +832,7 @@
                         "geometricError": 0,
                         "refine": "REPLACE",
                         "content": {
-                          "uri": "parts/part-011.glb"
+                          "uri": "parts/part-012.glb"
                         },
                         "extras": {
                           "ice3": {
@@ -855,7 +915,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-012.glb"
+                              "uri": "parts/part-013.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -884,7 +944,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-013.glb"
+                              "uri": "parts/part-014.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -921,7 +981,7 @@
                         "geometricError": 0,
                         "refine": "REPLACE",
                         "content": {
-                          "uri": "parts/part-014.glb"
+                          "uri": "parts/part-015.glb"
                         },
                         "extras": {
                           "ice3": {
@@ -957,15 +1017,15 @@
           {
             "boundingVolume": {
               "box": [
-                55.969126638025045,
+                75.96433537825942,
                 -78.50676681473851,
-                6.397499844431877,
-                74.0404558815062,
+                6.38499984703958,
+                94.03566462174058,
                 0,
                 0,
                 0,
                 0,
-                6.402499854564667,
+                6.4149998519569635,
                 0,
                 33.566379088908434,
                 0
@@ -1066,7 +1126,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-015.glb"
+                              "uri": "parts/part-016.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -1095,7 +1155,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-016.glb"
+                              "uri": "parts/part-017.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -1132,7 +1192,7 @@
                         "geometricError": 0,
                         "refine": "REPLACE",
                         "content": {
-                          "uri": "parts/part-017.glb"
+                          "uri": "parts/part-018.glb"
                         },
                         "extras": {
                           "ice3": {
@@ -1215,7 +1275,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-018.glb"
+                              "uri": "parts/part-019.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -1244,7 +1304,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-019.glb"
+                              "uri": "parts/part-020.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -1265,7 +1325,7 @@
                         "boundingVolume": {
                           "box": [
                             66.34586995467544,
-                            -103.92369605973363,
+                            -92.01157295145094,
                             6.399999842047691,
                             13.017197672277689,
                             0,
@@ -1274,14 +1334,14 @@
                             0,
                             6.3999998569488525,
                             0,
-                            8.149449843913317,
+                            20.061572952196002,
                             0
                           ]
                         },
                         "geometricError": 0,
                         "refine": "REPLACE",
                         "content": {
-                          "uri": "parts/part-020.glb"
+                          "uri": "parts/part-021.glb"
                         },
                         "extras": {
                           "ice3": {
@@ -1309,15 +1369,15 @@
               {
                 "boundingVolume": {
                   "box": [
-                    101.9047920703888,
+                    104.5,
                     -78.50676681473851,
-                    6.399999842047691,
-                    28.104790449142456,
+                    6.38499984703958,
+                    65.5,
                     0,
                     0,
                     0,
                     0,
-                    6.3999998569488525,
+                    6.4149998519569635,
                     0,
                     33.566379088908434,
                     0
@@ -1332,10 +1392,10 @@
                   {
                     "boundingVolume": {
                       "box": [
-                        105.30479121208191,
+                        91,
                         -64.17019385099411,
                         2.133749835193157,
-                        24.70479130744934,
+                        52,
                         0,
                         0,
                         0,
@@ -1355,10 +1415,10 @@
                       {
                         "boundingVolume": {
                           "box": [
-                            105.30479121208191,
+                            91,
                             -64.17019385099411,
                             1.5747565999627113,
-                            24.70479130744934,
+                            52,
                             0,
                             0,
                             0,
@@ -1372,7 +1432,7 @@
                         "geometricError": 0,
                         "refine": "REPLACE",
                         "content": {
-                          "uri": "parts/part-021.glb"
+                          "uri": "parts/part-022.glb"
                         },
                         "extras": {
                           "ice3": {
@@ -1401,7 +1461,7 @@
                         "geometricError": 0,
                         "refine": "REPLACE",
                         "content": {
-                          "uri": "parts/part-022.glb"
+                          "uri": "parts/part-023.glb"
                         },
                         "extras": {
                           "ice3": {
@@ -1421,17 +1481,17 @@
                   {
                     "boundingVolume": {
                       "box": [
-                        98.60504460334778,
-                        -93.66157295182347,
-                        6.399999842047691,
-                        24.80504298210144,
+                        115,
+                        -87.53657295182347,
+                        6.38499984703958,
+                        55,
                         0,
                         0,
                         0,
                         0,
-                        6.3999998569488525,
+                        6.4149998519569635,
                         0,
-                        18.411572951823473,
+                        24.536572951823473,
                         0
                       ]
                     },
@@ -1484,7 +1544,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-023.glb"
+                              "uri": "parts/part-024.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -1513,7 +1573,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-024.glb"
+                              "uri": "parts/part-025.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -1533,24 +1593,24 @@
                       {
                         "boundingVolume": {
                           "box": [
-                            116.33004379272461,
-                            -93.66157295182347,
-                            1.817499965429306,
-                            7.080043792724609,
+                            115,
+                            -87.53657295182347,
+                            1.8024999629706144,
+                            55,
                             0,
                             0,
                             0,
                             0,
-                            1.817499965429306,
+                            1.8324999678879976,
                             0,
-                            18.411572951823473,
+                            24.536572951823473,
                             0
                           ]
                         },
                         "geometricError": 0,
                         "refine": "REPLACE",
                         "content": {
-                          "uri": "parts/part-025.glb"
+                          "uri": "parts/part-026.glb"
                         },
                         "extras": {
                           "ice3": {
@@ -1595,7 +1655,7 @@
         "boundingVolume": {
           "box": [
             135,
-            -0.03657295182347298,
+            -22,
             4.997500032186508,
             159,
             0,
@@ -1604,7 +1664,7 @@
             0,
             5.297500044107437,
             0,
-            112.03657295182347,
+            90.07314590364695,
             0
           ]
         },
@@ -1626,7 +1686,7 @@
             "boundingVolume": {
               "box": [
                 135,
-                22,
+                -21.963427048176527,
                 4.997500032186508,
                 159,
                 0,
@@ -1635,7 +1695,7 @@
                 0,
                 5.297500044107437,
                 0,
-                90,
+                90.03657295182347,
                 0
               ]
             },
@@ -1654,7 +1714,7 @@
                 "boundingVolume": {
                   "box": [
                     135,
-                    22,
+                    -21.963427048176527,
                     4.997500032186508,
                     159,
                     0,
@@ -1663,7 +1723,7 @@
                     0,
                     5.297500044107437,
                     0,
-                    90,
+                    90.03657295182347,
                     0
                   ]
                 },
@@ -1677,7 +1737,7 @@
                     "boundingVolume": {
                       "box": [
                         135,
-                        22,
+                        -21.963427048176527,
                         4.997500032186508,
                         159,
                         0,
@@ -1686,7 +1746,7 @@
                         0,
                         5.297500044107437,
                         0,
-                        90,
+                        90.03657295182347,
                         0
                       ]
                     },
@@ -1700,7 +1760,7 @@
                         "boundingVolume": {
                           "box": [
                             135,
-                            22,
+                            -21.963427048176527,
                             4.997500032186508,
                             159,
                             0,
@@ -1709,7 +1769,7 @@
                             0,
                             5.297500044107437,
                             0,
-                            90,
+                            90.03657295182347,
                             0
                           ]
                         },
@@ -1723,7 +1783,7 @@
                             "boundingVolume": {
                               "box": [
                                 135,
-                                22,
+                                -21.963427048176527,
                                 4.997500032186508,
                                 159,
                                 0,
@@ -1732,7 +1792,7 @@
                                 0,
                                 5.297500044107437,
                                 0,
-                                90,
+                                90.03657295182347,
                                 0
                               ]
                             },
@@ -1746,7 +1806,7 @@
                                 "boundingVolume": {
                                   "box": [
                                     143.4199980944395,
-                                    47.75,
+                                    49.311573047190905,
                                     5.1450000405311584,
                                     32.86999885737896,
                                     0,
@@ -1755,14 +1815,14 @@
                                     0,
                                     5.150000035762787,
                                     0,
-                                    17.199999809265137,
+                                    18.76157285645604,
                                     0
                                   ]
                                 },
                                 "geometricError": 0,
                                 "refine": "REPLACE",
                                 "content": {
-                                  "uri": "parts/part-026.glb"
+                                  "uri": "parts/part-027.glb"
                                 },
                                 "extras": {
                                   "ice3": {
@@ -1775,7 +1835,7 @@
                                 "boundingVolume": {
                                   "box": [
                                     135,
-                                    22,
+                                    -22,
                                     4.6750000566244125,
                                     159,
                                     0,
@@ -1791,7 +1851,7 @@
                                 "geometricError": 0,
                                 "refine": "REPLACE",
                                 "content": {
-                                  "uri": "parts/part-027.glb"
+                                  "uri": "parts/part-028.glb"
                                 },
                                 "extras": {
                                   "ice3": {
@@ -1828,7 +1888,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-028.glb"
+                              "uri": "parts/part-029.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -1888,7 +1948,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-029.glb"
+                              "uri": "parts/part-030.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -1917,7 +1977,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-030.glb"
+                              "uri": "parts/part-031.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -1985,7 +2045,7 @@
                         "geometricError": 0,
                         "refine": "REPLACE",
                         "content": {
-                          "uri": "parts/part-031.glb"
+                          "uri": "parts/part-032.glb"
                         },
                         "extras": {
                           "ice3": {
@@ -2014,7 +2074,7 @@
                         "geometricError": 0,
                         "refine": "REPLACE",
                         "content": {
-                          "uri": "parts/part-032.glb"
+                          "uri": "parts/part-033.glb"
                         },
                         "extras": {
                           "ice3": {
@@ -2043,7 +2103,7 @@
                 "boundingVolume": {
                   "box": [
                     233.8999969959259,
-                    -0.75,
+                    0.03657295182347298,
                     3.5249999966472387,
                     58.1000030040741,
                     0,
@@ -2052,7 +2112,7 @@
                     0,
                     3.555000001564622,
                     0,
-                    67.25,
+                    68.03657295182347,
                     0
                   ]
                 },
@@ -2066,7 +2126,7 @@
                     "boundingVolume": {
                       "box": [
                         233.8999969959259,
-                        5,
+                        5.786572951823473,
                         3.5399999991059303,
                         58.1000030040741,
                         0,
@@ -2075,7 +2135,7 @@
                         0,
                         3.5399999991059303,
                         0,
-                        61.5,
+                        62.28657295182347,
                         0
                       ]
                     },
@@ -2088,21 +2148,21 @@
                       {
                         "boundingVolume": {
                           "box": [
-                            203.64499394595623,
-                            6.086572904139757,
+                            233.8999969959259,
+                            5.786572951823473,
                             3.5399999991059303,
-                            27.844999954104424,
+                            58.1000030040741,
                             0,
                             0,
                             0,
                             0,
                             3.5399999991059303,
                             0,
-                            55.98657299950719,
+                            62.28657295182347,
                             0
                           ]
                         },
-                        "geometricError": 0.05705091068244883,
+                        "geometricError": 0.19437693331733463,
                         "refine": "REPLACE",
                         "content": {
                           "uri": "coarse/group-root-1-0-1-0-0.glb"
@@ -2111,24 +2171,24 @@
                           {
                             "boundingVolume": {
                               "box": [
-                                203.64499394595623,
-                                15.336572963744402,
+                                191.0999984741211,
+                                18.336572963744402,
                                 3.5399999991059303,
-                                27.844999954104424,
+                                15.300004482269287,
                                 0,
                                 0,
                                 0,
                                 0,
                                 3.5399999991059303,
                                 0,
-                                46.736572939902544,
+                                49.736572939902544,
                                 0
                               ]
                             },
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-033.glb"
+                              "uri": "parts/part-034.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -2140,24 +2200,24 @@
                           {
                             "boundingVolume": {
                               "box": [
-                                192,
-                                -45,
-                                2.188750021159649,
-                                6.400000095367432,
+                                247.85500152409077,
+                                5.786572951823473,
+                                3.5399999991059303,
+                                44.14499847590923,
                                 0,
                                 0,
                                 0,
                                 0,
-                                2.188750021159649,
+                                3.5399999991059303,
                                 0,
-                                4.900000095367432,
+                                62.28657295182347,
                                 0
                               ]
                             },
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-034.glb"
+                              "uri": "parts/part-035.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -2177,17 +2237,17 @@
                       {
                         "boundingVolume": {
                           "box": [
-                            259.3999969959259,
-                            5,
-                            3.5399999991059303,
-                            32.6000030040741,
+                            236.83566457405686,
+                            -40.13382363319397,
+                            3.5,
+                            51.235664669424295,
                             0,
                             0,
                             0,
                             0,
-                            3.5399999991059303,
+                            3.5,
                             0,
-                            61.5,
+                            10.016176462173462,
                             0
                           ]
                         },
@@ -2200,24 +2260,24 @@
                           {
                             "boundingVolume": {
                               "box": [
-                                259.3999969959259,
-                                5,
-                                3.5399999991059303,
-                                32.6000030040741,
+                                219.47970271110535,
+                                -45,
+                                2.188750021159649,
+                                33.87970280647278,
                                 0,
                                 0,
                                 0,
                                 0,
-                                3.5399999991059303,
+                                2.188750021159649,
                                 0,
-                                61.5,
+                                5.150000095367432,
                                 0
                               ]
                             },
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-035.glb"
+                              "uri": "parts/part-036.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -2229,24 +2289,24 @@
                           {
                             "boundingVolume": {
                               "box": [
-                                263.58566457405686,
-                                -44.825000047683716,
-                                1.6924999877810478,
-                                24.485664669424295,
+                                275.7106646336615,
+                                -36.994452476501465,
+                                3.5,
+                                12.36066460981965,
                                 0,
                                 0,
                                 0,
                                 0,
-                                1.6924999877810478,
+                                3.5,
                                 0,
-                                5.325000047683716,
+                                6.876805305480957,
                                 0
                               ]
                             },
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-036.glb"
+                              "uri": "parts/part-037.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -2337,7 +2397,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-037.glb"
+                              "uri": "parts/part-038.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -2366,7 +2426,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-038.glb"
+                              "uri": "parts/part-039.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -2449,7 +2509,7 @@
                                 "geometricError": 0,
                                 "refine": "REPLACE",
                                 "content": {
-                                  "uri": "parts/part-039.glb"
+                                  "uri": "parts/part-040.glb"
                                 },
                                 "extras": {
                                   "ice3": {
@@ -2478,7 +2538,7 @@
                                 "geometricError": 0,
                                 "refine": "REPLACE",
                                 "content": {
-                                  "uri": "parts/part-040.glb"
+                                  "uri": "parts/part-041.glb"
                                 },
                                 "extras": {
                                   "ice3": {
@@ -2515,7 +2575,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-041.glb"
+                              "uri": "parts/part-042.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -2573,7 +2633,7 @@
                 0
               ]
             },
-            "geometricError": 0.19437693331733463,
+            "geometricError": 0.20545677678951613,
             "refine": "REPLACE",
             "content": {
               "uri": "coarse/group-root-1-1.glb"
@@ -2645,7 +2705,7 @@
                         "geometricError": 0,
                         "refine": "REPLACE",
                         "content": {
-                          "uri": "parts/part-042.glb"
+                          "uri": "parts/part-043.glb"
                         },
                         "extras": {
                           "ice3": {
@@ -2697,7 +2757,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-043.glb"
+                              "uri": "parts/part-044.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -2726,7 +2786,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-044.glb"
+                              "uri": "parts/part-045.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -2817,7 +2877,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-045.glb"
+                              "uri": "parts/part-046.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -2846,7 +2906,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-046.glb"
+                              "uri": "parts/part-047.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -2906,7 +2966,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-047.glb"
+                              "uri": "parts/part-048.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -2935,7 +2995,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-048.glb"
+                              "uri": "parts/part-049.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -3057,7 +3117,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-049.glb"
+                              "uri": "parts/part-050.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -3086,7 +3146,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-050.glb"
+                              "uri": "parts/part-051.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -3169,7 +3229,7 @@
                                 "geometricError": 0,
                                 "refine": "REPLACE",
                                 "content": {
-                                  "uri": "parts/part-051.glb"
+                                  "uri": "parts/part-052.glb"
                                 },
                                 "extras": {
                                   "ice3": {
@@ -3198,7 +3258,7 @@
                                 "geometricError": 0,
                                 "refine": "REPLACE",
                                 "content": {
-                                  "uri": "parts/part-052.glb"
+                                  "uri": "parts/part-053.glb"
                                 },
                                 "extras": {
                                   "ice3": {
@@ -3235,7 +3295,7 @@
                             "geometricError": 0,
                             "refine": "REPLACE",
                             "content": {
-                              "uri": "parts/part-053.glb"
+                              "uri": "parts/part-054.glb"
                             },
                             "extras": {
                               "ice3": {
@@ -3303,7 +3363,7 @@
                         "geometricError": 0,
                         "refine": "REPLACE",
                         "content": {
-                          "uri": "parts/part-054.glb"
+                          "uri": "parts/part-055.glb"
                         },
                         "extras": {
                           "ice3": {
@@ -3332,7 +3392,7 @@
                         "geometricError": 0,
                         "refine": "REPLACE",
                         "content": {
-                          "uri": "parts/part-055.glb"
+                          "uri": "parts/part-056.glb"
                         },
                         "extras": {
                           "ice3": {
