@@ -1,4 +1,5 @@
-import { expect, test } from 'node-test';
+import { test } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
 import type { ICETilesetTile } from '@ice3/assets';
 import { ICEPerspectiveCamera } from '@ice3/core';
 import { ICELodSelector } from '../src/asset/ICELodSelector';

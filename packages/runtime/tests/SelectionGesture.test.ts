@@ -1,4 +1,5 @@
-import { expect, it } from 'node-test';
+import { it } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
 import {
   isSelectionClick,
   selectionForOutcome,

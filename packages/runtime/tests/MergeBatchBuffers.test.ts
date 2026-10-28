@@ -1,4 +1,5 @@
-import { expect, test } from 'node-test';
+import { test } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
 import { mergeBatchBuffers } from '../src/batching/mergeBatchBuffers.js';
 import type { ICEBatchWorkerSource } from '../src/batching/ICEBatchWorkerProtocol.js';
 

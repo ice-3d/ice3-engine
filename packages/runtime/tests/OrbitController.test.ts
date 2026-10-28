@@ -1,6 +1,6 @@
-// @node-test-environment jsdom
-
-import { expect, it, vi } from 'node-test';
+import { it } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
+import * as mockApi from '../../../tests/test-mocks.ts';
 import { FakeRendererBackend } from '@ice3/renderer';
 import {
   ICE3,
@@ -87,7 +87,7 @@ const createInteractiveController = () => {
 
 const createMotionScenario = () => {
   let currentTime = 1_000;
-  const now = vi.spyOn(performance, 'now').mockReturnValue(currentTime);
+  const now = mockApi.spyOn(performance, 'now').mockReturnValue(currentTime);
   const resources = createInteractiveController();
   const advanceFrame = (deltaMs = 20): void => {
     currentTime += deltaMs;

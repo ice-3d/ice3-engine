@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { FakeRendererBackend } from '@ice3/renderer';
-import { expect, it, vi } from 'node-test';
+import { it } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
+import * as mockApi from '../../../tests/test-mocks.ts';
 import {
   ICE3,
   ICEMesh,
@@ -55,7 +57,7 @@ const multiContentTileset = (): string => JSON.stringify({
 it('opens before all tiles finish and commits completed tiles progressively', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const orbitCamera = camera();
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
@@ -96,7 +98,7 @@ it('keeps resident Tile geometry on the GPU until the Tile unloads', async () =>
       released.add(geometry);
     },
   });
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
@@ -118,7 +120,7 @@ it('keeps resident Tile geometry on the GPU until the Tile unloads', async () =>
 
 it('keeps the current resident coverage during camera motion', async () => {
   const backend = new FakeRendererBackend();
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
@@ -154,7 +156,7 @@ it('keeps the current resident coverage during camera motion', async () => {
 
 it('keeps prior visible coverage inside the unload halo', async () => {
   const backend = new FakeRendererBackend();
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
@@ -196,7 +198,7 @@ it('keeps prior visible coverage inside the unload halo', async () => {
 
 it('reports the selected LOD cut and SSE threshold', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
@@ -237,7 +239,7 @@ it('rejects invalid adaptive batching options', () => {
 
 it('keeps successful tiles after one tile fails', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
@@ -261,7 +263,7 @@ it('keeps successful tiles after one tile fails', async () => {
 
 it('rejects duplicate node IDs from a later tile without removing earlier tiles', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
@@ -287,7 +289,7 @@ it('starts no more than two tile requests before a response settles', async () =
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   let inFlight = 0;
   let maximumInFlight = 0;
-  const fetch = vi.fn((
+  const fetch = mockApi.fn((
     input: RequestInfo | URL,
     init?: RequestInit,
   ) => new Promise<Response>((resolve, reject) => {
@@ -319,7 +321,7 @@ it('starts no more than two tile requests before a response settles', async () =
 
 it('aborts pending work and disposes its scene idempotently', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
-  const fetch = vi.fn((
+  const fetch = mockApi.fn((
     input: RequestInfo | URL,
     init?: RequestInit,
   ) => new Promise<Response>((resolve, reject) => {
@@ -346,7 +348,7 @@ it('aborts pending work and disposes its scene idempotently', async () => {
 
 it('removes the caller abort listener when the handle is disposed', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
@@ -354,7 +356,7 @@ it('removes the caller abort listener when the handle is disposed', async () => 
     return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
   });
   const controller = new AbortController();
-  const remove = vi.spyOn(controller.signal, 'removeEventListener');
+  const remove = mockApi.spyOn(controller.signal, 'removeEventListener');
   const tileset = await new ICETilesetLoader(engine, {
     fetch,
     camera: camera(),
@@ -369,7 +371,7 @@ it('removes the caller abort listener when the handle is disposed', async () => 
 
 it('uses one removable container per committed partition', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
@@ -398,7 +400,7 @@ it('unloads a partition after the camera leaves it', async () => {
     position: [0, 0, 8],
     target: [0, 0, 0],
   });
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
@@ -432,7 +434,7 @@ it('does not extend an older idle wait after the camera changes', async () => {
     position: [0, 0, 8],
     target: [0, 0, 0],
   });
-  const fetch = vi.fn((input: RequestInfo | URL) => {
+  const fetch = mockApi.fn((input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return Promise.resolve(new Response(fixture('tileset.json')));
@@ -468,7 +470,7 @@ it('keeps all visible tiles when the soft resident budget is exceeded', async ()
   engine.on<{ code: string }>('DIAGNOSTIC', (event) => {
     if (event.param) diagnostics.push(event.param.code);
   });
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
@@ -497,7 +499,7 @@ it('does not request offscreen leaf content outside the LOD target', async () =>
     position: [0, 0, 8],
     target: [0, 0, 0],
   });
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
@@ -524,7 +526,7 @@ it('does not request offscreen leaf content outside the LOD target', async () =>
 
 it('commits one logical container after all tile contents finish', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(multiContentTileset());
@@ -545,7 +547,7 @@ it('commits one logical container after all tile contents finish', async () => {
 
 it('discards every staged chunk when one logical tile content fails', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(multiContentTileset());
@@ -575,7 +577,7 @@ it('discards every staged chunk when one logical tile content fails', async () =
 it('clears every chunk URL before reloading a logical tile', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const orbitCamera = overviewCamera();
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(multiContentTileset());
@@ -618,7 +620,7 @@ it('does not retain offscreen prefetch beyond the resident tile budget', async (
     position: [0, 0, 8],
     target: [0, 0, 0],
   });
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
@@ -643,7 +645,7 @@ it('does not retain offscreen prefetch beyond the resident tile budget', async (
 
 it('resolves whenIdle after an unchanged render settles queued bookkeeping', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));
@@ -678,7 +680,7 @@ it('waits for an in-flight tile that becomes current again', async () => {
     target: [0, 0, 0],
   });
   let resolveTile!: (response: Response) => void;
-  const fetch = vi.fn((input: RequestInfo | URL) => {
+  const fetch = mockApi.fn((input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return Promise.resolve(new Response(fixture('tileset.json')));
@@ -718,7 +720,7 @@ it('waits for an in-flight tile that becomes current again', async () => {
 
 it('clears a selected descendant when the whole Tileset is disposed', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.endsWith('tileset.json')) {
       return new Response(fixture('tileset.json'));

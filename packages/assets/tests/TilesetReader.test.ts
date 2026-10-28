@@ -1,4 +1,5 @@
-import { expect, test } from 'node-test';
+import { test } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
 import { readTileset } from '../src/ICETilesetReader';
 
 const tileset = (contentUri = 'parts/part-000.glb') => JSON.stringify({

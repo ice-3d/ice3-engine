@@ -6,7 +6,8 @@ import {
   ICENode,
   ICEScene,
 } from '@ice3/core';
-import { expect, it } from 'node-test';
+import { it } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
 import {
   collectRenderables,
   collectRenderBatches,

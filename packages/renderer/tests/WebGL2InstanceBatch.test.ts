@@ -3,7 +3,8 @@ import {
   ICEIndexedGeometry,
   ICEMesh,
 } from '@ice3/core';
-import { expect, test } from 'node-test';
+import { test } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
 import {
   collectInstanceBatches,
   type ICEGeometryRenderable,

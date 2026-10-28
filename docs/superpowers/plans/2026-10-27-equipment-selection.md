@@ -6,7 +6,7 @@
 
 **Architecture:** Selection identity lives on meshes and is propagated by prepared-asset scene construction. The WebGL2 backend renders a temporary RGBA8 identity image only when picking, while runtime input distinguishes short clicks from camera drags. The normal renderer then draws a non-destructive highlight overlay from the shared selection state.
 
-**Tech Stack:** TypeScript, ESM, WebGL2, Canvas2D, node-test, Playwright, npm workspaces
+**Tech Stack:** TypeScript, ESM, WebGL2, Canvas2D, Node.js test runner, Playwright, npm workspaces
 
 **Spec:** `docs/superpowers/specs/2026-10-27-equipment-selection-design.md`
 
@@ -150,7 +150,7 @@ it('round-trips display and equipment selection names', () => {
 Run:
 
 ```bash
-npx node-test run packages/core/tests/Scene.test.ts packages/core/tests/Serialization.test.ts
+npm test -- packages/core/tests/Scene.test.ts packages/core/tests/Serialization.test.ts
 ```
 
 Expected: FAIL because `displayName` and `selectionId` do not exist.
@@ -241,7 +241,7 @@ static fromJSON(value: ICESerializedNode): ICEMesh {
 Run:
 
 ```bash
-npx node-test run packages/core/tests/Scene.test.ts packages/core/tests/Serialization.test.ts
+npm test -- packages/core/tests/Scene.test.ts packages/core/tests/Serialization.test.ts
 ```
 
 Expected: PASS.
@@ -303,7 +303,7 @@ it('keeps secondary primitives in the same equipment selection group', () => {
 Run:
 
 ```bash
-npx node-test run packages/runtime/tests/AssetSceneBuilder.test.ts
+npm test -- packages/runtime/tests/AssetSceneBuilder.test.ts
 ```
 
 Expected: FAIL because the builder ignores prepared names and does not set a shared selection identity.
@@ -340,8 +340,8 @@ new ICEMesh({
 Run:
 
 ```bash
-npx node-test run packages/runtime/tests/AssetSceneBuilder.test.ts
-npx node-test run packages/runtime
+npm test -- packages/runtime/tests/AssetSceneBuilder.test.ts
+npm test -- packages/runtime
 ```
 
 Expected: PASS.
@@ -377,7 +377,8 @@ git commit -m "feat(assets): group prepared primitives by equipment"
 Create `packages/renderer/tests/PickCodec.test.ts`:
 
 ```ts
-import { expect, it } from 'node-test';
+import { it } from 'node:test';
+import { expect } from 'expect';
 import {
   decodeSelectionIndex,
   encodeSelectionIndex,
@@ -417,7 +418,7 @@ Update every fake frame fixture with `selection: []`.
 Run:
 
 ```bash
-npx node-test run packages/renderer/tests/PickCodec.test.ts packages/renderer/tests/BackendContract.test.ts
+npm test -- packages/renderer/tests/PickCodec.test.ts packages/renderer/tests/BackendContract.test.ts
 ```
 
 Expected: FAIL because the codec and capability do not exist.
@@ -488,7 +489,7 @@ Set `picking: false` on the fake backend and `picking: true` on the WebGL2 backe
 Run:
 
 ```bash
-npx node-test run packages/renderer/tests/PickCodec.test.ts packages/renderer/tests/BackendContract.test.ts
+npm test -- packages/renderer/tests/PickCodec.test.ts packages/renderer/tests/BackendContract.test.ts
 npm run typecheck
 ```
 
@@ -799,7 +800,7 @@ readonly backend: Readonly<{
 Run:
 
 ```bash
-npx node-test run packages/renderer
+npm test -- packages/renderer
 npm run typecheck
 ```
 
@@ -845,7 +846,7 @@ it('uses the declared equipment identity for rendering selection', () => {
 Run:
 
 ```bash
-npx node-test run packages/renderer/tests/WebGL2GeometryBatch.test.ts
+npm test -- packages/renderer/tests/WebGL2GeometryBatch.test.ts
 ```
 
 Expected: FAIL because `selectionIdentity` does not exist.
@@ -920,7 +921,7 @@ Pass the existing `frame.selection` into the render call in `ICE3`, using `this.
 Run:
 
 ```bash
-npx node-test run packages/renderer
+npm test -- packages/renderer
 npm run typecheck
 ```
 
@@ -957,7 +958,8 @@ git commit -m "feat(renderer): highlight selected equipment"
 Create `packages/runtime/tests/SelectionGesture.test.ts`:
 
 ```ts
-import { expect, it } from 'node-test';
+import { it } from 'node:test';
+import { expect } from 'expect';
 import {
   isSelectionClick,
   selectionForOutcome,
@@ -989,7 +991,7 @@ the start point, release, and expect the initial status remains `运行` and
 Run:
 
 ```bash
-npx node-test run packages/runtime/tests/SelectionGesture.test.ts
+npm test -- packages/runtime/tests/SelectionGesture.test.ts
 npm run test:e2e -- tests/e2e/m0.spec.ts --project=chromium --grep="mouse drag"
 ```
 
@@ -1157,7 +1159,7 @@ while `samplePick` records `ICE3_PICK_UNAVAILABLE`.
 Run:
 
 ```bash
-npx node-test run packages/runtime/tests/SelectionGesture.test.ts packages/runtime/tests/Projection.test.ts
+npm test -- packages/runtime/tests/SelectionGesture.test.ts packages/runtime/tests/Projection.test.ts
 npm run test:e2e -- tests/e2e/m0.spec.ts --project=chromium --grep="mouse drag"
 npm run typecheck
 ```
@@ -1212,7 +1214,7 @@ it('updates label text and remeasures without replacing the label', () => {
 Run:
 
 ```bash
-npx node-test run packages/runtime/tests/LayerOrder.test.ts
+npm test -- packages/runtime/tests/LayerOrder.test.ts
 ```
 
 Expected: FAIL because `setText` does not exist.
@@ -1288,7 +1290,7 @@ selectedLabelText: () => selectionLabel.visible
 Run:
 
 ```bash
-npx node-test run packages/runtime/tests/LayerOrder.test.ts
+npm test -- packages/runtime/tests/LayerOrder.test.ts
 npm run typecheck:example
 ```
 
@@ -1480,7 +1482,7 @@ Expected:
 
 - architecture tests pass
 - TypeScript and example type checks pass
-- all node-test tests pass
+- all Node.js tests pass
 - all Chromium and WebKit tests pass
 - workspace package dry-runs exclude customer assets and reports
 

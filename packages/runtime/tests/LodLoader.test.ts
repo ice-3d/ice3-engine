@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { FakeRendererBackend } from '@ice3/renderer';
-import { expect, it, vi } from 'node-test';
+import { it } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
+import * as mockApi from '../../../tests/test-mocks.ts';
 import {
   ICE3,
   ICEPerspectiveCamera,
@@ -28,14 +30,14 @@ const camera = (focused = false) => new ICEPerspectiveCamera({
   target: focused ? [0.5, 0, 0] : [15.5, 0, 0],
 });
 
-const immediateFetch = () => vi.fn(async (input: RequestInfo | URL) => (
+const immediateFetch = () => mockApi.fn(async (input: RequestInfo | URL) => (
   new Response(fixture(relative(input)))
 ));
 
 it('keeps coarse parent coverage until focused fine content commits', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const lodCamera = camera();
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const path = relative(input);
     if (path.startsWith('parts/')) {
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -75,7 +77,7 @@ it('keeps coarse parent coverage until focused fine content commits', async () =
 it('does not expose overlapping ancestor and descendant levels', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const lodCamera = camera();
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const path = relative(input);
     if (path.startsWith('parts/')) {
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -205,7 +207,7 @@ it('shows each complete coarse branch instead of waiting for every leaf', async 
   lodCamera.setPosition([15.5, 0, 500]).setTarget([15.5, 0, 0]);
   let resolveGroup!: (response: Response) => void;
   let groupRequested = false;
-  const fetch = vi.fn((input: RequestInfo | URL) => {
+  const fetch = mockApi.fn((input: RequestInfo | URL) => {
     const path = relative(input);
     if (path.startsWith('parts/')) {
       return new Promise<Response>(() => {});
@@ -243,7 +245,7 @@ it('shows each complete coarse branch instead of waiting for every leaf', async 
 it('keeps parent coverage when focused fine content fails', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const lodCamera = camera();
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const path = relative(input);
     if (path === 'parts/part-000.glb') {
       return new Response('unavailable', { status: 500 });
@@ -340,7 +342,7 @@ it('keeps coarse coverage and stops optional refinement at the budget', async ()
 it('keeps whenIdle independent from delayed background prefetch', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const delayed: Array<(response: Response) => void> = [];
-  const fetch = vi.fn((input: RequestInfo | URL) => {
+  const fetch = mockApi.fn((input: RequestInfo | URL) => {
     const path = relative(input);
     if (path === 'coarse/group-root-0.glb' || path === 'coarse/group-root-1.glb') {
       return new Promise<Response>((resolve) => {
@@ -374,7 +376,7 @@ it('keeps whenIdle independent from delayed background prefetch', async () => {
 it('isolates prefetch failures from visible load failures', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const failedEvents: string[] = [];
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = mockApi.fn(async (input: RequestInfo | URL) => {
     const path = relative(input);
     if (path === 'coarse/group-root-0.glb' || path === 'coarse/group-root-1.glb') {
       return new Response('unavailable', { status: 500 });

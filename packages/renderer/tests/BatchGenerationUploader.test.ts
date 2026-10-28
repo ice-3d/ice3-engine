@@ -1,4 +1,5 @@
-import { expect, test } from 'node-test';
+import { test } from 'node:test';
+import { expect } from '../../../tests/assertions.ts';
 import {
   queueBatchGeneration,
   type ICEBatchUploadBuffer,
