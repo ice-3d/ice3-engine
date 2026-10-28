@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.route(
+    '**/assets/local-preview.local.json',
+    (route) => route.fulfill({ status: 404 }),
+  );
+});
+
 async function waitForAssetProjectionToSettle(page: Page): Promise<void> {
   await page.waitForFunction(() => new Promise<boolean>((resolve) => {
     const read = () => window.__ice3M1.assetCenter();
@@ -66,6 +73,61 @@ test('loads a same-origin asset selected by a local preview override', async ({
     .toHaveText('当前视角已就绪');
   await expect(page.locator('[data-role="stage"]'))
     .toHaveAttribute('aria-busy', 'false');
+});
+
+test('prefers a local preview when the root URL is opened', async ({ page }) => {
+  const previewRequests: string[] = [];
+  page.on('request', (request) => {
+    if (request.url().includes('/assets/local-preview.local.json')) {
+      previewRequests.push(request.method());
+    }
+  });
+  await page.unroute('**/assets/local-preview.local.json');
+  await page.route(
+    '**/assets/local-preview.local.json',
+    (route) => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        asset: {
+          version: '1.1',
+          extras: {
+            ice3: {
+              assetId: 'local-preview',
+              contractVersion: '1.0',
+            },
+          },
+        },
+        geometricError: 0,
+        root: {
+          boundingVolume: {
+            box: [15.5, 0, 0.5, 15.5, 0, 0, 0, 0.5, 0, 0, 0, 0.175],
+          },
+          geometricError: 0,
+          refine: 'REPLACE',
+          content: {
+            uri: 'hierarchical-demo/coarse/group-root.glb',
+          },
+          extras: {
+            ice3: {
+              assetId: 'local-preview',
+              partitionId: 'local-preview-root',
+            },
+          },
+        },
+      }),
+    }),
+  );
+
+  await page.goto('http://127.0.0.1:8104/');
+
+  await expect(page.locator('[data-role="status"]'))
+    .toHaveText('当前视角已就绪');
+  expect(await page.evaluate(
+    () => window.__ice3M1.assetStats().meshCount,
+  )).toBeGreaterThan(0);
+  expect(previewRequests).toContain('HEAD');
+  expect(previewRequests).toContain('GET');
 });
 
 test('activates one adaptive generation only after idle', async ({ page }) => {

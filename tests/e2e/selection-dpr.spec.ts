@@ -2,6 +2,13 @@ import { expect, test } from '@playwright/test';
 
 test.use({ deviceScaleFactor: 2 });
 
+test.beforeEach(async ({ page }) => {
+  await page.route(
+    '**/assets/local-preview.local.json',
+    (route) => route.fulfill({ status: 404 }),
+  );
+});
+
 test('selects at the projected center with a two-times device scale', async ({ page }) => {
   await page.goto('http://127.0.0.1:8104/');
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');

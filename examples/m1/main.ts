@@ -53,9 +53,7 @@ const defaultAssetUrl = adaptiveDemo
   ? '/assets/adaptive-demo/tileset.json'
   : '/assets/hierarchical-demo/tileset.json';
 const assetOverride = query.get('asset');
-const assetUrl = assetOverride === null
-  ? defaultAssetUrl
-  : resolveAssetOverride(assetOverride);
+const localPreviewAssetUrl = '/assets/local-preview.local.json';
 const loader = new ICETilesetLoader(engine, {
   camera,
   ...(adaptiveBatching
@@ -87,6 +85,28 @@ function resolveAssetOverride(value: string): string {
     throw new Error('本地资产必须位于当前站点的 /assets/ 目录');
   }
   return `${url.pathname}${url.search}`;
+}
+
+async function resolveAssetUrl(): Promise<string> {
+  if (assetOverride !== null) {
+    return resolveAssetOverride(assetOverride);
+  }
+  if (adaptiveDemo || query.has('adaptive')) {
+    return defaultAssetUrl;
+  }
+  try {
+    const response = await fetch(localPreviewAssetUrl, {
+      method: 'HEAD',
+      cache: 'no-store',
+    });
+    const contentType = response.headers.get('content-type') ?? '';
+    if (response.ok && contentType.includes('application/json')) {
+      return localPreviewAssetUrl;
+    }
+  } catch {
+    // The checked-in synthetic asset remains available without local data.
+  }
+  return defaultAssetUrl;
 }
 
 engine.on<{ selection: readonly string[] }>('SELECTION_CHANGE', (event) => {
@@ -329,7 +349,7 @@ function disposeAsset(): void {
 
 async function start(): Promise<void> {
   try {
-    handle = await loader.open(assetUrl);
+    handle = await loader.open(await resolveAssetUrl());
     const { min, max } = handle.bounds;
     assetCenter = [
       (min[0] + max[0]) / 2,
