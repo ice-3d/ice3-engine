@@ -1,0 +1,548 @@
+{
+  "asset": {
+    "version": "1.1",
+    "extras": {
+      "ice3": {
+        "assetId": "ice3-virtual-wwtp",
+        "contractVersion": "1.0"
+      }
+    }
+  },
+  "geometricError": 0.48787845373773914,
+  "root": {
+    "boundingVolume": {
+      "box": [
+        64.26999998092651,
+        -24,
+        2.9200000017881393,
+        206.2699999809265,
+        0,
+        0,
+        0,
+        0,
+        3.0799999982118607,
+        0,
+        86,
+        0
+      ]
+    },
+    "geometricError": 0.48787845373773914,
+    "refine": "REPLACE",
+    "contents": [
+      {
+        "uri": "coarse/group-root/part-000/part-000.glb"
+      },
+      {
+        "uri": "coarse/group-root/part-000/part-001.glb"
+      },
+      {
+        "uri": "coarse/group-root/part-001/part-000/part-000.glb"
+      },
+      {
+        "uri": "coarse/group-root/part-001/part-000/part-001.glb"
+      },
+      {
+        "uri": "coarse/group-root/part-001/part-001.glb"
+      }
+    ],
+    "children": [
+      {
+        "boundingVolume": {
+          "box": [
+            4,
+            -24,
+            2.9200000017881393,
+            146,
+            0,
+            0,
+            0,
+            0,
+            3.0799999982118607,
+            0,
+            86,
+            0
+          ]
+        },
+        "geometricError": 0.2847041600825051,
+        "refine": "REPLACE",
+        "contents": [
+          {
+            "uri": "coarse/group-root-0/part-000.glb"
+          },
+          {
+            "uri": "coarse/group-root-0/part-001.glb"
+          }
+        ],
+        "children": [
+          {
+            "boundingVolume": {
+              "box": [
+                4,
+                -24,
+                2.9200000017881393,
+                146,
+                0,
+                0,
+                0,
+                0,
+                3.0799999982118607,
+                0,
+                86,
+                0
+              ]
+            },
+            "geometricError": 0.2847041600825051,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "coarse/group-root-0-0.glb"
+            },
+            "children": [
+              {
+                "boundingVolume": {
+                  "box": [
+                    4,
+                    -24,
+                    2.9200000017881393,
+                    146,
+                    0,
+                    0,
+                    0,
+                    0,
+                    3.0799999982118607,
+                    0,
+                    86,
+                    0
+                  ]
+                },
+                "geometricError": 0,
+                "refine": "REPLACE",
+                "content": {
+                  "uri": "parts/part-000.glb"
+                },
+                "extras": {
+                  "ice3": {
+                    "assetId": "ice3-virtual-wwtp",
+                    "partitionId": "group-root-0-0-0"
+                  }
+                }
+              },
+              {
+                "boundingVolume": {
+                  "box": [
+                    67.5,
+                    -53.78750002384186,
+                    1.4949999928474424,
+                    19.039999961853027,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1.4950000166893007,
+                    0,
+                    19.612500071525574,
+                    0
+                  ]
+                },
+                "geometricError": 0,
+                "refine": "REPLACE",
+                "content": {
+                  "uri": "parts/part-001.glb"
+                },
+                "extras": {
+                  "ice3": {
+                    "assetId": "ice3-virtual-wwtp",
+                    "partitionId": "group-root-0-0-1"
+                  }
+                }
+              }
+            ],
+            "extras": {
+              "ice3": {
+                "assetId": "ice3-virtual-wwtp",
+                "partitionId": "group-root-0-0"
+              }
+            }
+          },
+          {
+            "boundingVolume": {
+              "box": [
+                107.10500001907349,
+                -55.492426335811615,
+                1.4949999928474424,
+                29.644999980926514,
+                0,
+                0,
+                0,
+                0,
+                1.4950000166893007,
+                0,
+                38.14242643117905,
+                0
+              ]
+            },
+            "geometricError": 0.24823989651535072,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "coarse/group-root-0-1.glb"
+            },
+            "children": [
+              {
+                "boundingVolume": {
+                  "box": [
+                    103,
+                    -44.02499994635582,
+                    1.3600000113248825,
+                    25.539999961853027,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1.360000017285347,
+                    0,
+                    26.67500004172325,
+                    0
+                  ]
+                },
+                "geometricError": 0,
+                "refine": "REPLACE",
+                "content": {
+                  "uri": "parts/part-002.glb"
+                },
+                "extras": {
+                  "ice3": {
+                    "assetId": "ice3-virtual-wwtp",
+                    "partitionId": "group-root-0-1-0"
+                  }
+                }
+              },
+              {
+                "boundingVolume": {
+                  "box": [
+                    120.75,
+                    -83.4674263894558,
+                    1.4949999928474424,
+                    16,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1.4950000166893007,
+                    0,
+                    10.167426377534866,
+                    0
+                  ]
+                },
+                "geometricError": 0,
+                "refine": "REPLACE",
+                "content": {
+                  "uri": "parts/part-003.glb"
+                },
+                "extras": {
+                  "ice3": {
+                    "assetId": "ice3-virtual-wwtp",
+                    "partitionId": "group-root-0-1-1"
+                  }
+                }
+              }
+            ],
+            "extras": {
+              "ice3": {
+                "assetId": "ice3-virtual-wwtp",
+                "partitionId": "group-root-0-1"
+              }
+            }
+          }
+        ],
+        "extras": {
+          "ice3": {
+            "assetId": "ice3-virtual-wwtp",
+            "partitionId": "group-root-0"
+          }
+        }
+      },
+      {
+        "boundingVolume": {
+          "box": [
+            137.7699999809265,
+            -63.467426389455795,
+            1.5950000166893004,
+            132.7699999809265,
+            0,
+            0,
+            0,
+            0,
+            1.5950000405311586,
+            0,
+            34.167426377534866,
+            0
+          ]
+        },
+        "geometricError": 0.48787845373773914,
+        "refine": "REPLACE",
+        "contents": [
+          {
+            "uri": "coarse/group-root-1/part-000/part-000.glb"
+          },
+          {
+            "uri": "coarse/group-root-1/part-000/part-001.glb"
+          },
+          {
+            "uri": "coarse/group-root-1/part-001.glb"
+          }
+        ],
+        "children": [
+          {
+            "boundingVolume": {
+              "box": [
+                135.5,
+                -64.56742638349533,
+                1.5950000166893004,
+                130.5,
+                0,
+                0,
+                0,
+                0,
+                1.5950000405311586,
+                0,
+                33.06742638349533,
+                0
+              ]
+            },
+            "geometricError": 0.48787845373773914,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "coarse/group-root-1-0.glb"
+            },
+            "children": [
+              {
+                "boundingVolume": {
+                  "box": [
+                    135.5,
+                    -61.76130676269531,
+                    1.5950000166893004,
+                    130.5,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1.5950000405311586,
+                    0,
+                    30.261306762695312,
+                    0
+                  ]
+                },
+                "geometricError": 0.24823989651535072,
+                "refine": "REPLACE",
+                "content": {
+                  "uri": "coarse/group-root-1-0-0.glb"
+                },
+                "children": [
+                  {
+                    "boundingVolume": {
+                      "box": [
+                        144.125,
+                        -45,
+                        1.4949999928474424,
+                        8.625,
+                        0,
+                        0,
+                        0,
+                        0,
+                        1.4950000166893007,
+                        0,
+                        13.5,
+                        0
+                      ]
+                    },
+                    "geometricError": 0,
+                    "refine": "REPLACE",
+                    "content": {
+                      "uri": "parts/part-004.glb"
+                    },
+                    "extras": {
+                      "ice3": {
+                        "assetId": "ice3-virtual-wwtp",
+                        "partitionId": "group-root-1-0-0-0"
+                      }
+                    }
+                  },
+                  {
+                    "boundingVolume": {
+                      "box": [
+                        135.5,
+                        -63.946306228637695,
+                        2.7300000190734863,
+                        130.5,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0.46000003814697266,
+                        0,
+                        28.07630729675293,
+                        0
+                      ]
+                    },
+                    "geometricError": 0,
+                    "refine": "REPLACE",
+                    "content": {
+                      "uri": "parts/part-005.glb"
+                    },
+                    "extras": {
+                      "ice3": {
+                        "assetId": "ice3-virtual-wwtp",
+                        "partitionId": "group-root-1-0-0-1"
+                      }
+                    }
+                  }
+                ],
+                "extras": {
+                  "ice3": {
+                    "assetId": "ice3-virtual-wwtp",
+                    "partitionId": "group-root-1-0-0"
+                  }
+                }
+              },
+              {
+                "boundingVolume": {
+                  "box": [
+                    145.5,
+                    -84.40492635965347,
+                    0.9750000208616256,
+                    7.200000047683716,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0.9750000268220902,
+                    0,
+                    13.229926407337189,
+                    0
+                  ]
+                },
+                "geometricError": 0,
+                "refine": "REPLACE",
+                "content": {
+                  "uri": "parts/part-006.glb"
+                },
+                "extras": {
+                  "ice3": {
+                    "assetId": "ice3-virtual-wwtp",
+                    "partitionId": "group-root-1-0-1"
+                  }
+                }
+              }
+            ],
+            "extras": {
+              "ice3": {
+                "assetId": "ice3-virtual-wwtp",
+                "partitionId": "group-root-1-0"
+              }
+            }
+          },
+          {
+            "boundingVolume": {
+              "box": [
+                210.1449999809265,
+                -63.467426389455795,
+                1.4949999928474424,
+                60.394999980926514,
+                0,
+                0,
+                0,
+                0,
+                1.4950000166893007,
+                0,
+                34.167426377534866,
+                0
+              ]
+            },
+            "geometricError": 0.3302954379099532,
+            "refine": "REPLACE",
+            "content": {
+              "uri": "coarse/group-root-1-1.glb"
+            },
+            "children": [
+              {
+                "boundingVolume": {
+                  "box": [
+                    175.125,
+                    -63.467426389455795,
+                    1.4949999928474424,
+                    25.375,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1.4950000166893007,
+                    0,
+                    34.167426377534866,
+                    0
+                  ]
+                },
+                "geometricError": 0,
+                "refine": "REPLACE",
+                "content": {
+                  "uri": "parts/part-007.glb"
+                },
+                "extras": {
+                  "ice3": {
+                    "assetId": "ice3-virtual-wwtp",
+                    "partitionId": "group-root-1-1-0"
+                  }
+                }
+              },
+              {
+                "boundingVolume": {
+                  "box": [
+                    235.5,
+                    -43.57000005245209,
+                    1.399999964237213,
+                    35.03999996185303,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1.3999999880790712,
+                    0,
+                    9.830000042915344,
+                    0
+                  ]
+                },
+                "geometricError": 0,
+                "refine": "REPLACE",
+                "content": {
+                  "uri": "parts/part-008.glb"
+                },
+                "extras": {
+                  "ice3": {
+                    "assetId": "ice3-virtual-wwtp",
+                    "partitionId": "group-root-1-1-1"
+                  }
+                }
+              }
+            ],
+            "extras": {
+              "ice3": {
+                "assetId": "ice3-virtual-wwtp",
+                "partitionId": "group-root-1-1"
+              }
+            }
+          }
+        ],
+        "extras": {
+          "ice3": {
+            "assetId": "ice3-virtual-wwtp",
+            "partitionId": "group-root-1"
+          }
+        }
+      }
+    ],
+    "extras": {
+      "ice3": {
+        "assetId": "ice3-virtual-wwtp",
+        "partitionId": "group-root"
+      }
+    }
+  }
+}
