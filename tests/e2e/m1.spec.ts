@@ -108,6 +108,12 @@ test('activates one adaptive generation only after idle', async ({ page }) => {
   await expect.poll(
     () => page.evaluate(() => window.__ice3M1.selectedIds().length),
   ).toBe(1);
+  const selectionInfo = page.locator('[data-role="selection-info"]');
+  await expect(selectionInfo).toBeVisible();
+  await expect(page.locator('[data-role="selection-name"]')).not.toBeEmpty();
+  await expect(page.locator('[data-role="selection-name"]'))
+    .not.toContainText('adaptive-render-batch');
+  await expect(page.locator('[data-role="selection-code"]')).toContainText('EQ-');
 
   expect(errors).toEqual([]);
   expect(failedRequests).toEqual([]);
