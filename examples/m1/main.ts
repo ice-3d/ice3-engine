@@ -322,10 +322,10 @@ function findSelectionTarget(
     if (index >= 0) {
       const stableId = batch.semanticNodeIds?.[index]
         ?? selectionId;
-      const leaf = stableId.split('/').filter(Boolean).at(-1) ?? stableId;
+      const equipmentTag = selectionId.split('/').filter(Boolean).at(-1);
       return {
         id: stableId,
-        displayName: `设备 ${leaf}`,
+        displayName: equipmentTag ? `设备 ${equipmentTag}` : stableId,
       };
     }
   }
@@ -554,8 +554,13 @@ window.__ice3M1 = {
   },
   equipmentSelectionIds: wastewaterEquipmentSelectionIds,
   whenLodIdle: async () => {
-    await Promise.resolve();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     await handle?.whenIdle();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await handle?.whenIdle();
+    viewUpdating = false;
+    loadFinished = true;
+    updateStatus();
   },
   visibleMeshCount: () => {
     let count = 0;
