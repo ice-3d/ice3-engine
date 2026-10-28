@@ -86,6 +86,11 @@ reuse existing example servers.
   margin, and unload partitions after they leave the retention margin.
 - Apply a soft resident-count and geometry-byte budget without ever omitting
   visible equipment to satisfy that budget.
+- Keep GPU geometry for resident Tiles across camera-driven visibility changes,
+  with a frame grace window and byte-budgeted LRU eviction for non-resident
+  resources.
+- Upload each committed Tile before it becomes visible and expose cumulative
+  GPU upload/eviction diagnostics.
 - Commit at most one partition per frame by default, with configurable request
   concurrency and per-frame commit limits.
 - Merge completed partitions into one scene so equipment selection and spatial
