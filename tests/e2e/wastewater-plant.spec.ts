@@ -72,5 +72,18 @@ test('selects a virtual wastewater device from the default scene', async ({
     () => page.evaluate(() => window.__ice3M1.selectedIds()[0]),
   ).toBe('ice3-virtual-wwtp/equipment/SC-101');
   await expect(page.locator('[data-role="selection-info"]')).toBeVisible();
-  await expect(page.locator('[data-role="selection-name"]')).toContainText('SC-101');
+  await expect(page.locator('[data-role="selection-name"]')).toHaveText('二沉池 A');
+  const metadata = await page.evaluate(() => window.__ice3M1.equipmentMetadata(
+    'ice3-virtual-wwtp/equipment/SC-101',
+  ));
+  expect(metadata).toMatchObject({
+    equipmentTag: 'SC-101',
+    area: 'SecondaryTreatmentArea',
+    processStage: 'secondary',
+  });
+  expect(metadata?.connections.length).toBeGreaterThan(0);
+  await expect(page.locator('[data-role="selection-code"]')).toHaveText('SC-101');
+  await expect(page.locator('[data-role="selection-type"]'))
+    .toHaveText('二沉与污泥回流');
+  await expect(page.locator('[data-role="selection-area"]')).toHaveText('二沉与回流区');
 });

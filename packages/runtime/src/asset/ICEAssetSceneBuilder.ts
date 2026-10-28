@@ -55,6 +55,7 @@ export function buildAssetScene(
       ? new ICERenderBatch({
           id: source.id,
           displayName: source.name,
+          ...(source.metadata ? { metadata: source.metadata } : {}),
           matrix: source.matrix,
           geometry,
           material,
@@ -67,6 +68,7 @@ export function buildAssetScene(
         ? new ICEMesh({
           id: source.id,
           displayName: source.name,
+          ...(source.metadata ? { metadata: source.metadata } : {}),
           selectionId: source.selectionId,
           matrix: source.matrix,
           geometry,
@@ -75,6 +77,7 @@ export function buildAssetScene(
         : new ICENode({
           id: source.id,
           displayName: source.name,
+          ...(source.metadata ? { metadata: source.metadata } : {}),
           selectionId: source.selectionId,
           matrix: source.matrix,
           });

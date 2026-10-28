@@ -36,6 +36,27 @@ it('reads an explicit selection identity for LOD content', () => {
   expect(snapshot.nodes[0]!.selectionId).toBe('semantic/device/7');
 });
 
+it('reads equipment business metadata from prepared nodes', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB({
+    selectionId: 'semantic/device/7',
+    metadata: {
+      displayName: '进水泵 A',
+      equipmentTag: 'P-101',
+      area: 'IntakeArea',
+      ports: ['suction', 'discharge'],
+      connections: ['main-03-P-101-CV-101'],
+    },
+  }));
+
+  expect(snapshot.nodes[0]!.metadata).toEqual({
+    displayName: '进水泵 A',
+    equipmentTag: 'P-101',
+    area: 'IntakeArea',
+    ports: ['suction', 'discharge'],
+    connections: ['main-03-P-101-CV-101'],
+  });
+});
+
 it('counts a shared mesh once while preserving every node selection', () => {
   const snapshot = readPreparedGLB(
     createMinimalPreparedGLB({ sharedNodeCount: 4 }),

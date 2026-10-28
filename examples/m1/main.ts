@@ -201,18 +201,49 @@ function hashText(value: string): number {
 interface SelectionTarget {
   readonly id: string;
   readonly displayName: string;
+  readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
 function showSelectionInfo(node: SelectionTarget): void {
   const hash = hashText(node.id);
   const statuses = ['运行正常', '待机', '维护中'] as const;
-  const types = ['泵组', '输送设备', '控制柜', '检测设备', '执行机构'] as const;
-  const areas = ['A 区', 'B 区', '动力区', '装配区'] as const;
+  const stageNames: Readonly<Record<string, string>> = {
+    intake: '预处理',
+    primary: '一级处理',
+    biological: '生物处理',
+    secondary: '二沉与污泥回流',
+    advanced: '深度处理',
+    sludge: '污泥处理',
+    chemical: '药剂投加',
+    utilities: '公用工程',
+  };
+  const areaNames: Readonly<Record<string, string>> = {
+    IntakeArea: '进水区',
+    PrimaryTreatmentArea: '一级处理区',
+    BiologicalTrainA: '生化 A 线',
+    BiologicalTrainB: '生化 B 线',
+    SecondaryTreatmentArea: '二沉与回流区',
+    AdvancedTreatmentArea: '深度处理区',
+    DischargeArea: '排放区',
+    SludgeTreatmentArea: '污泥处理区',
+    ChemicalDosingArea: '加药区',
+    UtilitiesArea: '公用工程区',
+  };
+  const processStage = typeof node.metadata?.processStage === 'string'
+    ? node.metadata.processStage
+    : '';
+  const area = typeof node.metadata?.area === 'string'
+    ? node.metadata.area
+    : '';
+  const equipmentTag = typeof node.metadata?.equipmentTag === 'string'
+    ? node.metadata.equipmentTag
+    : undefined;
   selectionName.textContent = node.displayName;
-  selectionCode.textContent = `EQ-${hash.toString(16).toUpperCase().padStart(8, '0')}`;
+  selectionCode.textContent = equipmentTag
+    ?? `EQ-${hash.toString(16).toUpperCase().padStart(8, '0')}`;
   selectionStatus.textContent = statuses[hash % statuses.length]!;
-  selectionType.textContent = types[(hash >>> 3) % types.length]!;
-  selectionArea.textContent = areas[(hash >>> 6) % areas.length]!;
+  selectionType.textContent = stageNames[processStage] ?? '工业设备';
+  selectionArea.textContent = areaNames[area] ?? '厂区';
   selectionInfo.dataset.state = 'visible';
   selectionInfo.setAttribute('aria-hidden', 'false');
 }
@@ -307,10 +338,14 @@ function findSelectionTarget(
   selectionId: string,
 ): SelectionTarget | undefined {
   if (!node) return undefined;
-  if (node instanceof ICEMesh && node.selectionId === selectionId) {
+  if (node.selectionId === selectionId) {
+    const metadata = node.metadata;
     return {
       id: node.id,
-      displayName: node.displayName,
+      displayName: typeof metadata?.displayName === 'string'
+        ? metadata.displayName
+        : node.displayName,
+      ...(metadata ? { metadata } : {}),
     };
   }
   const batch = node as ICENode & {
@@ -334,6 +369,14 @@ function findSelectionTarget(
     if (found) return found;
   }
   return undefined;
+}
+
+function equipmentBusinessMetadata(
+  selectionId: string,
+): Readonly<Record<string, unknown>> | undefined {
+  return handle
+    ? findSelectionTarget(handle.scene, selectionId)?.metadata
+    : undefined;
 }
 
 function scenePixelAtProjection(): readonly [number, number, number, number] {
@@ -553,6 +596,7 @@ window.__ice3M1 = {
     engine.setSelection(selectionId ? [selectionId] : []);
   },
   equipmentSelectionIds: wastewaterEquipmentSelectionIds,
+  equipmentMetadata: equipmentBusinessMetadata,
   whenLodIdle: async () => {
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     await handle?.whenIdle();

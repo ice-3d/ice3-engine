@@ -23,6 +23,9 @@ declare global {
       focusLodBranch(): void;
       selectOverviewDevice(): void;
       equipmentSelectionIds(): readonly string[];
+      equipmentMetadata(
+        selectionId: string,
+      ): Readonly<Record<string, unknown>> | undefined;
       whenLodIdle(): Promise<void>;
       visibleMeshCount(): number;
       scenePixelAtProjection(): readonly [number, number, number, number];

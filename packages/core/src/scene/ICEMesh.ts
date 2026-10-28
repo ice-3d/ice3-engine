@@ -44,6 +44,7 @@ export class ICEMesh extends ICENode {
       displayName: typeof value.displayName === 'string'
         ? value.displayName
         : value.id,
+      ...(value.metadata ? { metadata: value.metadata } : {}),
       selectionId: typeof value.selectionId === 'string'
         ? value.selectionId
         : value.id,

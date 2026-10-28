@@ -32,6 +32,7 @@ export function deserializeScene(
     ...(value.scene.displayName
       ? { displayName: value.scene.displayName }
       : {}),
+    ...(value.scene.metadata ? { metadata: value.scene.metadata } : {}),
     position: value.scene.position,
     rotation: value.scene.rotation,
     scale: value.scene.scale,
