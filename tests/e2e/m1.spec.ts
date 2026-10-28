@@ -1,5 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 
+const HIERARCHICAL_ASSET_URL =
+  'http://127.0.0.1:8104/?asset=/assets/hierarchical-demo/tileset.json';
+
+function hierarchicalTilesetRequest(url: string, resourceType: string): boolean {
+  return resourceType !== 'document'
+    && new URL(url).pathname.endsWith(
+      '/assets/hierarchical-demo/tileset.json',
+    );
+}
+
 test.beforeEach(async ({ page }) => {
   await page.route(
     '**/assets/local-preview.local.json',
@@ -30,10 +40,17 @@ async function waitForAssetProjectionToSettle(page: Page): Promise<void> {
 
 test('shows compact camera hints after the asset is ready', async ({ page }) => {
   await page.route('**/assets/hierarchical-demo/tileset.json', async (route) => {
+    if (!hierarchicalTilesetRequest(
+      route.request().url(),
+      route.request().resourceType(),
+    )) {
+      await route.continue();
+      return;
+    }
     await new Promise((resolve) => setTimeout(resolve, 600));
     await route.continue();
   });
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
 
   const hint = page.locator('[data-role="controls-hint"]');
 
@@ -248,10 +265,17 @@ test('reuses resident GPU buffers while rotating through covered content', async
 
 test('shows an accessible loading state until the asset is ready', async ({ page }) => {
   await page.route('**/assets/hierarchical-demo/tileset.json', async (route) => {
+    if (!hierarchicalTilesetRequest(
+      route.request().url(),
+      route.request().resourceType(),
+    )) {
+      await route.continue();
+      return;
+    }
     await new Promise((resolve) => setTimeout(resolve, 600));
     await route.continue();
   });
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
 
   const loading = page.locator('[data-role="loading"]');
   const stage = page.locator('[data-role="stage"]');
@@ -274,7 +298,7 @@ test('shows coarse overview before fine leaf requests finish', async ({ page }) 
     await new Promise((resolve) => setTimeout(resolve, 1500));
     await route.continue();
   });
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
 
   const progress = page.locator('[data-role="tileset-progress"]');
   await expect(progress).toHaveText(
@@ -295,7 +319,7 @@ test('keeps coarse coverage when focused fine content fails', async ({ page }) =
       body: 'unavailable',
     })
   ));
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   await page.evaluate(() => window.__ice3M1.focusLodBranch());
 
@@ -309,7 +333,7 @@ test('keeps coarse coverage when focused fine content fails', async ({ page }) =
 });
 
 test('retains the resident work set while the camera moves', async ({ page }) => {
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   const initialResident = await page.evaluate(
     () => window.__ice3M1.tilesetStats().resident,
@@ -330,7 +354,7 @@ test('retains the resident work set while the camera moves', async ({ page }) =>
 });
 
 test('clears selection when its visible partition is unloaded', async ({ page }) => {
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   await page.evaluate(() => window.__ice3M1.setCameraPose([0, 0, 8], [0, 0, 0]));
   await expect.poll(
@@ -353,12 +377,21 @@ test('clears selection when its visible partition is unloaded', async ({ page })
 });
 
 test('keeps a visible error state when model loading fails', async ({ page }) => {
-  await page.route('**/assets/hierarchical-demo/tileset.json', (route) => route.fulfill({
-    status: 500,
-    contentType: 'text/plain',
-    body: 'unavailable',
-  }));
-  await page.goto('http://127.0.0.1:8104/');
+  await page.route('**/assets/hierarchical-demo/tileset.json', async (route) => {
+    if (!hierarchicalTilesetRequest(
+      route.request().url(),
+      route.request().resourceType(),
+    )) {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 500,
+      contentType: 'text/plain',
+      body: 'unavailable',
+    });
+  });
+  await page.goto(HIERARCHICAL_ASSET_URL);
 
   const loading = page.locator('[data-role="loading"]');
 
@@ -376,10 +409,17 @@ test('keeps a visible error state when model loading fails', async ({ page }) =>
 test('fits loading and control hints within a narrow viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/assets/hierarchical-demo/tileset.json', async (route) => {
+    if (!hierarchicalTilesetRequest(
+      route.request().url(),
+      route.request().resourceType(),
+    )) {
+      await route.continue();
+      return;
+    }
     await new Promise((resolve) => setTimeout(resolve, 600));
     await route.continue();
   });
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="loading"]')).toBeVisible();
 
   const layout = await page.evaluate(() => {
@@ -430,7 +470,7 @@ test('fits loading and control hints within a narrow viewport', async ({ page })
 test('loads and renders the prepared industrial asset', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
 
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   await expect
@@ -468,7 +508,7 @@ test('loads and renders the prepared industrial asset', async ({ page }) => {
 });
 
 test('disposes the asset exactly once', async ({ page }) => {
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
 
   await page.getByRole('button', { name: '释放资产' }).click();
@@ -478,7 +518,7 @@ test('disposes the asset exactly once', async ({ page }) => {
 });
 
 test('uses a black background with material contrast', async ({ page }) => {
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   const background = await page.evaluate(() => {
     const canvas = document.querySelector<HTMLCanvasElement>(
@@ -497,7 +537,7 @@ test('uses a black background with material contrast', async ({ page }) => {
 });
 
 test('moves the camera with WASD and arrow keys', async ({ page }) => {
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   const before = await page.evaluate(() => window.__ice3M1.cameraPosition());
   const targetBeforeLetter = await page.evaluate(
@@ -545,7 +585,7 @@ test('moves the camera with WASD and arrow keys', async ({ page }) => {
 });
 
 test('selects one equipment unit with a yellow highlight and info panel', async ({ page }) => {
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   const center = await page.evaluate(() => window.__ice3M1.assetCenter());
   const stage = await page.locator('[data-role="stage"]').boundingBox();
@@ -610,7 +650,7 @@ test('selects one equipment unit with a yellow highlight and info panel', async 
 });
 
 test('clears selection on empty click and does not select while dragging', async ({ page }) => {
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   const center = await page.evaluate(() => window.__ice3M1.assetCenter());
   const stage = await page.locator('[data-role="stage"]').boundingBox();
@@ -652,7 +692,7 @@ test('clears selection on empty click and does not select while dragging', async
 });
 
 test('does not select during a two-pointer pinch gesture', async ({ page }) => {
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
 
   await page.evaluate(() => {
@@ -689,7 +729,7 @@ test('does not select during a two-pointer pinch gesture', async ({ page }) => {
 });
 
 test('shows coarse coverage and refines the focused branch', async ({ page }) => {
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
 
   expect(await page.evaluate(
@@ -706,7 +746,7 @@ test('shows coarse coverage and refines the focused branch', async ({ page }) =>
 });
 
 test('keeps selection through a coarse-to-fine transition', async ({ page }) => {
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   await page.evaluate(() => window.__ice3M1.selectOverviewDevice());
 
@@ -728,7 +768,7 @@ test('keeps coarse coverage while focused fine content is delayed', async ({
     await new Promise((resolve) => setTimeout(resolve, 500));
     await route.continue();
   });
-  await page.goto('http://127.0.0.1:8104/');
+  await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
 
   await page.evaluate(() => window.__ice3M1.focusLodBranch());

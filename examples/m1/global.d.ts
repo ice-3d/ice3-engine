@@ -19,6 +19,8 @@ declare global {
       showLodOverview(): void;
       focusLodBranch(): void;
       selectOverviewDevice(): void;
+      selectWastewaterEquipment(): string | undefined;
+      equipmentSelectionIds(): readonly string[];
       whenLodIdle(): Promise<void>;
       visibleMeshCount(): number;
       scenePixelAtProjection(): readonly [number, number, number, number];

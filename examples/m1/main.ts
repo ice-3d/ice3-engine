@@ -51,7 +51,7 @@ const adaptiveBatching = query.get('adaptive') === '0'
   : adaptiveDemo || query.get('adaptive') === '1';
 const defaultAssetUrl = adaptiveDemo
   ? '/assets/adaptive-demo/tileset.json'
-  : '/assets/hierarchical-demo/tileset.json';
+  : '/assets/wastewater-plant/tiled/tileset.json';
 const assetOverride = query.get('asset');
 const localPreviewAssetUrl = '/assets/local-preview.local.json';
 const loader = new ICETilesetLoader(engine, {
@@ -273,6 +273,33 @@ function firstSelectionIdentity(node: ICENode): string | undefined {
     if (selectionId) return selectionId;
   }
   return undefined;
+}
+
+function wastewaterEquipmentIds(node: ICENode): string[] {
+  const ids: string[] = [];
+  if (
+    node instanceof ICEMesh
+    && node.selectionId.startsWith('ice3-virtual-wwtp/equipment/')
+  ) {
+    ids.push(node.selectionId);
+  }
+  const batch = node as ICENode & {
+    readonly semanticSelectionIds?: readonly string[];
+  };
+  for (const id of batch.semanticSelectionIds ?? []) {
+    if (id.startsWith('ice3-virtual-wwtp/equipment/')) {
+      ids.push(id);
+    }
+  }
+  for (const child of node.children) {
+    ids.push(...wastewaterEquipmentIds(child));
+  }
+  return ids;
+}
+
+function wastewaterEquipmentSelectionIds(): readonly string[] {
+  if (!handle) return [];
+  return Object.freeze([...new Set(wastewaterEquipmentIds(handle.scene))].sort());
 }
 
 function findSelectionTarget(
@@ -524,6 +551,14 @@ window.__ice3M1 = {
       : undefined;
     engine.setSelection(selectionId ? [selectionId] : []);
   },
+  selectWastewaterEquipment: () => {
+    const selectionId = wastewaterEquipmentSelectionIds()[0];
+    if (selectionId) {
+      engine.setSelection([selectionId]);
+    }
+    return selectionId;
+  },
+  equipmentSelectionIds: wastewaterEquipmentSelectionIds,
   whenLodIdle: async () => {
     await Promise.resolve();
     await handle?.whenIdle();
