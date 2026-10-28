@@ -195,7 +195,7 @@ export class ICETilesetLoader {
       maxResidentTiles: options.maxResidentTiles ?? 64,
       maxResidentBytes: options.maxResidentBytes ?? 805_306_368,
       prefetchMarginRatio: options.prefetchMarginRatio ?? 0.20,
-      unloadMarginRatio: options.unloadMarginRatio ?? 0.40,
+      unloadMarginRatio: options.unloadMarginRatio ?? 1.0,
     });
   }
 
