@@ -72,7 +72,7 @@
                 0
               ]
             },
-            "geometricError": 0.12243367725981358,
+            "geometricError": 0.12242237225142816,
             "refine": "REPLACE",
             "content": {
               "uri": "coarse/group-root-0-0.glb"
@@ -95,7 +95,7 @@
                     0
                   ]
                 },
-                "geometricError": 0.12230612567030619,
+                "geometricError": 0.07634554930845638,
                 "refine": "REPLACE",
                 "content": {
                   "uri": "coarse/group-root-0-0-0.glb"
@@ -118,7 +118,7 @@
                         0
                       ]
                     },
-                    "geometricError": 0.12230612567030619,
+                    "geometricError": 0.07634554930845638,
                     "refine": "REPLACE",
                     "content": {
                       "uri": "coarse/group-root-0-0-0-0.glb"
