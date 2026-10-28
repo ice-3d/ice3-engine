@@ -192,10 +192,10 @@ export class ICETilesetLoader {
       );
     }
     this.scheduler = new ICETilesetScheduler({
-      maxResidentTiles: options.maxResidentTiles ?? 24,
-      maxResidentBytes: options.maxResidentBytes ?? 268_435_456,
-      prefetchMarginRatio: options.prefetchMarginRatio ?? 0.10,
-      unloadMarginRatio: options.unloadMarginRatio ?? 0.20,
+      maxResidentTiles: options.maxResidentTiles ?? 64,
+      maxResidentBytes: options.maxResidentBytes ?? 805_306_368,
+      prefetchMarginRatio: options.prefetchMarginRatio ?? 0.20,
+      unloadMarginRatio: options.unloadMarginRatio ?? 0.40,
     });
   }
 
@@ -603,6 +603,11 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       this.rejectReady(abortedTilesetError());
     }
     for (const waiter of this.idleWaiters.splice(0)) waiter.resolve();
+    for (const resident of this.resident.values()) {
+      for (const geometry of resident.geometries) {
+        this.engine.releaseRenderBatchGeometry(geometry);
+      }
+    }
     this.resident.clear();
     this.residentBytes = 0;
     const sceneIds = new Set<string>();
@@ -931,11 +936,16 @@ export class ICETilesetHandle extends ICEEventDispatcher {
         continue;
       }
       committed += 1;
+      const preparedGeometries: ICEGeometry[] = [];
       try {
         this.cancelAdaptiveCandidate();
         this.restoreAdaptiveScene();
         if (this.scene.findByID(candidate.container.id)) {
           throw new Error(`ICE3_TILESET_DUPLICATE_ID: ${candidate.container.id}`);
+        }
+        for (const geometry of collectNodeGeometries(candidate.container)) {
+          this.engine.prepareRenderBatchGeometry(geometry);
+          preparedGeometries.push(geometry);
         }
         candidate.container.visible = false;
         this.scene.addChild(candidate.container);
@@ -944,11 +954,15 @@ export class ICETilesetHandle extends ICEEventDispatcher {
           container: candidate.container,
           bytes: candidate.bytes,
           contentUris: candidate.contentUris,
+          geometries: preparedGeometries,
         });
         this.residentBytes += candidate.bytes;
         this.states.set(tileId, 'loaded');
         this.emit('TILESET_TILE_LOADED', tileId);
       } catch (error) {
+        for (const geometry of preparedGeometries) {
+          this.engine.releaseRenderBatchGeometry(geometry);
+        }
         candidate.container.dispose();
         for (const uri of candidate.contentUris) this.assetLoader.clear(uri);
         this.states.set(tileId, 'failed');
@@ -990,6 +1004,9 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     const record = this.resident.get(tileId);
     if (!record) return;
     this.scene.removeChild(record.container, { dispose: true });
+    for (const geometry of record.geometries) {
+      this.engine.releaseRenderBatchGeometry(geometry);
+    }
     this.resident.delete(tileId);
     this.residentBytes = Math.max(0, this.residentBytes - record.bytes);
     for (const uri of record.contentUris) this.assetLoader.clear(uri);
@@ -1022,7 +1039,6 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     }
     if (!this.cameraMoving) {
       this.cameraMoving = true;
-      this.showMotionFallback();
     }
     if (this.lodSettleTimer !== undefined) {
       clearTimeout(this.lodSettleTimer);
@@ -1033,25 +1049,6 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       this.cameraMoving = false;
       this.requestWorkSetUpdate(true);
     }, this.lodSettleDelayMs);
-  }
-
-  private showMotionFallback(): void {
-    const fallback = this.motionFallbackId
-      ? this.resident.get(this.motionFallbackId)
-      : undefined;
-    if (!fallback) return;
-    let changed = !fallback.container.visible;
-    fallback.container.visible = true;
-    for (const [id, resident] of this.resident) {
-      if (id !== this.motionFallbackId && resident.container.visible) {
-        resident.container.visible = false;
-        changed = true;
-      }
-    }
-    if (changed) {
-      this.reconcileSelectionVisibility();
-      this.engine.requestRender('tileset-motion-fallback');
-    }
   }
 
   private promoteReadyVisibleTargets(): void {
@@ -1499,6 +1496,7 @@ interface ICEResidentTile {
   readonly container: ICENode;
   readonly bytes: number;
   readonly contentUris: readonly string[];
+  readonly geometries: readonly ICEGeometry[];
 }
 
 interface ICEAdaptiveSceneState {
@@ -1619,7 +1617,10 @@ function yieldMainThread(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-interface ICETileCandidate extends Omit<ICEResidentTile, 'tile'> {
+interface ICETileCandidate extends Omit<
+  ICEResidentTile,
+  'tile' | 'geometries'
+> {
   readonly tile: ICETilesetTile;
 }
 
@@ -1637,20 +1638,26 @@ function requestFrame(callback: FrameRequestCallback): void {
 }
 
 function estimateSceneBytes(scene: ICEScene): number {
-  const geometries = new Set<ICEGeometry>();
-  const visit = (node: ICENode): void => {
-    if (node instanceof ICEMesh) geometries.add(node.geometry);
-    for (const child of node.children) visit(child);
-  };
-  visit(scene);
   let total = 0;
-  for (const geometry of geometries) {
+  for (const geometry of collectNodeGeometries(scene)) {
     total += geometry.positions.byteLength;
     total += geometry.indices.byteLength;
     total += geometry.edgeIndices?.byteLength ?? 0;
     total += geometry.colors?.byteLength ?? 0;
+    total += geometry.semanticIndices?.byteLength ?? 0;
   }
   return total;
+}
+
+function collectNodeGeometries(node: ICENode): ICEGeometry[] {
+  const geometries = new Set<ICEGeometry>();
+  const visit = (current: ICENode): void => {
+    if (current instanceof ICEMesh) geometries.add(current.geometry);
+    if (current instanceof ICERenderBatch) geometries.add(current.geometry);
+    for (const child of current.children) visit(child);
+  };
+  visit(node);
+  return [...geometries];
 }
 
 function collectNodeIDs(node: ICENode, output: Set<string>): void {

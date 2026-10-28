@@ -1,54 +1,77 @@
 import { ICEIndexedGeometry } from '@ice3/core';
-import { expect, it, vi } from 'node-test';
-import { WebGL2GeometryCache } from '../src/WebGL2GeometryCache';
-import { WebGL2Program } from '../src/WebGL2Program';
+import { expect, test } from 'node-test';
+import { WebGL2GeometryCache } from '../src/WebGL2GeometryCache.js';
 
-it('reuses buffers for the same geometry and releases unseen geometry', () => {
-  const vertexArray = {} as WebGLVertexArrayObject;
-  const positionBuffer = {} as WebGLBuffer;
-  const triangleIndexBuffer = {} as WebGLBuffer;
-  const edgeIndexBuffer = {} as WebGLBuffer;
-  const colorBuffer = {} as WebGLBuffer;
-  const gl = {
-    ARRAY_BUFFER: 1,
-    ELEMENT_ARRAY_BUFFER: 2,
-    FLOAT: 3,
-    STATIC_DRAW: 4,
-    createVertexArray: vi.fn(() => vertexArray),
-    createBuffer: vi
-      .fn()
-      .mockReturnValueOnce(positionBuffer)
-      .mockReturnValueOnce(triangleIndexBuffer)
-      .mockReturnValueOnce(edgeIndexBuffer)
-      .mockReturnValueOnce(colorBuffer),
-    bindVertexArray: vi.fn(),
-    bindBuffer: vi.fn(),
-    bufferData: vi.fn(),
-    enableVertexAttribArray: vi.fn(),
-    vertexAttribPointer: vi.fn(),
-    deleteVertexArray: vi.fn(),
-    deleteBuffer: vi.fn(),
-  } as unknown as WebGL2RenderingContext;
+test('keeps pinned geometry across frames without uploading it again', () => {
   const geometry = new ICEIndexedGeometry({
-    id: 'triangle',
+    id: 'pinned',
     positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
     indices: new Uint16Array([0, 1, 2]),
-    edgeIndices: new Uint16Array([0, 1, 1, 2, 2, 0]),
-    colors: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]),
   });
-  const cache = new WebGL2GeometryCache();
+  const gl = fakeWebGL2();
+  const cache = new WebGL2GeometryCache({ inactiveGraceFrames: 0 });
 
-  const first = cache.retain(gl, geometry);
-  cache.beginFrame();
-  const second = cache.retain(gl, geometry);
-  cache.endFrame();
-
-  expect(WebGL2Program.POSITION_ATTRIBUTE).toBe(0);
-  expect(second.vertexArray).toBe(first.vertexArray);
-  expect(gl.createBuffer).toHaveBeenCalledTimes(4);
-
+  cache.pin(gl, geometry);
   cache.beginFrame();
   cache.endFrame();
-  expect(gl.deleteVertexArray).toHaveBeenCalledWith(first.vertexArray);
-  expect(gl.deleteBuffer).toHaveBeenCalledWith(first.triangleIndexBuffer);
+  expect(cache.uploadCount).toBe(1);
+  expect(cache.evictionCount).toBe(0);
+  expect(cache.totalBytes).toBeGreaterThan(0);
+
+  cache.unpin(geometry);
+  cache.beginFrame();
+  cache.endFrame();
+  expect(cache.uploadCount).toBe(1);
+  expect(cache.evictionCount).toBe(1);
+  expect(cache.totalBytes).toBe(0);
 });
+
+test('retains recently inactive geometry for reuse', () => {
+  const geometry = new ICEIndexedGeometry({
+    id: 'recent',
+    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    indices: new Uint16Array([0, 1, 2]),
+  });
+  const gl = fakeWebGL2();
+  const cache = new WebGL2GeometryCache({
+    inactiveGraceFrames: 3,
+    maxBytes: 1024 * 1024,
+  });
+
+  cache.retain(gl, geometry);
+  cache.beginFrame();
+  cache.endFrame();
+  cache.beginFrame();
+  cache.endFrame();
+  expect(cache.evictionCount).toBe(0);
+  expect(cache.retain(gl, geometry)).toBeDefined();
+  expect(cache.uploadCount).toBe(1);
+
+  cache.beginFrame();
+  cache.endFrame();
+  cache.beginFrame();
+  cache.endFrame();
+  cache.beginFrame();
+  cache.endFrame();
+  expect(cache.evictionCount).toBe(1);
+  expect(cache.totalBytes).toBe(0);
+});
+
+function fakeWebGL2(): WebGL2RenderingContext {
+  return {
+    ARRAY_BUFFER: 0x8892,
+    ELEMENT_ARRAY_BUFFER: 0x8893,
+    FLOAT: 0x1406,
+    UNSIGNED_INT: 0x1405,
+    STATIC_DRAW: 0x88e4,
+    createVertexArray: () => ({}),
+    createBuffer: () => ({}),
+    deleteVertexArray: () => undefined,
+    deleteBuffer: () => undefined,
+    bindVertexArray: () => undefined,
+    bindBuffer: () => undefined,
+    bufferData: () => undefined,
+    enableVertexAttribArray: () => undefined,
+    vertexAttribPointer: () => undefined,
+  } as unknown as WebGL2RenderingContext;
+}

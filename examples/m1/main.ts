@@ -46,7 +46,9 @@ const camera = new ICEPerspectiveCamera({
 });
 const query = new URLSearchParams(window.location.search);
 const adaptiveDemo = query.get('demo') === 'adaptive';
-const adaptiveBatching = adaptiveDemo || query.get('adaptive') === '1';
+const adaptiveBatching = query.get('adaptive') === '0'
+  ? false
+  : adaptiveDemo || query.get('adaptive') === '1';
 const assetUrl = adaptiveDemo
   ? '/assets/adaptive-demo/tileset.json'
   : '/assets/hierarchical-demo/tileset.json';

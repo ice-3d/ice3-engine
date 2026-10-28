@@ -71,6 +71,8 @@ export type ICEEngineDiagnostics = {
     renderedMeshes: number;
     renderedBatches: number;
     instancingFallbacks: number;
+    gpuUploads: number;
+    gpuEvictions: number;
     gpuBytes: number;
   }>;
   readonly selectionCount: number;
@@ -406,6 +408,8 @@ export class ICE3 extends ICEEventDispatcher {
         renderedMeshes: 0,
         renderedBatches: 0,
         instancingFallbacks: 0,
+        gpuUploads: 0,
+        gpuEvictions: 0,
         gpuBytes: 0,
       },
       selectionCount: this.interaction.getSelection().length,

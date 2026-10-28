@@ -84,6 +84,73 @@ it('opens before all tiles finish and commits completed tiles progressively', as
   expect(tileset.scene.children).toHaveLength(0);
 });
 
+it('keeps resident Tile geometry on the GPU until the Tile unloads', async () => {
+  const backend = new FakeRendererBackend();
+  const prepared = new Set<object>();
+  const released = new Set<object>();
+  Object.assign(backend, {
+    prepareBatchGeometry: (geometry: object) => {
+      prepared.add(geometry);
+    },
+    releaseBatchGeometry: (geometry: object) => {
+      released.add(geometry);
+    },
+  });
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('tileset.json')) {
+      return new Response(fixture('tileset.json'));
+    }
+    return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
+  });
+  const tileset = await new ICETilesetLoader(new ICE3({ backend }), {
+    fetch,
+    camera: camera(),
+  }).open('https://example.test/spatial-demo/tileset.json');
+  await tileset.whenReady();
+
+  expect(prepared.size).toBeGreaterThan(0);
+  expect(released.size).toBe(0);
+
+  tileset.dispose();
+  expect(released).toEqual(prepared);
+});
+
+it('keeps the current resident coverage during camera motion', async () => {
+  const backend = new FakeRendererBackend();
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.endsWith('tileset.json')) {
+      return new Response(fixture('tileset.json'));
+    }
+    return new Response(fixture(`parts/${url.split('/').at(-1)!}`));
+  });
+  const tileset = await new ICETilesetLoader(new ICE3({ backend }), {
+    fetch,
+    camera: overviewCamera(),
+  }).open('https://example.test/spatial-demo/tileset.json');
+  await tileset.whenReady();
+  const internals = tileset as unknown as {
+    resident: Map<string, { container: ICENode }>;
+    motionFallbackId: string | undefined;
+    enterCameraMotion(): void;
+  };
+  const ids = [...internals.resident.keys()];
+  expect(ids.length).toBeGreaterThan(1);
+  for (const resident of internals.resident.values()) {
+    resident.container.visible = true;
+  }
+  internals.motionFallbackId = ids[0];
+
+  internals.enterCameraMotion();
+
+  expect(
+    [...internals.resident.values()]
+      .filter((resident) => resident.container.visible),
+  ).toHaveLength(ids.length);
+  tileset.dispose();
+});
+
 it('reports the selected LOD cut and SSE threshold', async () => {
   const engine = new ICE3({ backend: new FakeRendererBackend() });
   const fetch = vi.fn(async (input: RequestInfo | URL) => {
