@@ -45,12 +45,34 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
       throw assetError('ICE3_ASSET_INVALID_GLB', 'node identity is missing');
     }
     const selectionId = profile?.selectionId;
+    const metadata: Record<string, string | readonly string[]> = {};
+    for (const key of [
+      'displayName',
+      'equipmentTag',
+      'processStage',
+      'area',
+      'ports',
+      'connections',
+    ]) {
+      const value = profile?.[key];
+      if (typeof value === 'string') {
+        metadata[key] = value;
+      } else if (
+        Array.isArray(value)
+        && value.every((item) => typeof item === 'string')
+      ) {
+        metadata[key] = Object.freeze([...value]);
+      }
+    }
     return {
       id,
       selectionId: typeof selectionId === 'string' && selectionId.trim()
         ? selectionId
         : id,
       name: typeof node.name === 'string' ? node.name : id,
+      ...(Object.keys(metadata).length > 0
+        ? { metadata: Object.freeze(metadata) }
+        : {}),
       parent: parents[index] ?? null,
       matrix: node.matrix as ICEMatrix4Tuple,
       visible: record(record(node.extras)?.ice3)?.visible !== false,

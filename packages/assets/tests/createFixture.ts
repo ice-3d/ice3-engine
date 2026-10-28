@@ -12,6 +12,7 @@ type FixtureOptions = {
   readonly floatOffset4?: boolean;
   readonly withVertexColors?: boolean;
   readonly selectionId?: string;
+  readonly metadata?: Readonly<Record<string, unknown>>;
   readonly sharedNodeCount?: number;
   readonly contract?: 'active' | 'legacy' | 'unsupported' | 'conversion';
   readonly missingBufferViewBuffer?: boolean;
@@ -117,6 +118,7 @@ export function createMinimalPreparedGLB(
           ...(options.selectionId
             ? { selectionId: options.selectionId }
             : {}),
+          ...(options.metadata ?? {}),
         },
       },
     })),

@@ -126,6 +126,29 @@ it('round-trips optional material edge color', () => {
   expect(block.material.edgeColor).toBe('#e6f2ff');
 });
 
+it('round-trips semantic node metadata', () => {
+  const registry = new ICETypeRegistry();
+  registry.register('ice3:Mesh', ICEMesh);
+  const scene = new ICEScene({ id: 'scene' });
+  scene.addChild(new ICEMesh({
+    id: 'pump',
+    metadata: {
+      equipmentTag: 'P-101',
+      area: 'IntakeArea',
+      ports: ['suction', 'discharge'],
+    },
+    geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
+    material: new ICEBasicMaterial({ color: '#2f81f7' }),
+  }));
+
+  const restored = deserializeScene(serializeScene(scene), registry);
+  expect(restored.scene.findByID('pump')?.metadata).toEqual({
+    equipmentTag: 'P-101',
+    area: 'IntakeArea',
+    ports: ['suction', 'discharge'],
+  });
+});
+
 it('round-trips a matrix-native mesh transform', () => {
   const registry = new ICETypeRegistry();
   registry.register('ice3:Mesh', ICEMesh);

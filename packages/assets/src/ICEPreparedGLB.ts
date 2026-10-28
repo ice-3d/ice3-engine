@@ -7,6 +7,7 @@ export interface ICEPreparedNode {
   readonly id: string;
   readonly selectionId: string;
   readonly name: string;
+  readonly metadata?: Readonly<Record<string, unknown>>;
   readonly parent: number | null;
   readonly matrix: ICEMatrix4Tuple;
   readonly visible: boolean;

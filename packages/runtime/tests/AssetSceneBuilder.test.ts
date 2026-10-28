@@ -89,6 +89,24 @@ it('preserves prepared display names and equipment identity', () => {
   expect(built.scene.findByID('root')?.displayName).toBe('Factory Root');
 });
 
+it('preserves equipment business metadata on scene nodes', () => {
+  const metadata = {
+    displayName: '进水泵 A',
+    equipmentTag: 'P-101',
+    area: 'IntakeArea',
+    ports: ['suction', 'discharge'],
+    connections: ['main-03-P-101-CV-101'],
+  };
+  const built = buildAssetScene({
+    ...snapshotWithEdges,
+    nodes: snapshotWithEdges.nodes.map((node, index) => (
+      index === 1 ? { ...node, metadata } : node
+    )),
+  });
+
+  expect(built.scene.findByID('root/motor')?.metadata).toEqual(metadata);
+});
+
 it('uses selection identity independently from the LOD node ID', () => {
   const mesh = buildAssetScene({
     ...snapshotWithEdges,
