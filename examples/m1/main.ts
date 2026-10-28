@@ -67,7 +67,7 @@ const loader = new ICETilesetLoader(engine, {
 });
 let handle: ICETilesetHandle | null = null;
 let orbit: ICEOrbitController | null = null;
-let selectedNode: ICENode | null = null;
+let selectedNode: SelectionTarget | null = null;
 let assetReleased = false;
 let loadFinished = false;
 let viewUpdating = false;
@@ -77,7 +77,7 @@ let assetCenter: readonly [number, number, number] = [0, 0, 0];
 engine.on<{ selection: readonly string[] }>('SELECTION_CHANGE', (event) => {
   const selectedId = event.param?.selection[0];
   selectedNode = selectedId
-    ? findNodeBySelectionId(handle?.scene, selectedId) ?? null
+    ? findSelectionTarget(handle?.scene, selectedId) ?? null
     : null;
   updateStatus();
   if (selectedNode) {
@@ -163,7 +163,12 @@ function hashText(value: string): number {
   return hash >>> 0;
 }
 
-function showSelectionInfo(node: ICENode): void {
+interface SelectionTarget {
+  readonly id: string;
+  readonly displayName: string;
+}
+
+function showSelectionInfo(node: SelectionTarget): void {
   const hash = hashText(node.id);
   const statuses = ['运行正常', '待机', '维护中'] as const;
   const types = ['泵组', '输送设备', '控制柜', '检测设备', '执行机构'] as const;
@@ -235,16 +240,35 @@ function firstSelectionIdentity(node: ICENode): string | undefined {
   return undefined;
 }
 
-function findNodeBySelectionId(
+function findSelectionTarget(
   node: ICENode | undefined,
   selectionId: string,
-): ICENode | undefined {
+): SelectionTarget | undefined {
   if (!node) return undefined;
   if (node instanceof ICEMesh && node.selectionId === selectionId) {
-    return node;
+    return {
+      id: node.id,
+      displayName: node.displayName,
+    };
+  }
+  const batch = node as ICENode & {
+    readonly semanticSelectionIds?: readonly string[];
+    readonly semanticNodeIds?: readonly string[];
+  };
+  if (node.typeId === 'ice3:RenderBatch') {
+    const index = batch.semanticSelectionIds?.indexOf(selectionId) ?? -1;
+    if (index >= 0) {
+      const stableId = batch.semanticNodeIds?.[index]
+        ?? selectionId;
+      const leaf = stableId.split('/').filter(Boolean).at(-1) ?? stableId;
+      return {
+        id: stableId,
+        displayName: `设备 ${leaf}`,
+      };
+    }
   }
   for (const child of node.children) {
-    const found = findNodeBySelectionId(child, selectionId);
+    const found = findSelectionTarget(child, selectionId);
     if (found) return found;
   }
   return undefined;
