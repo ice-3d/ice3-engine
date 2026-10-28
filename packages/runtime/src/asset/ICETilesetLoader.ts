@@ -1080,7 +1080,7 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     for (const tileId of [...this.resident.keys()]) {
       if (
         !targetIds.has(tileId)
-        && !this.prefetchIds.has(tileId)
+        && !this.workSet?.retainIds.has(tileId)
         && tileId !== this.motionFallbackId
       ) {
         this.unloadTile(tileId);
