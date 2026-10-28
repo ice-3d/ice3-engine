@@ -1692,6 +1692,11 @@ function collectNodeAndSelectionIDs(
 ): void {
   output.add(node.id);
   if (node instanceof ICEMesh) output.add(node.selectionId);
+  if (node instanceof ICERenderBatch) {
+    for (const selectionId of node.semanticSelectionIds) {
+      output.add(selectionId);
+    }
+  }
   for (const child of node.children) {
     collectNodeAndSelectionIDs(child, output);
   }
@@ -1704,6 +1709,11 @@ function collectVisibleNodeAndSelectionIDs(
   if (!node.visible) return;
   output.add(node.id);
   if (node instanceof ICEMesh) output.add(node.selectionId);
+  if (node instanceof ICERenderBatch) {
+    for (const selectionId of node.semanticSelectionIds) {
+      output.add(selectionId);
+    }
+  }
   for (const child of node.children) {
     collectVisibleNodeAndSelectionIDs(child, output);
   }

@@ -26,6 +26,10 @@ test('loads the virtual wastewater plant from the root URL', async ({ page }) =>
   await page.goto('http://127.0.0.1:8104/');
   await expect(page.locator('[data-role="status"]'))
     .toHaveText('当前视角已就绪');
+  await page.evaluate(
+    () => window.__ice3M1.setCameraPose([285, 150, 220], [135, 0, 40]),
+  );
+  await page.evaluate(() => window.__ice3M1.whenLodIdle());
   const equipmentIds = await page.evaluate(
     () => window.__ice3M1.equipmentSelectionIds(),
   );
@@ -48,7 +52,7 @@ test('selects a virtual wastewater device from the default scene', async ({
     .toHaveText('当前视角已就绪');
 
   await page.evaluate(
-    () => window.__ice3M1.setCameraPose([142, 24, 60], [142, 2.7, 36]),
+    () => window.__ice3M1.setCameraPose([142, 18, 56], [142, 3.7, 36]),
   );
   await page.evaluate(() => window.__ice3M1.whenLodIdle());
   await expect(page.locator('[data-role="status"]'))
@@ -60,18 +64,13 @@ test('selects a virtual wastewater device from the default scene', async ({
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
   }));
   const center = await page.evaluate(
-    () => window.__ice3M1.projectWorldPoint([142, 2.7, 36]),
+    () => window.__ice3M1.projectWorldPoint([142, 3.7, 36]),
   );
-  const stage = await page.locator('[data-role="stage"]').boundingBox();
-  if (!stage) throw new Error('Stage bounds missing');
-  await page.mouse.click(stage.x + center.x, stage.y + center.y);
-
-  await expect.poll(
-    () => page.evaluate(() => window.__ice3M1.selectedIds().length),
-  ).toBe(1);
+  const overlay = page.locator('canvas[data-layer="overlay"]');
+  await overlay.click({ position: { x: center.x, y: center.y } });
   await expect.poll(
     () => page.evaluate(() => window.__ice3M1.selectedIds()[0]),
-  ).toMatch(/^ice3-virtual-wwtp\/equipment\//);
+  ).toBe('ice3-virtual-wwtp/equipment/SC-101');
   await expect(page.locator('[data-role="selection-info"]')).toBeVisible();
   await expect(page.locator('[data-role="selection-name"]')).not.toBeEmpty();
 });
