@@ -33,6 +33,7 @@ async function collect(directory) {
 
 await collect(join(root, 'packages'));
 await collect(join(root, 'tests'));
+await collect(join(root, 'benchmarks'));
 files.sort();
 
 const result = spawnSync(process.execPath, [
