@@ -1,8 +1,16 @@
 # ICE3 设备选择设计规格
 
+> Document ID: ICE3-ENG-SPEC-003
+>
+> Status: Implemented
+>
+> Owner: ICE3 Engine maintainers
+>
+> English summary: Define precise whole-equipment selection with stable semantic identity and non-destructive highlighting.
+
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 待用户评审 |
+| 状态 | 已实现 |
 | 版本 | 1.1 |
 | 日期 | 2026-10-27 |
 | 范围 | `ice3-engine` 的 M1 设备级单选能力 |
@@ -243,3 +251,9 @@ pointer up without drag
 - M1 示例：右上设备详情浮层、状态与操作提示协同。
 
 不修改工具链格式。模型预处理仍负责产生稳定的节点身份和名称，运行时只消费已经准备好的资产。
+
+## Related Documents
+
+- `ICE3-ENG-IDX-001` — [Documentation index](../README.md)
+- `ICE3-ENG-PLAN-003` — [Equipment selection implementation](../plans/2026-10-27-equipment-selection.md)
+- `ICE3-ENG-API-002` — [M1 Asset API](../api/m1.md)

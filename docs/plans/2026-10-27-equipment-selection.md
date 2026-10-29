@@ -1,5 +1,11 @@
 # Equipment Selection Implementation Plan
 
+> Document ID: ICE3-ENG-PLAN-003
+>
+> Status: Implemented
+>
+> Owner: ICE3 Engine maintainers
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add precise whole-equipment single selection with GPU picking, cyan rendering highlights, and a follow-along equipment name label.
@@ -8,7 +14,7 @@
 
 **Tech Stack:** TypeScript, ESM, WebGL2, Canvas2D, Node.js test runner, Playwright, npm workspaces
 
-**Spec:** `docs/superpowers/specs/2026-10-27-equipment-selection-design.md`
+**Spec:** `docs/specs/2026-10-27-equipment-selection-design.md`
 
 ## Global Constraints
 
@@ -1511,3 +1517,8 @@ git merge --ff-only feature/equipment-selection
 ```
 
 Then restart the M1 development server and verify the locally supplied model through the ignored local reference without capturing or committing it.
+
+## Related Documents
+
+- `ICE3-ENG-IDX-001` — [Documentation index](../README.md)
+- `ICE3-ENG-SPEC-003` — [Equipment selection design](../specs/2026-10-27-equipment-selection-design.md)

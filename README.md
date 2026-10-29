@@ -1,68 +1,107 @@
 # ICE3 Engine
 
-ICE3 Engine is a modern, programmable 3D engine for industrial applications. M0 is a runnable vertical slice that proves the public API, native WebGL2 scene rendering, shared 2D/3D input, layered composition, lifecycle management, and browser verification.
+> Document ID: ICE3-ENG-RM-001
+>
+> Status: Active
+>
+> Owner: ICE3 Engine maintainers
 
-## Architecture
+ICE3 Engine is a programmable 3D runtime for industrial applications. It
+prioritizes geometry, spatial organization, deterministic lifecycle, stable
+equipment identity, and shared 2D/3D interaction over cinematic lighting.
 
-```text
-@ice3/core ← @ice3/assets        Prepared GLB reader
-    ↑            ↑
-@ice3/renderer   @ice3/runtime   Rendering, loading, and scene lifetime
-          \       /
-             ice3                Public package
-```
+## Capabilities
 
-Consumers import only from `ice3`. Internal package paths are private.
+| Area | Current capability |
+|---|---|
+| Scene | Typed scene graph, node ownership, transforms, serialization, disposal |
+| Rendering | Native WebGL2 geometry, flat materials, optional geometry edges |
+| Composition | Ordered Canvas2D layers over or alongside 3D content |
+| Input | Shared pointer and keyboard routing, orbit, pan, zoom, and picking |
+| Assets | ICE3 Prepared GLB Profile reader and scene builder |
+| Streaming | OGC 3D Tiles 1.1 loading, camera work sets, prefetch, and eviction |
+| LOD | Screen-space error selection with stable parent coverage |
+| Batching | Static prepared batches, instancing, and optional Worker-generated batches |
+| Diagnostics | Stable error codes, frame metrics, GPU residency, and Tileset statistics |
 
-Cross-repository asset formats, shared metrics, budgets, compatibility, and
-diagnostic codes are defined by the canonical
-[Asset Preparation Contract v1](../ice3-doc/docs/contracts/asset-preparation-contract-v1.md).
+Consumers import from the public `ice3` package. The packages under `@ice3/*`
+are implementation boundaries and are not public import paths.
 
-## M0 capabilities
-
-- Create an engine, scene, perspective camera, box geometry, and flat basic material.
-- Add optional high-contrast geometry edges without relying on lighting.
-- Draw visible boxes through a native WebGL2 backend.
-- Add world-anchored and screen-anchored Canvas2D labels.
-- Route pointer and wheel input from the top 2D layer to the 3D scene.
-- Rotate from geometry or empty space, zoom with damping, and pan in the view
-  plane with WASD or arrow keys through `ICEOrbitController`.
-- Resize with correct DPR handling.
-- Recover rendering resources after GPU context restoration.
-- Serialize and restore the M0 scene model.
-- Destroy and rebuild without duplicate listeners or frame requests.
-
-## Development
+## Quick Start
 
 Requirements:
 
 - Node.js 24 LTS or 26+
 - npm 11 or newer
+- A browser with WebGL2
 
 ```bash
+git clone https://github.com/ice-3d/ice3-engine.git
+cd ice3-engine
 nvm use
 npm install
-npm run dev:example
 npm run dev:example:m1
 ```
 
-Open <http://127.0.0.1:8103> for the programmatic M0 scene and
-<http://127.0.0.1:8104> for the incrementally loaded tiled asset.
-Open <http://127.0.0.1:8104/?demo=adaptive> for the idle-time Worker batching
-demo.
+Open `http://127.0.0.1:8104/`. The default example incrementally loads the
+synthetic wastewater plant. Use `http://127.0.0.1:8103/` for the minimal M0
+scene and `http://127.0.0.1:8104/?demo=adaptive` for idle-time Worker batching.
 
-## Repository assets
+## Minimal Scene
+
+```ts
+import {
+  ICE3,
+  ICEBasicMaterial,
+  ICEBoxGeometry,
+  ICEMesh,
+  ICEPerspectiveCamera,
+  ICEScene,
+} from 'ice3';
+
+const host = document.querySelector<HTMLElement>('#stage');
+if (!host) throw new Error('stage element is required');
+
+const engine = new ICE3().init(host);
+const scene = new ICEScene({ id: 'main' });
+const camera = new ICEPerspectiveCamera({
+  id: 'camera',
+  position: [3, 2, 4],
+  target: [0, 0, 0],
+});
+
+scene.addChild(new ICEMesh({
+  id: 'sample-device',
+  geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
+  material: new ICEBasicMaterial({ color: '#2f81f7' }),
+}));
+
+engine.setScene(scene).setCamera(camera).start();
+
+// Release DOM listeners, scene ownership, and GPU resources when finished.
+engine.destroy();
+```
+
+## Asset Workflow
+
+The runtime accepts only ICE3 Prepared GLB Profile v1 assets. General-purpose
+source parsing, conversion, simplification, and partitioning belong to
+[`ice3-toolchain`](https://github.com/ice-3d/ice3-toolchain/blob/main/README.md).
+
+The shared format and compatibility rules are defined by the canonical
+[Asset Preparation Contract v1](https://github.com/ice-3d/ice3-doc/blob/main/docs/contracts/asset-preparation-contract-v1.md).
+
+## Repository Assets
 
 The runnable wastewater example uses the versioned Tileset hierarchy under
-`examples/m1/assets/wastewater-plant/tiled/`. The monolithic source GLB and the
-full-model Prepared GLB are local generated intermediates; those directories are
-ignored and must be produced with the ICE3 toolchain when needed for validation.
-Only the bounded runtime slices are committed so normal clones and static
-deployments avoid oversized Git objects.
+`examples/m1/assets/wastewater-plant/tiled/`. The monolithic source GLB and
+full-model Prepared GLB are local generated intermediates and are ignored by
+Git. Only bounded runtime slices are committed.
 
 ## Verification
 
 ```bash
+npm run docs:check
 npm run test:architecture
 npm run typecheck
 npm run typecheck:example
@@ -71,77 +110,30 @@ npm run test:e2e
 npm run verify
 ```
 
-The browser matrix covers current Chromium and WebKit. Playwright does not
-reuse existing example servers.
+`verify` runs the documentation gate, architecture checks, type checks, unit
+tests, the build, and browser tests in Chromium and WebKit.
 
-## M1 capabilities
+## Boundaries
 
-- Read only ICE3 Prepared GLB Profile v1 assets.
-- Load nodes with matrix transforms and shared indexed geometry.
-- Render prepared triangle and crease-edge buffers.
-- Cache immutable decoded bytes while creating independent scene instances.
-- Cancel loads, dispose assets idempotently, and release GPU buffers.
-- Validate and expose the embedded asset preparation contract and runtime
-  renderer diagnostics.
-- Show an accessible staging overlay while large prepared assets load and keep
-  actionable failure feedback in place when loading cannot complete.
-- Keep a compact, non-blocking control hint visible after the scene is ready.
-- Select a named equipment unit with an exact GPU click pick and preserve
-  source colors under a non-destructive yellow highlight.
-- Reject ordinary GLB or profile features that need runtime conversion.
-- Open an OGC 3D Tiles 1.1 Tileset with a required perspective camera and
-  maintain a camera-driven visible, prefetch, and retention work set.
-- Cull geometry against the current view frustum, prefetch a bounded offscreen
-  margin, and unload partitions after they leave the retention margin.
-- Apply a soft resident-count and geometry-byte budget without ever omitting
-  visible equipment to satisfy that budget.
-- Keep GPU geometry for resident Tiles across camera-driven visibility changes,
-  with a frame grace window and byte-budgeted LRU eviction for non-resident
-  resources.
-- Upload each committed Tile before it becomes visible and expose cumulative
-  GPU upload/eviction diagnostics.
-- Commit at most one partition per frame by default, with configurable request
-  concurrency and per-frame commit limits.
-- Merge completed partitions into one scene so equipment selection and spatial
-  interaction continue to work across tile boundaries.
-- Expose immutable work-set and residency statistics, emit partition lifecycle
-  events, preserve successful partitions after a tile failure, and release all
-  partitions idempotently.
-- Clear a selection before unloading the partition that contains it.
-- Select a camera-driven LOD cut from hierarchical Tilesets using
-  screen-space error, keeping parent coarse content until replacement children
-  are ready.
-- Preserve semantic equipment selection while the same device moves between
-  coarse and fine scene nodes.
-- Consume optional static render batches from Prepared GLB while retaining
-  stable device selection, exact GPU picking, and yellow highlight.
-- Submit compatible repeated geometry through one instanced draw with one
-  shared geometry buffer and a stable per-instance semantic index.
-- Fall back to ordinary mesh submission when instance-buffer allocation fails
-  and expose the fallback count in renderer diagnostics.
-- Opt into idle-time adaptive render batching with bounded Workers, transferable
-  buffers, frame-budgeted candidate uploads, cancellation on camera motion, and
-  atomic generation activation.
+- No generic source-format compatibility in the browser.
+- No animation, skins, morph targets, textures, or complex materials in the
+  current profile.
+- No implicit tiling, external Tilesets, or runtime mesh simplification.
+- No business rules, workflow engines, or Agent policy in the engine.
+- Lighting and materials are intentionally basic; geometry and spatial
+  behavior are the product priority.
 
-## M0 boundaries
+## Documentation
 
-M0 does not include model loading, LOD, instancing, spatial streaming, industrial semantics, Agent integration, asset tools, post-processing, or a WebGPU backend.
-
-M1 does not include generic glTF compatibility, animation, skins, Morph
-targets, textures, complex materials, implicit tiling, external Tilesets, or
-runtime source-format conversion.
-The first Tileset runtime supports explicit `children`, local Cartesian `box` or
-`sphere` bounds, relative Prepared GLB content, finite tile transforms, and
-`REPLACE` refinement.
-
-The runtime waits for the current work set through `whenIdle()`. There is no
-`whenComplete()` because a camera-driven Tileset is not expected to retain every
-partition at once. Hierarchical LOD content is generated by the toolchain and
-selected at runtime with `geometricError`; the browser never simplifies a mesh.
-
-API details are in [docs/api/m0.md](docs/api/m0.md) and
-[docs/api/m1.md](docs/api/m1.md). Stable diagnostic codes are in
-[docs/diagnostics.md](docs/diagnostics.md).
+- [Documentation index](docs/README.md)
+- [Runtime architecture](docs/architecture.md)
+- [Getting started](docs/guides/getting-started.md)
+- [Asset loading](docs/guides/asset-loading.md)
+- [Development and troubleshooting](docs/guides/development-and-troubleshooting.md)
+- [M0 API](docs/api/m0.md)
+- [M1 Asset API](docs/api/m1.md)
+- [Diagnostics](docs/diagnostics.md)
+- [Architecture decisions](docs/decisions/README.md)
 
 ## AI-assisted development
 

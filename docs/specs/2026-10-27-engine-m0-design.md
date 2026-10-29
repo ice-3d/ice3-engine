@@ -1,8 +1,16 @@
 # ICE3 Engine M0 设计规格
 
+> Document ID: ICE3-ENG-SPEC-001
+>
+> Status: Implemented
+>
+> Owner: ICE3 Engine maintainers
+>
+> English summary: Define the M0 public API, native flat renderer, layered 2D/3D input, lifecycle, and visual verification baseline.
+
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | M0 已完成并通过用户验收 |
+| 状态 | 已实现 |
 | 版本 | 1.1 |
 | 日期 | 2026-10-27 |
 | 范围 | `ice3-engine` 仓库的 M0 可运行纵切面 |
@@ -462,3 +470,9 @@ M0 完成后按顺序评估：
 - [x] resize、DPR、Context Loss、销毁和重建稳定。
 - [x] 单元、集成和 Chromium/WebKit 交互测试通过。
 - [x] 文档、代码、注释和示例无竞品或厂商名称。
+
+## Related Documents
+
+- `ICE3-ENG-IDX-001` — [Documentation index](../README.md)
+- `ICE3-ENG-PLAN-001` — [Engine M0 implementation](../plans/2026-10-27-engine-m0.md)
+- `ICE3-ENG-API-001` — [M0 Public API](../api/m0.md)

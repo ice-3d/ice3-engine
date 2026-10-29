@@ -1,5 +1,10 @@
 # ICE3 Engine Repository Rules
 
+> Document ID: ICE3-ENG-POL-001
+>
+> Status: Active
+>
+> Owner: ICE3 Engine maintainers
 ## Architecture
 
 - Public consumers import only from `ice3`.
@@ -30,3 +35,8 @@
 npm run verify
 npm pack --workspaces --dry-run
 ```
+
+## Related Documents
+
+- `ICE3-ENG-IDX-001` — [Documentation index](docs/README.md)
+- `ICE3-ENG-ARC-001` — [Engine architecture](docs/architecture.md)
