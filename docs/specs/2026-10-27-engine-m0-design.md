@@ -6,7 +6,6 @@
 >
 > Owner: ICE3 Engine maintainers
 >
-> English summary: Define the M0 public API, native flat renderer, layered 2D/3D input, lifecycle, and visual verification baseline.
 
 | 项目 | 内容 |
 | --- | --- |

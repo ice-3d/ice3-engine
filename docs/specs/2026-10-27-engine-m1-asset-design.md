@@ -6,7 +6,6 @@
 >
 > Owner: ICE3 Engine maintainers
 >
-> English summary: Define the M1 Prepared GLB runtime, tiled loading, LOD selection, batching, and equipment identity behavior.
 
 | 项目 | 内容 |
 | --- | --- |

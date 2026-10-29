@@ -6,7 +6,6 @@
 >
 > Owner: ICE3 Engine maintainers
 >
-> English summary: Define precise whole-equipment selection with stable semantic identity and non-destructive highlighting.
 
 | 项目 | 内容 |
 | --- | --- |
