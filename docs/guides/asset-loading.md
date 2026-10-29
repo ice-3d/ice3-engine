@@ -39,28 +39,43 @@ engine.setScene(handle.scene).setCamera(camera).start();
 
 ## 打开 Tileset
 
-```ts
-import { ICETilesetLoader } from 'ice3';
+Toolchain 的 `partition` 输出目录应作为一个整体发布。例如输出被复制到静态目录
+`assets/plant/` 后，需要保留 `tileset.json`、`parts/` 和 `coarse/` 的相对层级，
+并按 `/assets/plant/tileset.json` 加载。
 
-const tileset = new ICETilesetLoader(engine, {
+```ts
+import {
+  ICEOrbitController,
+  ICETilesetLoader,
+} from 'ice3';
+
+const orbit = new ICEOrbitController(engine, camera).start();
+const loader = new ICETilesetLoader(engine, {
   camera,
-  maxConcurrentRequests: 2,
-  commitPerFrame: 1,
+  maxConcurrentTiles: 2,
+  maxCommitsPerFrame: 1,
+  maxScreenSpaceErrorPixels: 16,
 });
-const handle = await tileset.open('/assets/plant/tileset.json');
-engine.setScene(handle.scene);
+const handle = await loader.open('/assets/plant/tileset.json');
+engine.setScene(handle.scene).setCamera(camera).start();
+await handle.whenReady();
 await handle.whenIdle();
+
+handle.dispose();
+orbit.dispose();
 ```
 
-使用 `whenIdle()` 等待当前 camera work set。Camera-driven Scene 不会同时保留所有
-Tile，因此不定义 `whenComplete()`。
+`open()` 不等待全部 GLB。`whenReady()` 在首个 coverage content 提交后 resolve，
+`whenIdle()` 等待当前 camera work set。Camera-driven Scene 不会同时保留所有 Tile，
+因此不定义 `whenComplete()`。
 
 ## 生命周期
 
-- Scene 使用期间保持 handle alive。
-- Asset 不再需要时调用 `handle.dispose()`。
-- 只有 active Scene instance 被释放或不再需要后，才使用 `loader.clear(url)` 清除
-  cached decoded bytes。
+- Prepared GLB 和 Tileset 的 Scene 使用期间都必须保持对应 handle alive。
+- 不再需要时调用各自的 `handle.dispose()`；该操作是幂等的。
+- 单 GLB 的 active Scene 被释放或不再需要后，才可使用对应的 `ICEAssetLoader.clear(url)`
+  清除 cached decoded bytes。
+- Tileset lifecycle 由其 `ICETilesetHandle` 管理，不调用 `ICETilesetLoader.clear()`。
 - Refinement 失败不移除 last-known-complete coverage。
 
 ## 预期结果
@@ -74,4 +89,5 @@ Tile，因此不定义 `whenComplete()`。
 
 - `ICE3-ENG-API-002` — [M1 Asset API 参考](../api/m1.md)
 - `ICE3-ENG-REF-001` — [Diagnostic 参考](../diagnostics.md)
+- `ICE3-TOOL-GUIDE-003` — [从 GLB 到 Engine 的完整接入流程](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/guides/glb-to-engine.md)
 - `ICE3-DOC-CTR-001` — [Asset Preparation Contract v1 契约](https://github.com/ice-3d/ice3-doc/blob/main/docs/contracts/asset-preparation-contract-v1.md)
