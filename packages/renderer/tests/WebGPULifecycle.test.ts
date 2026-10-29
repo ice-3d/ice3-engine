@@ -46,6 +46,20 @@ it('reports a non-deliberate Device Lost and restores resources', async () => {
   expect(onRestored).toHaveBeenCalledTimes(1);
 });
 
+it('reports a stable diagnostic when Device Lost recovery fails', async () => {
+  const fake = fakeWebGPUDevice({ replacementFails: true });
+  const onError = fn();
+  await readyBackend(fake, { onError });
+
+  await fake.loseDevice('unknown');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(onError).toHaveBeenCalledTimes(1);
+  expect(onError.mock.calls[0]?.[0]).toMatchObject({
+    code: 'ICE3_WEBGPU_DEVICE_LOST',
+  });
+});
+
 it('captures a PNG from the presented texture', async () => {
   const previous = Object.getOwnPropertyDescriptor(
     globalThis,

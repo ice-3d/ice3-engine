@@ -76,6 +76,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
   private readonly releaseProbe: (() => void) | undefined;
   private onContextLost: (() => void) | undefined;
   private onContextRestored: (() => void) | undefined;
+  private onError: ((error: ICEEngineError) => void) | undefined;
   private disposing = false;
   private canvas: HTMLCanvasElement | null = null;
   private context: GPUCanvasContext | null = null;
@@ -141,6 +142,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     readonly canvas: HTMLCanvasElement;
     readonly onContextLost?: () => void;
     readonly onContextRestored?: () => void;
+    readonly onError?: (error: ICEEngineError) => void;
   }): void {
     const context = options.canvas.getContext('webgpu') as
       | GPUCanvasContext
@@ -161,6 +163,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.context = context;
     this.onContextLost = options.onContextLost;
     this.onContextRestored = options.onContextRestored;
+    this.onError = options.onError;
     this.geometryCache = new WebGPUGeometryCache({ device: this.device });
     this.instanceCache = new WebGPUInstanceCache(this.device);
     this.picker = new WebGPUPicker(this.device, this.format);
@@ -578,6 +581,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.releaseProbe?.();
     this.onContextLost = undefined;
     this.onContextRestored = undefined;
+    this.onError = undefined;
   }
 
   async capture(): Promise<Blob> {
@@ -737,8 +741,14 @@ export class WebGPURendererBackend implements ICERendererBackend {
         });
       }
       this.onContextRestored?.();
-    } catch {
-      // The Engine receives Device Lost and can rebuild the scene.
+    } catch (error) {
+      this.onError?.(new ICEEngineError(
+        'ICE3_WEBGPU_DEVICE_LOST',
+        `ICE3_WEBGPU_DEVICE_LOST: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        { cause: error },
+      ));
     }
   }
 }

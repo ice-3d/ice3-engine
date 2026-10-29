@@ -1,5 +1,6 @@
 import type {
   ICEGeometry,
+  ICEEngineError,
   ICEPerspectiveCamera,
   ICEScene,
 } from '@ice3/core';
@@ -55,6 +56,7 @@ export interface ICERendererBackend {
     readonly canvas: HTMLCanvasElement;
     readonly onContextLost?: () => void;
     readonly onContextRestored?: () => void;
+    readonly onError?: (error: ICEEngineError) => void;
   }): void;
   resize(viewport: ICEViewport, dpr: number): void;
   setBackgroundColor?(color: string): void;

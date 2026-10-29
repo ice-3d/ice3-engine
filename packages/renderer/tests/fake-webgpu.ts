@@ -103,6 +103,7 @@ type FakeTexture = GPUTexture & {
 export function fakeWebGPUDevice(options: {
   readonly pickPixel?: Uint8Array;
   readonly capturePixel?: readonly number[];
+  readonly replacementFails?: boolean;
 } = {}) {
   const buffers: FakeBuffer[] = [];
   const writes: Array<{
@@ -321,7 +322,12 @@ export function fakeWebGPUDevice(options: {
       maxBufferSize: 1 << 30,
     },
     features: new Set(),
-    requestDevice: async () => replacement,
+    requestDevice: async () => {
+      if (options.replacementFails) {
+        throw new Error('replacement failed');
+      }
+      return replacement;
+    },
   } as unknown as GPUAdapter;
   context.adapter = adapter;
   return {
@@ -368,6 +374,7 @@ export async function readyBackend(
   callbacks: {
     readonly onContextLost?: () => void;
     readonly onContextRestored?: () => void;
+    readonly onError?: (error: Error) => void;
   } = {},
 ): Promise<WebGPURendererBackend> {
   const backend = await WebGPURendererBackend.create(fake.context);

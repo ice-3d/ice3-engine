@@ -268,6 +268,13 @@ export class ICE3 extends ICEEventDispatcher {
           this.trigger('CONTEXT_RESTORED');
           this.requestRender('context-restored');
         },
+        onError: (error) => {
+          this.recordDiagnostic(
+            error.code,
+            error.message,
+            'error',
+          );
+        },
       });
       window.addEventListener('resize', this.handleWindowResize);
       this.removeInputListeners.push(() =>
