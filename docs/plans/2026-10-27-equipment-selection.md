@@ -1517,3 +1517,8 @@ git merge --ff-only feature/equipment-selection
 ```
 
 Then restart the M1 development server and verify the locally supplied model through the ignored local reference without capturing or committing it.
+
+## Related Documents
+
+- `ICE3-ENG-IDX-001` — [Documentation index](../README.md)
+- `ICE3-ENG-SPEC-003` — [Equipment selection design](../specs/2026-10-27-equipment-selection-design.md)

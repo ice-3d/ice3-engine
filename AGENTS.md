@@ -35,3 +35,8 @@
 npm run verify
 npm pack --workspaces --dry-run
 ```
+
+## Related Documents
+
+- `ICE3-ENG-IDX-001` — [Documentation index](docs/README.md)
+- `ICE3-ENG-ARC-001` — [Engine architecture](docs/architecture.md)

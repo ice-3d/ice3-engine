@@ -799,3 +799,9 @@ npm run verify
 ```
 
 Expected: `main` is clean and the post-merge verification passes.
+
+## Related Documents
+
+- `ICE3-ENG-IDX-001` — [Documentation index](../README.md)
+- `ICE3-ENG-SPEC-002` — [M1 asset design](../specs/2026-10-27-engine-m1-asset-design.md)
+- `ICE3-ENG-API-002` — [M1 Asset API](../api/m1.md)

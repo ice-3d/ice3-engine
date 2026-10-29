@@ -5,9 +5,9 @@
 > Status: Implemented
 >
 > Owner: ICE3 Engine maintainers
-
 >
 > English summary: Define the M1 Prepared GLB runtime, tiled loading, LOD selection, batching, and equipment identity behavior.
+
 | 项目 | 内容 |
 | --- | --- |
 | 状态 | 已实现 |
@@ -440,3 +440,9 @@ M1 完成后按顺序评估：
 5. 工业能力层和通用 Agent 调用接口。
 
 任何新增运行时能力都必须继续遵循“源格式转换在外置工具完成”的约束。
+
+## Related Documents
+
+- `ICE3-ENG-IDX-001` — [Documentation index](../README.md)
+- `ICE3-ENG-PLAN-002` — [Asset runtime implementation](../plans/2026-10-27-engine-m1-asset-runtime.md)
+- `ICE3-ENG-API-002` — [M1 Asset API](../api/m1.md)

@@ -96,3 +96,9 @@ interface ICEDiagnostic {
 Renderer diagnostics also expose cumulative `gpuUploads` and `gpuEvictions`
 counts. These counters make unexpected GPU buffer churn visible during camera,
 LOD, and residency regression tests.
+
+## Related Documents
+
+- `ICE3-ENG-IDX-001` — [Documentation index](README.md)
+- `ICE3-ENG-API-002` — [M1 Asset API](api/m1.md)
+- `ICE3-ENG-GUIDE-003` — [Development and troubleshooting](guides/development-and-troubleshooting.md)
