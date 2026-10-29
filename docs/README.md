@@ -57,3 +57,4 @@
 | `ICE3-ENG-PLAN-001` | [Engine M0](plans/2026-10-27-engine-m0.md) | Implemented | baseline Engine 实施记录 |
 | `ICE3-ENG-PLAN-002` | [Asset Runtime](plans/2026-10-27-engine-m1-asset-runtime.md) | Implemented | Prepared Asset Runtime 实施记录 |
 | `ICE3-ENG-PLAN-003` | [设备 Selection](plans/2026-10-27-equipment-selection.md) | Implemented | 设备 Selection 实施记录 |
+| `ICE3-ENG-PLAN-004` | [WebGPU Renderer](plans/2026-10-29-webgpu-renderer.md) | Draft | WebGPU backend、自动选择、fallback 和性能基准实施计划 |
