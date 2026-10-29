@@ -726,6 +726,10 @@ export class WebGPURendererBackend implements ICERendererBackend {
     try {
       const device = await this.adapter.requestDevice();
       const pipeline = await WebGPURenderPipeline.create(device, this.format);
+      if (this.disposing) {
+        device.destroy();
+        return;
+      }
       this.device = device;
       this.pipeline = pipeline;
       this.watchDevice(device);
@@ -742,6 +746,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
       }
       this.onContextRestored?.();
     } catch (error) {
+      if (this.disposing) return;
       this.onError?.(new ICEEngineError(
         'ICE3_WEBGPU_DEVICE_LOST',
         `ICE3_WEBGPU_DEVICE_LOST: ${

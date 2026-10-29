@@ -269,6 +269,7 @@ export class ICE3 extends ICEEventDispatcher {
           this.requestRender('context-restored');
         },
         onError: (error) => {
+          if (this.state === 'destroyed') return;
           this.recordDiagnostic(
             error.code,
             error.message,
