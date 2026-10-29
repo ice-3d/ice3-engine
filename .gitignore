@@ -12,4 +12,5 @@ coverage/
 .worktrees/
 test-results/
 playwright-report/
+/release/
 .DS_Store
