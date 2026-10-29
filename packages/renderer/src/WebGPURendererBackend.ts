@@ -1409,6 +1409,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.uniformCapacity = 0;
     this.frameBindGroup = null;
     this.bundleActive = true;
+    this.optimizationWarnings.clear();
     this.storagePipeline = null;
     this.storageBindGroups.clear();
     this.renderPlan.invalidate();

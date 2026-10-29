@@ -34,3 +34,16 @@ it('distinguishes a box in front of the camera from one behind it', () => {
   expect(isAabbVisible(identity, bounds, viewProjection)).toBe(true);
   expect(isAabbVisible(offscreen, bounds, viewProjection)).toBe(false);
 });
+
+it('keeps an AABB that spans the whole frustum', () => {
+  const identity = [
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 1,
+  ];
+  expect(isAabbVisible(identity, {
+    min: [-100, -100, -100],
+    max: [100, 100, 100],
+  }, identity)).toBe(true);
+});

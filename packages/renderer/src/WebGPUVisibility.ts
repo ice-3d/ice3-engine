@@ -37,23 +37,49 @@ export function isAabbVisible(
   bounds: ICEGeometryBounds,
   viewProjection: ArrayLike<number>,
 ): boolean {
+  let minX = Infinity;
+  let minY = Infinity;
+  let minZ = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let maxZ = -Infinity;
   for (const x of [bounds.min[0], bounds.max[0]]) {
     for (const y of [bounds.min[1], bounds.max[1]]) {
       for (const z of [bounds.min[2], bounds.max[2]]) {
         const world = multiply(matrix, [x, y, z, 1]);
-        const clip = multiply(viewProjection, world);
-        if (
-          clip[3]! > 0
-          && Math.abs(clip[0]!) <= clip[3]!
-          && Math.abs(clip[1]!) <= clip[3]!
-          && Math.abs(clip[2]!) <= clip[3]!
-        ) {
-          return true;
-        }
+        minX = Math.min(minX, world[0]);
+        minY = Math.min(minY, world[1]);
+        minZ = Math.min(minZ, world[2]);
+        maxX = Math.max(maxX, world[0]);
+        maxY = Math.max(maxY, world[1]);
+        maxZ = Math.max(maxZ, world[2]);
       }
     }
   }
-  return false;
+  const row = (index: number) => [
+    viewProjection[index]!,
+    viewProjection[index + 4]!,
+    viewProjection[index + 8]!,
+    viewProjection[index + 12]!,
+  ] as const;
+  const r0 = row(0);
+  const r1 = row(1);
+  const r2 = row(2);
+  const r3 = row(3);
+  const planes = [
+    addPlane(r3, r0),
+    subtractPlane(r3, r0),
+    addPlane(r3, r1),
+    subtractPlane(r3, r1),
+    addPlane(r3, r2),
+    subtractPlane(r3, r2),
+  ];
+  return !planes.some((plane) => {
+    const x = plane[0] >= 0 ? maxX : minX;
+    const y = plane[1] >= 0 ? maxY : minY;
+    const z = plane[2] >= 0 ? maxZ : minZ;
+    return plane[0] * x + plane[1] * y + plane[2] * z + plane[3] < 0;
+  });
 }
 
 export type ICEVisibilityEntry = Readonly<{
@@ -89,18 +115,6 @@ struct IndirectArguments {
 @group(0) @binding(2) var<storage, read_write> visible: array<u32>;
 @group(0) @binding(3) var<storage, read_write> arguments: IndirectArguments;
 
-fn projected(point: vec3<f32>) -> vec4<f32> {
-  return frame.worldViewProjection * vec4<f32>(point, 1.0);
-}
-
-fn inside(point: vec3<f32>) -> bool {
-  let clip = projected(point);
-  return clip.w > 0.0
-    && abs(clip.x) <= clip.w
-    && abs(clip.y) <= clip.w
-    && abs(clip.z) <= clip.w;
-}
-
 @compute @workgroup_size(64)
 fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
   let index = id.x;
@@ -108,24 +122,63 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
     return;
   }
   let instance = instances[index];
-  let center = instance.bounds.xyz;
   let radius = instance.bounds.w;
-  let min = center - vec3<f32>(radius);
-  let max = center + vec3<f32>(radius);
-  var visibleInstance = false;
+  let localMin = instance.bounds.xyz - vec3<f32>(radius);
+  let localMax = instance.bounds.xyz + vec3<f32>(radius);
+  var worldMin = vec3<f32>(1e30);
+  var worldMax = vec3<f32>(-1e30);
   for (var cornerIndex = 0u; cornerIndex < 8u; cornerIndex += 1u) {
     let corner = vec3<f32>(
-      select(min.x, max.x, (cornerIndex & 1u) != 0u),
-      select(min.y, max.y, (cornerIndex & 2u) != 0u),
-      select(min.z, max.z, (cornerIndex & 4u) != 0u)
+      select(localMin.x, localMax.x, (cornerIndex & 1u) != 0u),
+      select(localMin.y, localMax.y, (cornerIndex & 2u) != 0u),
+      select(localMin.z, localMax.z, (cornerIndex & 4u) != 0u)
     );
-    let world = instance.transform * vec4<f32>(corner, 1.0);
-    if (inside(world.xyz)) {
-      visibleInstance = true;
+    let world = (instance.transform * vec4<f32>(corner, 1.0)).xyz;
+    worldMin = min(worldMin, world);
+    worldMax = max(worldMax, world);
+  }
+  let r0 = vec4<f32>(
+    frame.worldViewProjection[0][0],
+    frame.worldViewProjection[1][0],
+    frame.worldViewProjection[2][0],
+    frame.worldViewProjection[3][0]
+  );
+  let r1 = vec4<f32>(
+    frame.worldViewProjection[0][1],
+    frame.worldViewProjection[1][1],
+    frame.worldViewProjection[2][1],
+    frame.worldViewProjection[3][1]
+  );
+  let r2 = vec4<f32>(
+    frame.worldViewProjection[0][2],
+    frame.worldViewProjection[1][2],
+    frame.worldViewProjection[2][2],
+    frame.worldViewProjection[3][2]
+  );
+  let r3 = vec4<f32>(
+    frame.worldViewProjection[0][3],
+    frame.worldViewProjection[1][3],
+    frame.worldViewProjection[2][3],
+    frame.worldViewProjection[3][3]
+  );
+  let planes = array<vec4<f32>, 6>(
+    r3 + r0,
+    r3 - r0,
+    r3 + r1,
+    r3 - r1,
+    r3 + r2,
+    r3 - r2
+  );
+  var culled = false;
+  for (var planeIndex = 0u; planeIndex < 6u; planeIndex += 1u) {
+    let plane = planes[planeIndex];
+    let positive = select(worldMin, worldMax, plane.xyz >= vec3<f32>(0.0));
+    if (dot(plane.xyz, positive) + plane.w < 0.0) {
+      culled = true;
       break;
     }
   }
-  if (!visibleInstance) {
+  if (culled) {
     return;
   }
   let slot = atomicAdd(&arguments.instanceCount, 1u);
@@ -326,5 +379,29 @@ function multiply(
       + matrix[10]! * vector[2] + matrix[14]! * vector[3],
     matrix[3]! * vector[0] + matrix[7]! * vector[1]
       + matrix[11]! * vector[2] + matrix[15]! * vector[3],
+  ];
+}
+
+function addPlane(
+  left: readonly [number, number, number, number],
+  right: readonly [number, number, number, number],
+): readonly [number, number, number, number] {
+  return [
+    left[0] + right[0],
+    left[1] + right[1],
+    left[2] + right[2],
+    left[3] + right[3],
+  ];
+}
+
+function subtractPlane(
+  left: readonly [number, number, number, number],
+  right: readonly [number, number, number, number],
+): readonly [number, number, number, number] {
+  return [
+    left[0] - right[0],
+    left[1] - right[1],
+    left[2] - right[2],
+    left[3] - right[3],
   ];
 }
