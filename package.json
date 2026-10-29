@@ -18,7 +18,7 @@
     "clean": "node scripts/clean.mjs",
     "build": "npm run clean && tsc -b",
     "typecheck": "tsc -b --pretty false",
-    "typecheck:example": "tsc -p examples/m0/tsconfig.json --pretty false && tsc -p examples/m1/tsconfig.json --pretty false",
+    "typecheck:example": "tsc -p examples/m0/tsconfig.json --pretty false && tsc -p examples/m1/tsconfig.json --pretty false && tsc -p examples/m2/tsconfig.json --pretty false",
     "test": "node scripts/run-tests.mjs",
     "test:architecture": "node --test tests/architecture/*.test.mjs",
     "test:e2e": "npm run build && playwright test",
@@ -28,6 +28,8 @@
     "dev:example": "npm run build && webpack serve --config examples/m0/webpack.config.cjs",
     "build:example:m1": "npm run build && webpack --config examples/m1/webpack.config.cjs",
     "dev:example:m1": "npm run build && webpack serve --config examples/m1/webpack.config.cjs",
+    "build:example:m2": "npm run build && webpack --config examples/m2/webpack.config.cjs",
+    "dev:example:m2": "npm run build && webpack serve --config examples/m2/webpack.config.cjs",
     "release:package": "npm run build && node scripts/build-release-package.mjs",
     "release:check": "npm run release:package && node scripts/check-release-package.mjs"
   },

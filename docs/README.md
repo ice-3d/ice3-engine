@@ -23,6 +23,7 @@
 | `ICE3-ENG-GUIDE-001` | [快速开始](guides/getting-started.md) | Active | 运行 M0 和 M1 examples |
 | `ICE3-ENG-GUIDE-002` | [Asset 加载](guides/asset-loading.md) | Active | 加载 Prepared GLB 和 Tileset |
 | `ICE3-ENG-GUIDE-003` | [开发与故障处理](guides/development-and-troubleshooting.md) | Active | 验证变更并诊断失败 |
+| `ICE3-ENG-GUIDE-004` | [跨格式 Conformance 示例](guides/conformance-example.md) | Active | 七种格式在 Runtime 中的实际加载与 GPU 验证 |
 
 ## API 与参考
 

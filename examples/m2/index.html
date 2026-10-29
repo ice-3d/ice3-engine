@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ICE3 Format Conformance</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body data-state="loading">
+    <aside class="sidebar">
+      <header class="brand">
+        <span class="brand__eyebrow">ICE3 / FORMAT LAB</span>
+        <h1>跨格式一致性验证</h1>
+        <p>七种源格式，统一进入 Prepared GLB 与 Runtime。</p>
+      </header>
+
+      <nav class="formats" aria-label="源格式">
+        <button type="button" data-format="gltf">glTF 2.0</button>
+        <button type="button" data-format="step">STEP AP242</button>
+        <button type="button" data-format="ifc">IFC 4.3</button>
+        <button type="button" data-format="fbx">FBX</button>
+        <button type="button" data-format="usd">USD</button>
+        <button type="button" data-format="obj">OBJ</button>
+        <button type="button" data-format="jt">JT</button>
+      </nav>
+
+      <section class="result" aria-live="polite">
+        <div class="result__header">
+          <span>当前格式</span>
+          <strong data-role="format-name">等待加载</strong>
+        </div>
+        <dl class="metrics">
+          <div><dt>三角形</dt><dd data-role="triangles">—</dd></div>
+          <div><dt>Mesh</dt><dd data-role="meshes">—</dd></div>
+          <div><dt>Node</dt><dd data-role="nodes">—</dd></div>
+          <div><dt>Material</dt><dd data-role="materials">—</dd></div>
+        </dl>
+        <div class="checks">
+          <span data-role="render-check">渲染待验证</span>
+          <span data-role="contract-check">Profile 待验证</span>
+          <span data-role="name-check">语义待验证</span>
+        </div>
+        <p class="note" data-role="note"></p>
+      </section>
+
+      <footer class="controls">
+        <span><kbd>拖拽</kbd> 旋转</span>
+        <span><kbd>滚轮</kbd> 缩放</span>
+        <span><kbd>WASD</kbd> 移动</span>
+      </footer>
+    </aside>
+
+    <main class="stage" data-role="stage" aria-busy="true">
+      <div class="topline">
+        <span class="signal" aria-hidden="true"></span>
+        <span data-role="status">正在加载 Conformance Manifest</span>
+      </div>
+      <div class="loading" data-role="loading">
+        <span>PREPARED GLB</span>
+        <strong>构建验证场景</strong>
+      </div>
+      <aside class="selection" data-role="selection" data-state="hidden">
+        <span>当前选中</span>
+        <strong data-role="selection-name"></strong>
+      </aside>
+    </main>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

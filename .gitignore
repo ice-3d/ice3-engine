@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-example/
 dist-example-m1/
+dist-example-m2/
 examples/m1/assets/*.local.glb
 examples/m1/assets/*.local.json
 examples/m1/assets/wastewater-plant/source/
@@ -12,5 +13,6 @@ coverage/
 .worktrees/
 test-results/
 playwright-report/
+/output/
 /release/
 .DS_Store
