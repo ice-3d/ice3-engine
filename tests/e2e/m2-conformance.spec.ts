@@ -29,6 +29,11 @@ for (const item of cases) {
 test('switches all formats through the visible controls', async ({ page }) => {
   await page.goto('http://127.0.0.1:8115');
   await expect(page.locator('body')).toHaveAttribute('data-state', 'ready');
+  await expect(page.getByRole('link', { name: /配套 Toolchain/u }))
+    .toHaveAttribute(
+      'href',
+      'https://github.com/ice-3d/ice3-toolchain',
+    );
   for (const item of cases) {
     await page.locator(`.formats [data-format="${item.id}"]`).click();
     await expect(page.locator('body')).toHaveAttribute('data-format', item.id);

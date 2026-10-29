@@ -50,4 +50,9 @@ engine.setScene(scene).setCamera(camera).start();
 完整文档和相关工具见
 [Engine 文档](https://github.com/ice-3d/ice3-engine/blob/main/README.md)。
 
+工业模型接入 Runtime 前，使用配套的
+[ICE3 Toolchain](https://github.com/ice-3d/ice3-toolchain/blob/main/README.md)
+进行离线格式转换、验证、切分、LOD 和 Tileset 发布。功能与格式支持见
+[Toolchain 功能指南](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/guides/capabilities.md)。
+
 本项目采用 MIT License。
