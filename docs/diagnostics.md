@@ -84,6 +84,7 @@ Diagnostic 使用稳定 code。调用方应根据 `code` 分支，不依赖 mess
 | `ICE3_RENDER_BATCH_ADAPTIVE_CANCELLED` | Camera motion、disposal 或 lifecycle change 取消 generation | 上一个 active generation 继续可用 |
 | `ICE3_RENDER_BATCH_ADAPTIVE_FAILED` | Worker preparation 或 frame budget upload 失败 | 保留 active generation 并检查原因 |
 | `ICE3_RENDER_BATCH_MEMORY_REJECTED` | Candidate 超过配置的 extra GPU byte budget | 提高可选 budget 或减少 visible source set |
+| `ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE` | Renderer 可选优化层自检或运行失败并降级 | 正常使用；需要性能排查时检查 warning details |
 
 ## Diagnostic 结构
 

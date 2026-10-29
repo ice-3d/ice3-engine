@@ -36,6 +36,7 @@ export class WebGPUGeometryCache {
   private uploads = 0;
   private evictions = 0;
   private frameId = 0;
+  private resourceGeneration = 0;
 
   constructor(options: WebGPUGeometryCacheOptions) {
     this.device = options.device;
@@ -125,6 +126,7 @@ export class WebGPUGeometryCache {
       };
       this.entries.set(geometry, entry);
       this.uploads += buffers.length;
+      this.resourceGeneration += 1;
       return entry;
     } catch (error) {
       for (const buffer of buffers) buffer.destroy();
@@ -197,6 +199,10 @@ export class WebGPUGeometryCache {
     return this.evictions;
   }
 
+  get generation(): number {
+    return this.resourceGeneration;
+  }
+
   private enforceBudget(): void {
     let total = this.totalBytes;
     if (total <= this.maxBytes) return;
@@ -222,5 +228,6 @@ export class WebGPUGeometryCache {
     entry.semanticBuffer?.destroy();
     this.entries.delete(geometry);
     this.evictions += 1;
+    this.resourceGeneration += 1;
   }
 }

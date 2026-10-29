@@ -64,8 +64,65 @@ it('falls back to per-object selection when the mask layout fails', async () => 
   });
   backend.render(selectedBoxFrame('pump'));
 
-  expect(fake.selectionDraws).toHaveLength(2);
+  expect(new Set(fake.draws.map((draw) => draw.pipeline))).toEqual(
+    new Set([
+      'main:triangle',
+      'main:line',
+      'selection:triangle',
+      'selection:line',
+    ]),
+  );
   expect(backend.stats.drawCalls).toBe(12);
+  expect(errors).toHaveLength(1);
+  expect(errors[0]).toMatchObject({
+    code: 'ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE',
+  });
+});
+
+it('reuses a render bundle across camera and selection content changes', async () => {
+  const fake = fakeWebGPUDevice();
+  const backend = await readyBackend(fake);
+  const first = repeatedBoxFrame(4, ['copy-1']);
+  backend.render(first);
+  backend.render({
+    ...first,
+    camera: new ICEPerspectiveCamera({
+      id: 'camera-2',
+      position: [1, 2, 10],
+      target: [0, 0, 0],
+    }),
+    selection: ['copy-2'],
+  });
+
+  expect(fake.bundleEncoders).toHaveLength(1);
+  expect(fake.executedBundles).toHaveLength(2);
+});
+
+it('rebuilds a render bundle after the Scene revision changes', async () => {
+  const fake = fakeWebGPUDevice();
+  const backend = await readyBackend(fake);
+  const frame = repeatedBoxFrame(2);
+  backend.render(frame);
+  frame.scene.addChild(new ICEMesh({
+    id: 'extra',
+    geometry: sharedBoxGeometry,
+    material: instanceMaterial,
+  }));
+  backend.render(frame);
+
+  expect(fake.bundleEncoders).toHaveLength(2);
+});
+
+it('reports one bundle warning and falls back to direct draws', async () => {
+  const fake = fakeWebGPUDevice({ bundleCreationFails: true });
+  const errors: Error[] = [];
+  const backend = await readyBackend(fake, {
+    onError: (error) => errors.push(error),
+  });
+  backend.render(repeatedBoxFrame(2));
+  backend.render(repeatedBoxFrame(2));
+
+  expect(fake.draws.length).toBeGreaterThan(0);
   expect(errors).toHaveLength(1);
   expect(errors[0]).toMatchObject({
     code: 'ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE',

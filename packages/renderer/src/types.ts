@@ -12,6 +12,13 @@ export type ICEViewport = {
   readonly height: number;
 };
 
+export type ICEWebGPUOptimizationFailureReason =
+  | 'limit-too-low'
+  | 'pipeline-failed'
+  | 'resource-failed'
+  | 'runtime-failed'
+  | 'threshold-not-met';
+
 export type ICE3RendererPreference = 'auto' | 'webgpu' | 'webgl2';
 
 export type ICE3RendererSelection = Readonly<{

@@ -119,6 +119,8 @@ export function fakeWebGPUDevice(options: {
   readonly timestampValues?: readonly number[];
   readonly timestampMapFails?: boolean;
   readonly selectionMaskLayoutFails?: boolean;
+  readonly bundleCreationFails?: boolean;
+  readonly bundleExecutionFails?: boolean;
 } = {}) {
   const buffers: FakeBuffer[] = [];
   const writes: Array<{
@@ -141,6 +143,8 @@ export function fakeWebGPUDevice(options: {
     destroyed: boolean;
     destroy(): void;
   }> = [];
+  const bundleEncoders: any[] = [];
+  const executedBundles: GPURenderBundle[][] = [];
   let pickPixel = new Uint8Array(options.pickPixel ?? [0, 0, 0, 255]);
   let capturePixel = new Uint8Array(options.capturePixel ?? [0, 0, 0, 255]);
   let timestampValues = [...(options.timestampValues
@@ -194,6 +198,43 @@ export function fakeWebGPUDevice(options: {
       };
       querySets.push(querySet);
       return querySet as unknown as GPUQuerySet;
+    },
+    createRenderBundleEncoder(
+      description: GPURenderBundleEncoderDescriptor,
+    ) {
+      if (options.bundleCreationFails) {
+        throw new Error('bundle creation failed');
+      }
+      const calls: string[] = [];
+      const bundleDraws: any[] = [];
+      let currentPipeline: { readonly label?: string } | undefined;
+      const encoder = {
+        description,
+        calls,
+        setPipeline(pipeline: { readonly label?: string }) {
+          currentPipeline = pipeline;
+          calls.push('setPipeline');
+        },
+        setBindGroup: () => calls.push('setBindGroup'),
+        setVertexBuffer: () => calls.push('setVertexBuffer'),
+        setIndexBuffer: () => calls.push('setIndexBuffer'),
+        drawIndexed(
+          indexCount: number,
+          instanceCount = 1,
+          firstIndex = 0,
+        ) {
+          calls.push('drawIndexed');
+          bundleDraws.push({
+            indexCount,
+            instanceCount,
+            firstIndex,
+            pipeline: currentPipeline?.label,
+          });
+        },
+        finish: () => ({ calls, draws: bundleDraws }),
+      };
+      bundleEncoders.push(encoder);
+      return encoder;
     },
     createBuffer(description: GPUBufferDescriptor) {
       const buffer = {
@@ -256,6 +297,26 @@ export function fakeWebGPUDevice(options: {
     },
     createCommandEncoder() {
       return {
+        beginRenderBundleEncoder(
+          description: GPURenderBundleEncoderDescriptor,
+        ) {
+          if (options.bundleCreationFails) {
+            throw new Error('bundle creation failed');
+          }
+          const calls: string[] = [];
+          const encoder = {
+            description,
+            calls,
+            setPipeline: () => calls.push('setPipeline'),
+            setBindGroup: () => calls.push('setBindGroup'),
+            setVertexBuffer: () => calls.push('setVertexBuffer'),
+            setIndexBuffer: () => calls.push('setIndexBuffer'),
+            drawIndexed: () => calls.push('drawIndexed'),
+            finish: () => ({ calls }),
+          };
+          bundleEncoders.push(encoder);
+          return encoder;
+        },
         beginRenderPass(description: GPURenderPassDescriptor) {
           const attachment = description.colorAttachments[0]!;
           let currentPipeline: { readonly label?: string } | undefined;
@@ -277,6 +338,15 @@ export function fakeWebGPUDevice(options: {
             setBindGroup() {},
             setVertexBuffer() {},
             setIndexBuffer() {},
+            executeBundles(bundles: GPURenderBundle[]) {
+              if (options.bundleExecutionFails) {
+                throw new Error('bundle execution failed');
+              }
+              executedBundles.push(bundles);
+              for (const bundle of bundles) {
+                draws.push(...((bundle as any).draws ?? []));
+              }
+            },
             draw(indexCount: number, instanceCount = 1) {
               draws.push({
                 indexCount,
@@ -405,6 +475,8 @@ export function fakeWebGPUDevice(options: {
     depthTextures,
     deviceRequests,
     querySets,
+    bundleEncoders,
+    executedBundles,
     setPickPixel(value: Uint8Array) {
       pickPixel = value;
     },

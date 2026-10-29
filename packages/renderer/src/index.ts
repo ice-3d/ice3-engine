@@ -36,6 +36,7 @@ export {
   WebGPURenderPlanCache,
   type WebGPURenderPlan,
 } from './WebGPURenderPlan.js';
+export { WebGPUBundleCache } from './WebGPUBundleCache.js';
 export {
   buildSelectionMask,
   WebGPUSelectionMaskBuffer,
@@ -82,4 +83,5 @@ export type {
   ICEViewport,
   ICE3RendererPreference,
   ICE3RendererSelection,
+  ICEWebGPUOptimizationFailureReason,
 } from './types.js';

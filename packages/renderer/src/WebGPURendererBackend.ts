@@ -35,6 +35,7 @@ import {
 } from './WebGPUSelectionMask.js';
 import { WebGPUDrawStorage } from './WebGPUDrawStorage.js';
 import { WebGPURenderPlanCache } from './WebGPURenderPlan.js';
+import { WebGPUBundleCache } from './WebGPUBundleCache.js';
 import {
   collectWebGPUPickIds,
   WebGPUPicker,
@@ -87,6 +88,12 @@ export class WebGPURendererBackend implements ICERendererBackend {
   private selectionMaskBuffer: WebGPUSelectionMaskBuffer | null = null;
   private timestampProfiler: WebGPUTimestampProfiler | null = null;
   private timestampProfilingEnabled = false;
+  private bundleCache: WebGPUBundleCache;
+  private bundleActive = true;
+  private frameBindGroup: GPUBindGroup | null = null;
+  private frameBindGroupKey = '';
+  private uniformBufferGeneration = 0;
+  private readonly optimizationWarnings = new Set<string>();
   private identityInstances: GPUBuffer | null = null;
   private zeroSemantics: GPUBuffer | null = null;
   private uniformBuffer: GPUBuffer | null = null;
@@ -134,6 +141,10 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.device = context.device;
     this.format = context.format;
     this.pipeline = pipeline;
+    this.bundleCache = new WebGPUBundleCache(
+      context.device,
+      context.format,
+    );
     this.selectionMaskBuffer = selectionMaskBuffer;
     this.optimizationFailureReason = optimizationFailureReason;
     this.releaseProbe = context.release;
@@ -200,11 +211,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     if (this.optimizationFailureReason) {
       const reason = this.optimizationFailureReason;
       this.optimizationFailureReason = null;
-      this.onError?.(new ICEEngineError(
-        'ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE',
-        `ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE: ${reason}`,
-        { layer: reason },
-      ));
+      this.reportOptimizationFailure('selection-mask', reason);
     }
     this.geometryCache = new WebGPUGeometryCache({ device: this.device });
     this.instanceCache = new WebGPUInstanceCache(this.device);
@@ -249,6 +256,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.dpr = dpr;
     this.canvas.width = Math.max(1, Math.round(viewport.width * dpr));
     this.canvas.height = Math.max(1, Math.round(viewport.height * dpr));
+    this.bundleCache.invalidate();
+    this.frameBindGroup = null;
     this.depthTexture?.destroy();
     this.depthTexture = this.device.createTexture({
       label: 'ice3:depth',
@@ -321,6 +330,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     const selectionMaskEnabled = selectionMaskActive
       && frame.selection.length > 0;
     let selectionEntryCount = 0;
+    const selectionOverlays: string[] = [];
     const pushDraw = (
       draw: Omit<PendingDraw, 'selectionBase'>,
       matrix: Float32Array,
@@ -360,9 +370,11 @@ export class WebGPURendererBackend implements ICERendererBackend {
         readonly selectionIds: readonly string[];
         readonly useSelectionMask: boolean;
         readonly useSemantic: boolean;
+        readonly selectionScope: string;
       },
     ): void => {
       if (!geometry.edgeIndexBuffer || geometry.edgeCount === 0) return;
+      if (selection) selectionOverlays.push(selection.selectionScope);
       const clipPixelX = 2 / Math.max(1, this.viewport.width * this.dpr);
       const clipPixelY = 2 / Math.max(1, this.viewport.height * this.dpr);
       for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
@@ -420,6 +432,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
             selectionIds: batch.semanticIds,
             useSelectionMask: true,
             useSemantic: true,
+            selectionScope: batch.id,
           },
         );
       } else if (!selectionMaskEnabled) {
@@ -484,6 +497,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
             selectionIds: draw.batch.semanticSelectionIds,
             useSelectionMask: true,
             useSemantic: true,
+            selectionScope: draw.id,
           },
         );
       } else if (!selectionMaskEnabled) {
@@ -565,6 +579,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
                 selectionIds: [renderable.mesh.selectionId],
                 useSelectionMask: true,
                 useSemantic: true,
+                selectionScope: renderable.id,
               }
             : undefined,
         );
@@ -591,29 +606,82 @@ export class WebGPURendererBackend implements ICERendererBackend {
       );
     }
     this.profiler.mark('prepareAndUpload');
-    const bindGroupEntries: GPUBindGroupEntry[] = [{
-      binding: 0,
-      resource: {
-        buffer: this.uniformBuffer!,
-        offset: 0,
-        size: WEBGPU_UNIFORM_BYTES,
-      },
-    }];
-    if (selectionMaskActive && this.selectionMaskBuffer?.buffer) {
-      bindGroupEntries.push({
-        binding: 1,
+    const bindGroupKey = [
+      this.uniformBufferGeneration,
+      this.selectionMaskBuffer?.generation ?? 0,
+      this.pipeline.selectionMask ? 1 : 0,
+    ].join(':');
+    if (!this.frameBindGroup || this.frameBindGroupKey !== bindGroupKey) {
+      const bindGroupEntries: GPUBindGroupEntry[] = [{
+        binding: 0,
         resource: {
-          buffer: this.selectionMaskBuffer.buffer,
+          buffer: this.uniformBuffer!,
           offset: 0,
-          size: this.selectionMaskBuffer.buffer.size,
+          size: WEBGPU_UNIFORM_BYTES,
         },
+      }];
+      if (selectionMaskActive && this.selectionMaskBuffer?.buffer) {
+        bindGroupEntries.push({
+          binding: 1,
+          resource: {
+            buffer: this.selectionMaskBuffer.buffer,
+            offset: 0,
+            size: this.selectionMaskBuffer.buffer.size,
+          },
+        });
+      }
+      this.frameBindGroup = this.device.createBindGroup({
+        label: 'ice3:frame-uniforms',
+        layout: this.pipeline.bindGroupLayout,
+        entries: bindGroupEntries,
       });
+      this.frameBindGroupKey = bindGroupKey;
     }
-    const bindGroup = this.device.createBindGroup({
-      label: 'ice3:frame-uniforms',
-      layout: this.pipeline.bindGroupLayout,
-      entries: bindGroupEntries,
-    });
+    const bindGroup = this.frameBindGroup!;
+    const encodeDraws = (
+      encoder: GPURenderPassEncoder | GPURenderBundleEncoder,
+    ): void => {
+      for (let index = 0; index < drawList.length; index += 1) {
+        const draw = drawList[index]!;
+        encoder.setPipeline(draw.pipeline);
+        encoder.setBindGroup(0, bindGroup, [
+          index * WEBGPU_UNIFORM_STRIDE,
+        ]);
+        encoder.setVertexBuffer(0, draw.geometry.vertexBuffer);
+        encoder.setVertexBuffer(1, draw.instanceBuffer);
+        encoder.setVertexBuffer(2, draw.semanticBuffer);
+        encoder.setIndexBuffer(
+          draw.edge
+            ? draw.geometry.edgeIndexBuffer!
+            : draw.geometry.triangleIndexBuffer,
+          draw.geometry.indexFormat,
+        );
+        encoder.drawIndexed(
+          draw.edge ? draw.geometry.edgeCount : draw.geometry.triangleCount,
+          draw.instanceCount,
+        );
+      }
+    };
+    const bundleKey = [
+      plan.revision,
+      this.drawStorage.generation,
+      cache.generation,
+      instanceCache.generation,
+      this.selectionMaskBuffer?.generation ?? 0,
+      this.uniformBufferGeneration,
+      this.format,
+      selectionOverlays.join('|'),
+    ].join(':');
+    let bundle: GPURenderBundle | null = null;
+    if (this.bundleActive && drawList.length > 0) {
+      try {
+        bundle = this.bundleCache.get(bundleKey, encodeDraws);
+      } catch {
+        this.bundleActive = false;
+        this.bundleCache.invalidate();
+        this.reportOptimizationFailure('bundle', 'resource-failed');
+      }
+    }
     const targetTexture = context.getCurrentTexture();
     const encoder = this.device.createCommandEncoder();
     const timestampProfiler = this.captureRequest || !this.timestampProfilingEnabled
@@ -648,25 +716,19 @@ export class WebGPURendererBackend implements ICERendererBackend {
           }
         : {}),
     });
-    for (let index = 0; index < drawList.length; index += 1) {
-      const draw = drawList[index]!;
-      pass.setPipeline(draw.pipeline);
-      pass.setBindGroup(0, bindGroup, [index * WEBGPU_UNIFORM_STRIDE]);
-      pass.setVertexBuffer(0, draw.geometry.vertexBuffer);
-      pass.setVertexBuffer(1, draw.instanceBuffer);
-      pass.setVertexBuffer(2, draw.semanticBuffer);
-      pass.setIndexBuffer(
-        draw.edge
-          ? draw.geometry.edgeIndexBuffer!
-          : draw.geometry.triangleIndexBuffer,
-        draw.geometry.indexFormat,
-      );
-      pass.drawIndexed(
-        draw.edge ? draw.geometry.edgeCount : draw.geometry.triangleCount,
-        draw.instanceCount,
-      );
-      this.frameStats.drawCalls += 1;
+    if (bundle) {
+      try {
+        pass.executeBundles([bundle]);
+      } catch {
+        this.bundleActive = false;
+        this.bundleCache.invalidate();
+        this.reportOptimizationFailure('bundle', 'runtime-failed');
+        encodeDraws(pass);
+      }
+    } else {
+      encodeDraws(pass);
     }
+    this.frameStats.drawCalls += drawList.length;
     pass.end();
     if (timestampProfiler) {
       timestampProfiler.resolveFrame(encoder, frame.frameId);
@@ -741,6 +803,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
 
   dispose(): void {
     this.disposing = true;
+    this.bundleCache.dispose();
     this.geometryCache?.dispose();
     this.renderPlan.dispose();
     this.picker?.dispose();
@@ -763,6 +826,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.depthTexture = null;
     this.context = null;
     this.canvas = null;
+    this.frameBindGroup = null;
     this.device.destroy();
     this.releaseProbe?.();
     this.onContextLost = undefined;
@@ -846,6 +910,20 @@ export class WebGPURendererBackend implements ICERendererBackend {
     return this.frameStats;
   }
 
+  private reportOptimizationFailure(
+    layer: string,
+    reason: string,
+  ): void {
+    const key = `${layer}/${reason}`;
+    if (this.optimizationWarnings.has(key)) return;
+    this.optimizationWarnings.add(key);
+    this.onError?.(new ICEEngineError(
+      'ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE',
+      `ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE: ${key}`,
+      { layer, reason },
+    ));
+  }
+
   private requireGeometryCache(): WebGPUGeometryCache {
     if (!this.geometryCache) {
       throw new ICEEngineError(
@@ -866,6 +944,9 @@ export class WebGPURendererBackend implements ICERendererBackend {
       usage: UNIFORM_USAGE,
     });
     this.uniformCapacity = capacity;
+    this.uniformBufferGeneration += 1;
+    this.frameBindGroup = null;
+    this.bundleCache.invalidate();
   }
 
   private watchDevice(device: GPUDevice): void {
@@ -885,6 +966,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.releaseProbe?.();
     this.onContextLost?.();
     this.geometryCache?.dispose();
+    this.bundleCache.dispose();
     this.instanceCache?.dispose();
     this.picker?.dispose();
     this.timestampProfiler?.dispose();
@@ -901,6 +983,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.uniformBuffer = null;
     this.depthTexture = null;
     this.uniformCapacity = 0;
+    this.frameBindGroup = null;
+    this.bundleActive = true;
     try {
       const features: GPUFeatureName[] = this.device.features.has(
         'timestamp-query',
@@ -917,6 +1001,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
       }
       this.device = device;
       this.pipeline = pipeline;
+      this.bundleCache = new WebGPUBundleCache(device, this.format);
       this.watchDevice(device);
       if (this.canvas) {
         this.initialize({
