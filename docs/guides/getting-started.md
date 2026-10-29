@@ -59,3 +59,4 @@ Open `http://127.0.0.1:8104/`.
 - `ICE3-ENG-API-001` — [M0 公开 API](../api/m0.md)
 - `ICE3-ENG-API-002` — [M1 Asset API](../api/m1.md)
 - `ICE3-ENG-GUIDE-002` — [Asset 加载](asset-loading.md)
+- `ICE3-TOOL-GUIDE-003` — [从 GLB 到 Engine 的完整接入流程](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/guides/glb-to-engine.md)

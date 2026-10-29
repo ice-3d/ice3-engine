@@ -86,6 +86,8 @@ engine.destroy();
 Runtime 只接受 ICE3 Prepared GLB Profile v1 Asset。通用 source parsing、conversion、
 simplification 和 partitioning 属于
 [`ice3-toolchain`](https://github.com/ice-3d/ice3-toolchain/blob/main/README.md).
+从 GLB 切分、粗模生成、Tileset 发布到 `ICETilesetLoader` 接入的完整步骤见
+[端到端接入指南](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/guides/glb-to-engine.md)。
 
 共享格式和兼容规则由权威
 [Asset Preparation Contract v1](https://github.com/ice-3d/ice3-doc/blob/main/docs/contracts/asset-preparation-contract-v1.md)
