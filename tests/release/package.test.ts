@@ -9,7 +9,7 @@ test('publishes the Engine facade as one dependency-free package', () => {
   const manifest = createPublicPackageManifest();
 
   expect(manifest.name).toBe('ice3');
-  expect(manifest.version).toBe('0.1.0');
+  expect(manifest.version).toBe('0.1.1');
   expect(manifest.private).toBeUndefined();
   expect(manifest.dependencies).toBeUndefined();
   expect(manifest.exports).toEqual({
