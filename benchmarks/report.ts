@@ -4,7 +4,10 @@ import {
   type ICEBenchmarkSummary,
 } from './core/statistics.js';
 import type { ICEBenchmarkCpuStageSamples } from './core/types.js';
-import type { ICERendererStats } from '@ice3/renderer';
+import type {
+  ICERendererStats,
+  ICEWebGPUOptimizationStats,
+} from '@ice3/renderer';
 
 export type ICEBenchmarkRunInput = Readonly<{
   backend: 'webgl2' | 'webgpu';
@@ -13,6 +16,12 @@ export type ICEBenchmarkRunInput = Readonly<{
   measuredFrames: number;
   initializationMs: number;
   stats?: ICERendererStats;
+  optimization?: ICEWebGPUOptimizationStats;
+  visibility?: Readonly<{
+    visibleInstances: number;
+    culledInstances: number;
+    dispatchCount: number;
+  }>;
   samples: Readonly<{
     cpuFrameMs: readonly number[];
     cpuStages: ICEBenchmarkCpuStageSamples;
@@ -36,6 +45,12 @@ export type ICEBenchmarkReport = Readonly<{
     measuredFrames: number;
     initializationMs: number;
     stats?: ICERendererStats;
+    optimization?: ICEWebGPUOptimizationStats;
+    visibility?: Readonly<{
+      visibleInstances: number;
+      culledInstances: number;
+      dispatchCount: number;
+    }>;
     metrics: Readonly<{
       cpuFrameMs: ICEBenchmarkSummary;
       cpuStages: Readonly<{
@@ -69,6 +84,8 @@ export function createBenchmarkReport(input: {
     measuredFrames: run.measuredFrames,
     initializationMs: run.initializationMs,
     ...(run.stats ? { stats: run.stats } : {}),
+    ...(run.optimization ? { optimization: run.optimization } : {}),
+    ...(run.visibility ? { visibility: run.visibility } : {}),
     metrics: {
       cpuFrameMs: summarizeSamples(run.samples.cpuFrameMs),
       cpuStages: {
@@ -142,8 +159,8 @@ export function reportToMarkdown(report: ICEBenchmarkReport): string {
     `Platform: ${report.environment.platform}`,
     `Adapter: ${report.environment.adapter}`,
     '',
-    '| Scenario | Backend | Init ms | CPU median ms | CPU p95 ms | Collect ms | Prepare ms | Encode ms | Submit ms | GPU median ms | Pick median ms | Draw calls | GPU bytes | CPU improvement |',
-    '|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|',
+    '| Scenario | Backend | Tier | Init ms | CPU median ms | CPU p95 ms | Collect ms | Prepare ms | Encode ms | Submit ms | GPU median ms | Pick median ms | Draw calls | Visible | Culled | GPU bytes | CPU improvement |',
+    '|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|',
   ];
   for (const run of report.runs) {
     const improvement = report.improvements.find(
@@ -152,6 +169,7 @@ export function reportToMarkdown(report: ICEBenchmarkReport): string {
     lines.push([
       run.scenario,
       run.backend,
+      run.optimization?.tier ?? 'baseline',
       formatNumber(run.initializationMs),
       formatNumber(run.metrics.cpuFrameMs.median),
       formatNumber(run.metrics.cpuFrameMs.p95),
@@ -166,6 +184,8 @@ export function reportToMarkdown(report: ICEBenchmarkReport): string {
         ? formatNumber(run.metrics.pickMs.median)
         : 'n/a',
       String(run.stats?.drawCalls ?? 'n/a'),
+      String(run.visibility?.visibleInstances ?? 'n/a'),
+      String(run.visibility?.culledInstances ?? 'n/a'),
       String(run.stats?.gpuBytes ?? 'n/a'),
       run.backend === 'webgpu' && improvement
         ? improvement.cpuMedianPercent === null

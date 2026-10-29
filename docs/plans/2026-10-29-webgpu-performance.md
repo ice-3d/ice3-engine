@@ -2,7 +2,7 @@
 
 > Document ID: ICE3-ENG-PLAN-005
 >
-> Status: Draft
+> Status: Implemented
 >
 > Owner: ICE3 Engine maintainers
 
@@ -2228,3 +2228,26 @@ After implementation, the final handoff must include:
 
 The delivery is incomplete if it reports only initialization speed, only Draw
 count, or API usage without steady-state performance data.
+
+## Execution Notes
+
+Implementation outcome on the fixed development host:
+
+- Selection Draw count changed from `501` to `1`; WebGPU Selection CPU median
+  is `0.1 ms`.
+- Final five-run `wastewater-1x` result is `0.2 ms` CPU median and `0.3 ms`
+  p95, within the no-regression gate.
+- Final five-run `wastewater-5x` and `20x` WebGPU CPU medians are `1.0 ms` and
+  `4.0 ms`; Draw counts are `200` and `800`.
+- The adapter did not provide a usable GPU timestamp result, so final
+  `gpuFrameMs` is `null` with `map-failed`/feature-unavailable evidence.
+- Storage missed the required 10% CPU gain (approximately 9% at 50k), so
+  `WEBGPU_STORAGE_DEFAULT` remains `false`.
+- CPU visibility plus Storage measured `0.3 ms` on `culling-20k`, while
+  Compute/Indirect measured `0.4 ms`; the required 20% CPU improvement was not
+  reached, so `WEBGPU_GPU_DRIVEN_DEFAULT` remains `false`.
+
+The final full benchmark is generated under `output/benchmarks/`; the
+timestamped path is recorded in the SDD execution ledger. Storage and
+GPU-driven implementations, forced-path benchmarks, fallback tests, and native
+API validation remain available for future hardware or workload profiles.

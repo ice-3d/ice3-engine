@@ -295,7 +295,10 @@ export function fakeWebGPUDevice(options: {
         async mapAsync() {},
         getMappedRange() {
           const data = new Uint8Array(buffer.size);
-          if (buffer.label.includes('timestamp-resolve')) {
+          if (buffer.label.includes('visibility-stats')) {
+            new Uint32Array(data.buffer, 0, 1)[0] =
+              options.computedInstanceCount ?? 1;
+          } else if (buffer.label.includes('timestamp-resolve')) {
             if (options.timestampMapFails) {
               throw new Error('timestamp map failed');
             }

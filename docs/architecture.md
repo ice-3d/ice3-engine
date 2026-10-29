@@ -58,6 +58,26 @@ The dependency direction is:
 `start()` 幂等且按需运行。`destroy()` 释放 listener、layer、frame request、Scene
 ownership 和 GPU resource。
 
+## 渲染优化层
+
+WebGPU Renderer 以设备能力逐级选择 `baseline`、`storage` 和 `gpu-driven` 路径：
+
+- `baseline` 复用 Scene Draw Plan、Uniform、Selection Mask、Bind Group 和 Render Bundle。
+- `storage` 将实例矩阵、局部 Bounds 和 semantic 数据写入分页 Storage Buffer。
+- `gpu-driven` 使用 Compute Frustum Culling、紧凑 visible index 和 Indirect Draw。
+
+可选层失败时保留 WebGPU 并回退到低成本路径，通过
+`ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE` 只报告一次 warning。当前实测中 Storage 和
+GPU-driven 未达到默认启用门槛，因此默认路径仍是 `baseline`；两种实现保留给后续设备或
+规模场景复测。
+
+`ICEScene.revision` 在结构、可见性或局部矩阵改变时递增。Camera、Selection 和 viewport
+变化更新持久 Buffer 内容，不重建 Scene Plan。resize 与 Device Lost 使 Render Bundle
+和依赖旧 Device 的 Buffer、Pipeline、Binding 失效；恢复后重建 Canvas target 和必需资源。
+
+Benchmark 可在支持时采集 GPU timestamp；不可用、零值、倒退或 Map 失败都输出 `null`
+和原因。GPU visible list 不逐帧回读 CPU。
+
 ## Asset 流程
 
 1. `ICETilesetLoader` 读取 Tileset，并校验受支持的 local Cartesian 子集。
@@ -81,6 +101,7 @@ policy 阻止或透传 event。
 - LOD transition 失败时保留最后一次完整 representation。
 - GPU upload 失败时上一个 generation 保持 active。
 - WebGL context 丢失时暂停渲染，直到 restoration 完成。
+- WebGPU Device Lost 时停止提交，清理失效优化资源并在同一 backend 内恢复。
 - Disposal 幂等，并移除 pending work 和 resource。
 
 ## 关联文档

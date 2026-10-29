@@ -143,6 +143,7 @@ try {
         },
         stats: runs.at(-1).stats,
         optimization: runs.at(-1).optimization,
+        visibility: runs.at(-1).visibility,
         gpuFrameTimeUnavailableReason: gpuRuns.length === 0
           ? runs.find((run) => run.gpuFrameTimeUnavailableReason)
             ?.gpuFrameTimeUnavailableReason

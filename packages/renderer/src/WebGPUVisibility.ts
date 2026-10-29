@@ -268,6 +268,38 @@ export class WebGPUVisibilityEncoder {
     pass.end();
   }
 
+  async readStats(
+    entry: ICEVisibilityEntry,
+    page: ICEInstanceStoragePage,
+  ): Promise<Readonly<{
+    visibleInstances: number;
+    culledInstances: number;
+    dispatchCount: number;
+  }>> {
+    const readback = this.device.createBuffer({
+      label: 'ice3:visibility-stats',
+      size: 4,
+      usage: 1 | 8,
+    });
+    const encoder = this.device.createCommandEncoder();
+    encoder.copyBufferToBuffer(entry.indirectBuffer, 4, readback, 0, 4);
+    this.device.queue.submit([encoder.finish()]);
+    try {
+      await readback.mapAsync(1);
+      const visibleInstances = new Uint32Array(
+        readback.getMappedRange(),
+      )[0]!;
+      return {
+        visibleInstances,
+        culledInstances: page.instanceCount - visibleInstances,
+        dispatchCount: Math.ceil(page.instanceCount / 64),
+      };
+    } finally {
+      readback.unmap();
+      readback.destroy();
+    }
+  }
+
   dispose(): void {
     for (const entries of this.entries.values()) {
       for (const entry of entries.values()) this.destroy(entry);

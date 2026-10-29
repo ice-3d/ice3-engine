@@ -2,6 +2,9 @@ import { it } from 'node:test';
 import { expect } from '../../../tests/assertions.ts';
 import { fn } from '../../../tests/test-mocks.ts';
 import {
+  ICEBasicMaterial,
+  ICEBoxGeometry,
+  ICEMesh,
   ICEPerspectiveCamera,
   ICEScene,
 } from '@ice3/core';
@@ -119,6 +122,31 @@ it('captures a PNG from the presented texture', async () => {
   }
 });
 
+it('recreates frame resources after Device Lost', async () => {
+  const fake = fakeWebGPUDevice();
+  const backend = await readyBackend(fake);
+  backend.render(repeatedBoxFrame(2));
+  await fake.loseDevice('unknown');
+  await fake.completeReplacementDevice();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  backend.render(repeatedBoxFrame(2));
+
+  expect(backend.stats.drawCalls).toBeGreaterThan(0);
+  expect(fake.buffers.some((buffer) => !buffer.destroyed)).toBe(true);
+});
+
+it('reports each optimization warning at most once', async () => {
+  const fake = fakeWebGPUDevice({ bundleCreationFails: true });
+  const errors: unknown[] = [];
+  const backend = await readyBackend(fake, {
+    onError: (error) => errors.push(error),
+  });
+  backend.render(repeatedBoxFrame(2));
+  backend.render(repeatedBoxFrame(2));
+  expect(errors).toHaveLength(1);
+});
+
 function emptyFrame(): ICEFrame {
   return {
     frameId: 1,
@@ -132,4 +160,16 @@ function emptyFrame(): ICEFrame {
     dpr: 1,
     selection: [],
   };
+}
+
+function repeatedBoxFrame(count: number): ICEFrame {
+  const scene = new ICEScene({ id: `lost-scene-${count}` });
+  for (let index = 0; index < count; index += 1) {
+    scene.addChild(new ICEMesh({
+      id: `mesh-${index}`,
+      geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
+      material: new ICEBasicMaterial({ color: '#ffffff' }),
+    }));
+  }
+  return { ...emptyFrame(), scene };
 }

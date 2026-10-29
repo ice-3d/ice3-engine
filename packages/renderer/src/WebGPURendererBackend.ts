@@ -161,6 +161,10 @@ export class WebGPURendererBackend implements ICERendererBackend {
   private readonly drawListScratch: PendingDraw[] = [];
   private readonly selected = new Set<string>();
   private readonly drawStorage = new WebGPUDrawStorage();
+  private readonly lastVisibilityEntries: Array<{
+    readonly entry: ICEVisibilityEntry;
+    readonly page: ICEInstanceStoragePage;
+  }> = [];
   private readonly mvpScratch = new ICEMatrix4();
   private readonly worldScratch = new ICEMatrix4();
   private readonly profiler = new RendererProfiler();
@@ -458,6 +462,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     const mvp = this.mvpScratch;
     const drawList = this.drawListScratch;
     drawList.length = 0;
+    this.lastVisibilityEntries.length = 0;
     this.drawStorage.begin(0);
     const instancedMeshIds = plan.instancedMeshIds;
     const selected = this.selected;
@@ -571,6 +576,15 @@ export class WebGPURendererBackend implements ICERendererBackend {
           const pagePipeline = useVisibility
             ? this.gpuDrivenPipeline!
             : this.storagePipeline;
+          const visibilityEntry = useVisibility
+            ? this.visibilityEncoder!.retain(page, geometry.triangleCount)
+            : undefined;
+          if (visibilityEntry) {
+            this.lastVisibilityEntries.push({
+              entry: visibilityEntry,
+              page,
+            });
+          }
           const instance = {
             matrixBuffer: this.identityInstances,
             semanticBuffer: geometry.semanticBuffer ?? this.zeroSemantics,
@@ -588,14 +602,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
             pipeline: pagePipeline.triangle,
             useSelectionMask: selectionMaskEnabled,
             storagePage: page,
-            ...(useVisibility
-              ? {
-                  visibilityEntry: this.visibilityEncoder!.retain(
-                    page,
-                    geometry.triangleCount,
-                  ),
-                }
-              : {}),
+            ...(visibilityEntry ? { visibilityEntry } : {}),
           }, viewProjection.elements, batch.semanticIds);
           if (batch.material.edgeColor) {
             pushEdgeDraws(
@@ -1086,6 +1093,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.picker?.dispose();
     this.selectionMaskBuffer?.dispose();
     this.storageCache?.dispose();
+    this.visibilityEncoder?.dispose();
     this.timestampProfiler?.dispose();
     this.instanceCache?.dispose();
     this.identityInstances?.destroy();
@@ -1097,6 +1105,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.picker = null;
     this.selectionMaskBuffer = null;
     this.storageCache = null;
+    this.visibilityEncoder = null;
+    this.gpuDrivenPipeline = null;
     this.timestampProfiler = null;
     this.instanceCache = null;
     this.identityInstances = null;
@@ -1187,6 +1197,32 @@ export class WebGPURendererBackend implements ICERendererBackend {
 
   get stats(): Readonly<typeof this.frameStats> {
     return this.frameStats;
+  }
+
+  async readVisibilityStats(): Promise<Readonly<{
+    visibleInstances: number;
+    culledInstances: number;
+    dispatchCount: number;
+  }> | undefined> {
+    if (!this.visibilityEncoder) {
+      return undefined;
+    }
+    let visibleInstances = 0;
+    let culledInstances = 0;
+    let dispatchCount = 0;
+    const seen = new Set<ICEVisibilityEntry>();
+    for (const item of this.lastVisibilityEntries) {
+      if (seen.has(item.entry)) continue;
+      seen.add(item.entry);
+      const result = await this.visibilityEncoder.readStats(
+        item.entry,
+        item.page,
+      );
+      visibleInstances += result.visibleInstances;
+      culledInstances += result.culledInstances;
+      dispatchCount += result.dispatchCount;
+    }
+    return { visibleInstances, culledInstances, dispatchCount };
   }
 
   get storageActive(): boolean {
@@ -1374,6 +1410,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.frameBindGroup = null;
     this.bundleActive = true;
     this.storagePipeline = null;
+    this.storageBindGroups.clear();
+    this.renderPlan.invalidate();
     try {
       const features: GPUFeatureName[] = this.device.features.has(
         'timestamp-query',
@@ -1383,13 +1421,29 @@ export class WebGPURendererBackend implements ICERendererBackend {
       const device = await this.adapter.requestDevice({
         ...(features.length > 0 ? { requiredFeatures: features } : {}),
       });
-      const pipeline = await WebGPURenderPipeline.create(device, this.format);
+      let selectionMaskBuffer: WebGPUSelectionMaskBuffer | null = null;
+      let pipeline: WebGPURenderPipeline;
+      try {
+        selectionMaskBuffer = new WebGPUSelectionMaskBuffer(device);
+        selectionMaskBuffer.update(new Uint32Array([0]));
+        pipeline = await WebGPURenderPipeline.create(
+          device,
+          this.format,
+          { selectionMask: true },
+        );
+      } catch {
+        selectionMaskBuffer?.dispose();
+        selectionMaskBuffer = null;
+        pipeline = await WebGPURenderPipeline.create(device, this.format);
+      }
       if (this.disposing) {
+        selectionMaskBuffer?.dispose();
         device.destroy();
         return;
       }
       this.device = device;
       this.pipeline = pipeline;
+      this.selectionMaskBuffer = selectionMaskBuffer;
       this.bundleCache = new WebGPUBundleCache(device, this.format);
       this.watchDevice(device);
       if (this.canvas) {
@@ -1402,6 +1456,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
             ? { onContextRestored: this.onContextRestored }
             : {}),
         });
+        this.resize(this.viewport, this.dpr);
       }
       this.onContextRestored?.();
     } catch (error) {

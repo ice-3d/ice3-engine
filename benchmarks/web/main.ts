@@ -44,6 +44,11 @@ export type ICEBenchmarkRun = {
   readonly pickMs: readonly number[];
   readonly stats: Readonly<ICERendererStats>;
   readonly optimization?: ICEWebGPUOptimizationStats;
+  readonly visibility?: Readonly<{
+    visibleInstances: number;
+    culledInstances: number;
+    dispatchCount: number;
+  }>;
 };
 
 type ICEBenchmarkProfileBackend = ICERendererBackend & {
@@ -54,6 +59,13 @@ type ICEBenchmarkProfileBackend = ICERendererBackend & {
   enableTimestampProfiling?(enabled: boolean): void;
   drainGpuTimings?(): Promise<readonly number[]>;
   readonly optimizationStats?: ICEWebGPUOptimizationStats;
+  readVisibilityStats?(): Promise<
+    Readonly<{
+      visibleInstances: number;
+      culledInstances: number;
+      dispatchCount: number;
+    }> | undefined
+  >;
 };
 
 async function run(
@@ -144,6 +156,9 @@ async function run(
       await backend.pick?.(frame, { x: WIDTH / 2, y: HEIGHT / 2 });
       pickMs.push(performance.now() - pickStartedAt);
     }
+    const visibility = backend.optimizationStats?.visibilityActive
+      ? await backend.readVisibilityStats?.()
+      : undefined;
     const gpuFrameTimeUnavailableReason = gpuFrameMs === null
       ? 'timestamp-query unavailable'
       : gpuFrameMs.length === 0
@@ -165,6 +180,7 @@ async function run(
       ...(backend.optimizationStats
         ? { optimization: backend.optimizationStats }
         : {}),
+      ...(visibility ? { visibility } : {}),
     };
   } finally {
     disposeScene?.();

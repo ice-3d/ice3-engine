@@ -186,6 +186,11 @@ it('uses compute visibility and indirect draw for a large batch', async () => {
   expect(fake.computePasses).toHaveLength(1);
   expect(fake.indirectDraws).toHaveLength(1);
   expect(fake.indirectDraws[0]?.instanceCount).toBe(12);
+  await expect(backend.readVisibilityStats()).resolves.toEqual({
+    visibleInstances: 12,
+    culledInstances: 2036,
+    dispatchCount: 32,
+  });
 });
 
 it('falls back when compute pipeline creation fails', async () => {
