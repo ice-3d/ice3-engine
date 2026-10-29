@@ -143,6 +143,7 @@ async function resolveScene(
   const loader = new ICETilesetLoader(engine, { camera: benchmark.camera });
   const handle = await loader.open(benchmark.assetUrl);
   await handle.whenIdle();
+  engine.stop();
   return {
     scene: handle.scene,
     camera: benchmark.camera,
