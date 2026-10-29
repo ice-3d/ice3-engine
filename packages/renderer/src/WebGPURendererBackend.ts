@@ -4,18 +4,6 @@ import {
   type ICEGeometry,
 } from '@ice3/core';
 import { colorToRgba } from './Color.js';
-import {
-  collectRenderables,
-  type ICEGeometryRenderable,
-} from './Renderables.js';
-import {
-  collectRenderBatches,
-  type ICERenderBatchDraw,
-} from './RenderBatch.js';
-import {
-  collectInstanceBatches,
-  type ICEInstanceBatch,
-} from './InstanceBatch.js';
 import type {
   ICERendererBackend,
   ICERendererCapabilities,
@@ -46,6 +34,7 @@ import {
   type ICESelectionMaskLayout,
 } from './WebGPUSelectionMask.js';
 import { WebGPUDrawStorage } from './WebGPUDrawStorage.js';
+import { WebGPURenderPlanCache } from './WebGPURenderPlan.js';
 import {
   collectWebGPUPickIds,
   WebGPUPicker,
@@ -125,11 +114,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
     readonly buffer: GPUBuffer;
     readonly bytesPerRow: number;
   } | null = null;
-  private readonly renderablesScratch: ICEGeometryRenderable[] = [];
-  private readonly batchesScratch: ICERenderBatchDraw[] = [];
-  private readonly instancesScratch: ICEInstanceBatch[] = [];
+  private readonly renderPlan = new WebGPURenderPlanCache();
   private readonly drawListScratch: PendingDraw[] = [];
-  private readonly instancedMeshIds = new Set<string>();
   private readonly selected = new Set<string>();
   private readonly drawStorage = new WebGPUDrawStorage();
   private readonly mvpScratch = new ICEMatrix4();
@@ -315,15 +301,10 @@ export class WebGPURendererBackend implements ICERendererBackend {
     };
     cache.beginFrame();
     instanceCache.beginFrame();
-    const renderables = collectRenderables(
-      frame.scene,
-      this.renderablesScratch,
-    );
-    const instances = collectInstanceBatches(
-      renderables,
-      this.instancesScratch,
-    );
-    const batches = collectRenderBatches(frame.scene, this.batchesScratch);
+    const plan = this.renderPlan.get(frame.scene);
+    const renderables = plan.renderables;
+    const instances = plan.instances;
+    const batches = plan.batches;
     this.profiler.mark('collect');
     const aspect = frame.viewport.width / Math.max(frame.viewport.height, 1);
     const viewProjection = frame.camera.getViewProjectionMatrix(aspect);
@@ -332,8 +313,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     const drawList = this.drawListScratch;
     drawList.length = 0;
     this.drawStorage.begin(0);
-    const instancedMeshIds = this.instancedMeshIds;
-    instancedMeshIds.clear();
+    const instancedMeshIds = plan.instancedMeshIds;
     const selected = this.selected;
     selected.clear();
     for (const id of frame.selection) selected.add(id);
@@ -405,7 +385,6 @@ export class WebGPURendererBackend implements ICERendererBackend {
     for (const batch of instances) {
       const instance = instanceCache.retain(batch);
       const geometry = cache.retain(batch.geometry);
-      for (const id of batch.meshIds) instancedMeshIds.add(id);
       pushDraw({
         geometry,
         instanceBuffer: instance.matrixBuffer,
@@ -763,6 +742,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
   dispose(): void {
     this.disposing = true;
     this.geometryCache?.dispose();
+    this.renderPlan.dispose();
     this.picker?.dispose();
     this.selectionMaskBuffer?.dispose();
     this.timestampProfiler?.dispose();

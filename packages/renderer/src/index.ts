@@ -33,6 +33,10 @@ export {
   type ICEWebGPUDrawUniform,
 } from './WebGPUDrawStorage.js';
 export {
+  WebGPURenderPlanCache,
+  type WebGPURenderPlan,
+} from './WebGPURenderPlan.js';
+export {
   buildSelectionMask,
   WebGPUSelectionMaskBuffer,
   type ICESelectionMaskLayout,

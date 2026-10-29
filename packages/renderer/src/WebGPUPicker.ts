@@ -4,15 +4,12 @@ import {
 } from '@ice3/core';
 import {
   collectRenderables,
-  type ICEGeometryRenderable,
 } from './Renderables.js';
 import {
   collectRenderBatches,
-  type ICERenderBatchDraw,
 } from './RenderBatch.js';
 import {
   collectInstanceBatches,
-  type ICEInstanceBatch,
 } from './InstanceBatch.js';
 import {
   decodeSelectionIndex,
@@ -24,6 +21,7 @@ import {
   WEBGPU_UNIFORM_BYTES,
   WEBGPU_UNIFORM_STRIDE,
 } from './WebGPURenderPipeline.js';
+import { WebGPURenderPlanCache } from './WebGPURenderPlan.js';
 import type {
   ICEFrame,
   ICEScreenPoint,
@@ -46,9 +44,7 @@ export class WebGPUPicker {
   private readonly instanceCache: WebGPUInstanceCache;
   private readonly identityInstances: GPUBuffer;
   private readonly zeroSemantics: GPUBuffer;
-  private readonly renderables: ICEGeometryRenderable[] = [];
-  private readonly batches: ICERenderBatchDraw[] = [];
-  private readonly instances: ICEInstanceBatch[] = [];
+  private readonly renderPlan = new WebGPURenderPlanCache();
   private target: GPUTexture | null = null;
   private depth: GPUTexture | null = null;
   private uniformBuffer: GPUBuffer | null = null;
@@ -102,9 +98,10 @@ export class WebGPUPicker {
     const pipeline = await this.pipelinePromise;
     this.instanceCache.beginFrame();
     geometryCache.beginFrame();
-    const renderables = collectRenderables(frame.scene, this.renderables);
-    const instances = collectInstanceBatches(renderables, this.instances);
-    const batches = collectRenderBatches(frame.scene, this.batches);
+    const plan = this.renderPlan.get(frame.scene);
+    const renderables = plan.renderables;
+    const instances = plan.instances;
+    const batches = plan.batches;
     const instancedIds = new Set<string>();
     const idBySelection = new Map<string, number>();
     for (const [key, value] of Object.entries(pickIds)) {
@@ -304,6 +301,7 @@ export class WebGPUPicker {
     this.identityInstances.destroy();
     this.zeroSemantics.destroy();
     this.instanceCache.dispose();
+    this.renderPlan.dispose();
     this.target = null;
     this.depth = null;
     this.uniformBuffer = null;

@@ -18,6 +18,8 @@ interface CachedInstanceEntry extends WebGPUInstanceEntry {
   semanticCapacity: number;
   matrixBytes?: Uint8Array;
   semanticBytes?: Uint8Array;
+  matrixSource?: Float32Array;
+  semanticSource?: Uint32Array;
 }
 
 export class WebGPUInstanceCache {
@@ -60,22 +62,31 @@ export class WebGPUInstanceCache {
       };
       this.entries.set(batch.id, entry);
     }
-    const matrixBytes = toBytes(batch.instanceMatrices);
-    const semanticBytes = toBytes(batch.semanticIndices);
-    if (!entry.matrixBytes || !sameBytes(entry.matrixBytes, matrixBytes)) {
-      writeGPUData(this.device, entry.matrixBuffer, batch.instanceMatrices);
+    if (entry.matrixSource !== batch.instanceMatrices) {
+      const matrixBytes = toBytes(batch.instanceMatrices);
+      if (
+        !entry.matrixBytes
+        || !sameBytes(entry.matrixBytes, matrixBytes)
+      ) {
+        writeGPUData(this.device, entry.matrixBuffer, batch.instanceMatrices);
+      }
       entry.matrixBytes = matrixBytes;
+      entry.matrixSource = batch.instanceMatrices;
     }
-    if (
-      !entry.semanticBytes
-      || !sameBytes(entry.semanticBytes, semanticBytes)
-    ) {
-      writeGPUData(
-        this.device,
-        entry.semanticBuffer,
-        batch.semanticIndices,
-      );
+    if (entry.semanticSource !== batch.semanticIndices) {
+      const semanticBytes = toBytes(batch.semanticIndices);
+      if (
+        !entry.semanticBytes
+        || !sameBytes(entry.semanticBytes, semanticBytes)
+      ) {
+        writeGPUData(
+          this.device,
+          entry.semanticBuffer,
+          batch.semanticIndices,
+        );
+      }
       entry.semanticBytes = semanticBytes;
+      entry.semanticSource = batch.semanticIndices;
     }
     entry.instanceCount = batch.semanticIds.length;
     return entry;
