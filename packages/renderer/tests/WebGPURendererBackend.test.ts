@@ -58,7 +58,7 @@ it('draws one mesh and reports its renderer statistics', async () => {
 
 it('resolves a backend pick through the stable selection identity', async () => {
   const fake = fakeWebGPUDevice({
-    pickPixel: new Uint8Array([0, 0, 1, 255]),
+    pickPixel: new Uint8Array([1, 0, 0, 255]),
   });
   const backend = await WebGPURendererBackend.create(fake.context);
   backend.initialize({ canvas: fake.canvas() });
@@ -77,6 +77,22 @@ it('waits for submitted WebGPU work to finish', async () => {
   await backend.finish();
 
   expect(fake.submittedWorkWaitCount()).toBe(1);
+});
+
+it('releases the cached probe when the backend is disposed', async () => {
+  const fake = fakeWebGPUDevice();
+  let released = false;
+  const backend = await WebGPURendererBackend.create({
+    ...fake.context,
+    release: () => {
+      released = true;
+    },
+  });
+  backend.initialize({ canvas: fake.canvas() });
+
+  backend.dispose();
+
+  expect(released).toBe(true);
 });
 
 function emptyFrame(): ICEFrame {

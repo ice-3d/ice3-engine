@@ -39,6 +39,7 @@ const PICK_TEXTURE_USAGE = 16 | 1;
 const DEPTH_USAGE = 16;
 const MAP_READ = 1;
 const COPY_DST = 8;
+const PICK_FORMAT: GPUTextureFormat = 'rgba8unorm';
 
 export class WebGPUPicker {
   private readonly pipelinePromise: Promise<WebGPURenderPipeline>;
@@ -57,12 +58,10 @@ export class WebGPUPicker {
 
   constructor(
     private readonly device: GPUDevice,
-    private readonly format: GPUTextureFormat,
-    pipeline?: WebGPURenderPipeline,
+    format: GPUTextureFormat,
   ) {
-    this.pipelinePromise = pipeline
-      ? Promise.resolve(pipeline)
-      : WebGPURenderPipeline.create(device, format);
+    void format;
+    this.pipelinePromise = WebGPURenderPipeline.create(device, PICK_FORMAT);
     this.instanceCache = new WebGPUInstanceCache(device);
     this.identityInstances = device.createBuffer({
       label: 'ice3:pick-identity-instances',
@@ -276,9 +275,6 @@ export class WebGPUPicker {
     try {
       await readback.mapAsync(MAP_READ);
       pixel = new Uint8Array(readback.getMappedRange(), 0, 4).slice();
-      if (this.format === 'bgra8unorm' || this.format === 'bgra8unorm-srgb') {
-        [pixel[0], pixel[2]] = [pixel[2]!, pixel[0]!];
-      }
     } catch (error) {
       throw new ICEEngineError(
         'ICE3_WEBGPU_PICK_UNAVAILABLE',
@@ -322,7 +318,7 @@ export class WebGPUPicker {
     this.target = this.device.createTexture({
       label: 'ice3:pick-target',
       size: [width, height],
-      format: this.format,
+      format: PICK_FORMAT,
       usage: PICK_TEXTURE_USAGE,
     });
     this.depth = this.device.createTexture({

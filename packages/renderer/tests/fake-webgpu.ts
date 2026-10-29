@@ -93,8 +93,10 @@ type FakeBuffer = GPUBuffer & {
 };
 
 type FakeTexture = GPUTexture & {
+  readonly label: string;
   readonly size: readonly [number, number];
   readonly usage: GPUTextureUsageFlags;
+  readonly format: GPUTextureFormat;
   destroyed: boolean;
 };
 
@@ -181,8 +183,10 @@ export function fakeWebGPUDevice(options: {
         ? description.size
         : description.size[1];
       const texture = {
+        label: description.label ?? '',
         size: [width, height] as const,
         usage: description.usage,
+        format: description.format,
         destroyed: false,
         createView: () => ({ texture }),
         destroy() {

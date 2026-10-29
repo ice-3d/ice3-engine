@@ -101,6 +101,8 @@ async function createDefaultWebGPU(): Promise<ICERendererBackend> {
   try {
     return await WebGPURendererBackend.create(result);
   } catch (error) {
+    result.device.destroy();
+    result.release();
     throw new ICEEngineError(
       'ICE3_WEBGPU_UNAVAILABLE',
       `ICE3_WEBGPU_UNAVAILABLE: ${

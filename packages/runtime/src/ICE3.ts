@@ -443,7 +443,10 @@ export class ICE3 extends ICEEventDispatcher {
   ): Promise<{ readonly item?: ICESceneItem }> {
     const node = await this.pick(point);
     if (!node) return Object.freeze({});
-    const item = this.queryScene({ ids: [node.id], limit: 1 })[0];
+    const item = this.queryScene({
+      selectionIds: [node.selectionId ?? node.id],
+      limit: 1,
+    })[0];
     return Object.freeze(item ? { item } : {});
   }
 

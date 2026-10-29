@@ -17,7 +17,7 @@ import { fakeWebGPUDevice } from './fake-webgpu';
 
 it('resolves a visible pick ID after async buffer mapping', async () => {
   const fake = fakeWebGPUDevice({
-    pickPixel: new Uint8Array([0, 0, 3, 255]),
+    pickPixel: new Uint8Array([3, 0, 0, 255]),
   });
   const picker = new WebGPUPicker(fake.device, 'bgra8unorm');
   const result = picker.pick(
@@ -42,6 +42,20 @@ it('maps CSS top-left Y coordinates to WebGPU texture coordinates', async () => 
     {},
   );
   expect(fake.copyCalls[0]).toMatchObject({ origin: { x: 40, y: 60 } });
+});
+
+it('uses a normalized RGBA pick target independent of the canvas format', async () => {
+  const fake = fakeWebGPUDevice();
+  const picker = new WebGPUPicker(fake.device, 'bgra8unorm');
+  await picker.pick(
+    pickFrame(),
+    new WebGPUGeometryCache({ device: fake.device }),
+    {},
+  );
+  expect(
+    fake.depthTextures.find((texture) => texture.label === 'ice3:pick-target')
+      ?.format,
+  ).toBe('rgba8unorm');
 });
 
 function pickFrame(

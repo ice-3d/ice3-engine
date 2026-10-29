@@ -5,6 +5,7 @@ import {
   ICEBasicMaterial,
   ICEBoxGeometry,
   ICEMesh,
+  ICENode,
   ICEPerspectiveCamera,
   ICEScene,
 } from '@ice3/runtime';
@@ -156,4 +157,29 @@ it('releases pointer capture while an asynchronous pick is pending', async () =>
   expect(released).toBe(true);
   finishPick(undefined);
   await new Promise((resolve) => setTimeout(resolve, 0));
+});
+
+it('returns the canonical scene item for a duplicated selection identity', async () => {
+  const backend = new FakeRendererBackend({ picking: true });
+  backend.pickResult = 'pump';
+  const scene = new ICEScene({ id: 'scene' });
+  const group = new ICENode({ id: 'group', selectionId: 'pump' });
+  const mesh = new ICEMesh({
+    id: 'pump-mesh',
+    selectionId: 'pump',
+    geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
+    material: new ICEBasicMaterial({ color: '#ffffff' }),
+  });
+  group.addChild(mesh);
+  scene.addChild(group);
+  const engine = new ICE3({ backend }).init(createHost());
+  engine.setScene(scene).setCamera(new ICEPerspectiveCamera({
+    id: 'camera',
+    position: [0, 0, 4],
+    target: [0, 0, 0],
+  }));
+
+  const result = await engine.pickItem({ x: 10, y: 10 });
+
+  expect(result.item?.nodeId).toBe('pump-mesh');
 });

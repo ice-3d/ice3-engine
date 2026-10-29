@@ -116,3 +116,18 @@ it('returns the probed devices and caches success for the same GPU', async () =>
   expect(fake.adapterRequestCount()).toBe(1);
   expect(fake.destroyCount()).toBe(0);
 });
+
+it('invalidates a cached probe when its consumer releases it', async () => {
+  const fake = fakeWebGPUEnvironment();
+  const first = await probeWebGPU({
+    gpu: fake.gpu,
+    createCanvas: () => fake.canvas,
+  });
+  if (!first.supported) throw new Error('expected supported probe');
+  first.release();
+  await probeWebGPU({
+    gpu: fake.gpu,
+    createCanvas: () => fake.canvas,
+  });
+  expect(fake.adapterRequestCount()).toBe(2);
+});

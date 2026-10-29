@@ -59,6 +59,7 @@ export type WebGPUDeviceContext = Readonly<{
   adapter: GPUAdapter;
   device: GPUDevice;
   format: GPUTextureFormat;
+  release?: () => void;
 }>;
 
 export class WebGPURendererBackend implements ICERendererBackend {
@@ -72,6 +73,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
   private device: GPUDevice;
   private readonly format: GPUTextureFormat;
   private pipeline: WebGPURenderPipeline;
+  private readonly releaseProbe: (() => void) | undefined;
   private onContextLost: (() => void) | undefined;
   private onContextRestored: (() => void) | undefined;
   private disposing = false;
@@ -121,6 +123,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.device = context.device;
     this.format = context.format;
     this.pipeline = pipeline;
+    this.releaseProbe = context.release;
     this.watchDevice(this.device);
   }
 
@@ -160,11 +163,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.onContextRestored = options.onContextRestored;
     this.geometryCache = new WebGPUGeometryCache({ device: this.device });
     this.instanceCache = new WebGPUInstanceCache(this.device);
-    this.picker = new WebGPUPicker(
-      this.device,
-      this.format,
-      this.pipeline,
-    );
+    this.picker = new WebGPUPicker(this.device, this.format);
     this.capabilities = {
       backend: 'webgpu',
       maxTextureSize: this.device.limits.maxTextureDimension2D,
@@ -576,6 +575,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.context = null;
     this.canvas = null;
     this.device.destroy();
+    this.releaseProbe?.();
     this.onContextLost = undefined;
     this.onContextRestored = undefined;
   }
@@ -702,6 +702,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
   }
 
   private async recoverDevice(): Promise<void> {
+    this.releaseProbe?.();
     this.onContextLost?.();
     this.geometryCache?.dispose();
     this.instanceCache?.dispose();

@@ -45,6 +45,7 @@ export type ICEWebGPUProbeResult =
       readonly adapter: GPUAdapter;
       readonly device: GPUDevice;
       readonly format: GPUTextureFormat;
+      readonly release: () => void;
     }
   | {
       readonly supported: false;
@@ -82,7 +83,14 @@ export function probeWebGPU(
   const cached = successfulProbes.get(gpu);
   if (cached) return cached;
 
-  const probe = executeProbe(gpu, options);
+  const probe = executeProbe(gpu, options).then((result) => (
+    result.supported
+      ? {
+          ...result,
+          release: () => successfulProbes.delete(gpu),
+        }
+      : result
+  ));
   successfulProbes.set(gpu, probe);
   void probe.then((result) => {
     if (!result.supported) successfulProbes.delete(gpu);
@@ -96,17 +104,20 @@ async function executeProbe(
 ): Promise<ICEWebGPUProbeResult> {
   const timeoutMs = options.timeoutMs ?? WEBGPU_TIMEOUT_MS;
   const timeout = Symbol('timeout');
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   let adapter: GPUAdapter | null | typeof timeout;
   try {
     adapter = await Promise.race([
       gpu.requestAdapter({ powerPreference: 'high-performance' }),
       new Promise<typeof timeout>((resolve) => {
-        setTimeout(() => resolve(timeout), timeoutMs);
+        timeoutId = setTimeout(() => resolve(timeout), timeoutMs);
       }),
     ]);
   } catch (error) {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
     return failure('adapter-unavailable', errorMessage(error));
   }
+  if (timeoutId !== undefined) clearTimeout(timeoutId);
   if (adapter === timeout) {
     return failure('adapter-timeout', `Adapter lookup exceeded ${timeoutMs}ms`);
   }
@@ -199,6 +210,7 @@ async function executeProbe(
       adapter,
       device,
       format,
+      release: () => undefined,
     };
   } catch (error) {
     device.destroy();
