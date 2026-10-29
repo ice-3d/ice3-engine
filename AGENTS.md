@@ -20,7 +20,7 @@
 - Every behavioral change starts with a failing test and ends with the full suite green.
 - Add no runtime dependency without an explicit design ruling.
 - Keep M1 free of generic format compatibility, animation, textures, LOD, and industrial business features.
-- Use the Node version from `.nvmrc`; current verification runs on Node 24 LTS.
+- Use Node.js 24.22.1 LTS from `.nvmrc`; this exact version is used by the verification gate.
 
 ## Naming and legal boundary
 

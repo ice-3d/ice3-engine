@@ -19,7 +19,7 @@
 ## Global Constraints
 
 - Develop on one feature branch and merge to `main` only after `npm run verify` and `npm pack --workspaces --dry-run` pass.
-- Use Node 24 LTS from `.nvmrc`.
+- Use Node.js 24.22.1 LTS from `.nvmrc`.
 - Keep public consumers on the `ice3` entry only.
 - Do not expose WebGL objects through public APIs.
 - Keep `@ice3/core` independent of DOM, Canvas, GPU, and sibling packages.
