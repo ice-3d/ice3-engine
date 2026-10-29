@@ -121,6 +121,8 @@ export function fakeWebGPUDevice(options: {
   readonly selectionMaskLayoutFails?: boolean;
   readonly bundleCreationFails?: boolean;
   readonly bundleExecutionFails?: boolean;
+  readonly limits?: Partial<Record<keyof GPUSupportedLimits, number>>;
+  readonly storagePipelineFails?: boolean;
 } = {}) {
   const buffers: FakeBuffer[] = [];
   const writes: Array<{
@@ -165,6 +167,7 @@ export function fakeWebGPUDevice(options: {
     features: new Set<GPUFeatureName>(options.features ?? []),
     limits: {
       maxTextureDimension2D: 8192,
+      ...options.limits,
     },
     createShaderModule() {
       return {};
@@ -183,7 +186,15 @@ export function fakeWebGPUDevice(options: {
     },
     createRenderPipelineAsync: async (
       description: GPURenderPipelineDescriptor,
-    ) => ({ label: description.label ?? '' }),
+    ) => {
+      if (
+        options.storagePipelineFails
+        && description.label?.includes(':storage')
+      ) {
+        throw new Error('storage pipeline failed');
+      }
+      return { label: description.label ?? '' };
+    },
     createBindGroup() {
       return {};
     },
@@ -222,12 +233,16 @@ export function fakeWebGPUDevice(options: {
           indexCount: number,
           instanceCount = 1,
           firstIndex = 0,
+          baseVertex = 0,
+          firstInstance = 0,
         ) {
           calls.push('drawIndexed');
           bundleDraws.push({
             indexCount,
             instanceCount,
             firstIndex,
+            baseVertex,
+            firstInstance,
             pipeline: currentPipeline?.label,
           });
         },
@@ -358,11 +373,15 @@ export function fakeWebGPUDevice(options: {
               indexCount: number,
               instanceCount = 1,
               firstIndex = 0,
+              baseVertex = 0,
+              firstInstance = 0,
             ) {
               draws.push({
                 indexCount,
                 instanceCount,
                 firstIndex,
+                baseVertex,
+                firstInstance,
                 pipeline: currentPipeline?.label,
               });
             },
@@ -512,8 +531,14 @@ export async function readyBackend(
     readonly onContextRestored?: () => void;
     readonly onError?: (error: Error) => void;
   } = {},
+  options: {
+    readonly forceStoragePath?: boolean;
+  } = {},
 ): Promise<WebGPURendererBackend> {
-  const backend = await WebGPURendererBackend.create(fake.context);
+  const backend = await WebGPURendererBackend.create(
+    fake.context,
+    options,
+  );
   backend.initialize({ canvas: fake.canvas(), ...callbacks });
   backend.resize({ x: 0, y: 0, width: 320, height: 180 }, 1);
   return backend;

@@ -129,6 +129,46 @@ it('reports one bundle warning and falls back to direct draws', async () => {
   });
 });
 
+it('uses the storage pipeline when the device and override support it', async () => {
+  const fake = fakeWebGPUDevice({
+    limits: {
+      maxStorageBuffersPerShaderStage: 8,
+      maxStorageBufferBindingSize: 1 << 20,
+      minStorageBufferOffsetAlignment: 256,
+    },
+  });
+  const backend = await readyBackend(fake, {}, {
+    forceStoragePath: true,
+  });
+  backend.render(repeatedBoxFrame(2));
+
+  expect(fake.draws[0]?.pipeline).toContain('storage');
+});
+
+it('falls back to vertex attributes when storage pipeline creation fails', async () => {
+  const fake = fakeWebGPUDevice({
+    limits: {
+      maxStorageBuffersPerShaderStage: 8,
+      maxStorageBufferBindingSize: 1 << 20,
+      minStorageBufferOffsetAlignment: 256,
+    },
+    storagePipelineFails: true,
+  });
+  const errors: Error[] = [];
+  const backend = await readyBackend(fake, {
+    onError: (error) => errors.push(error),
+  }, {
+    forceStoragePath: true,
+  });
+  backend.render(repeatedBoxFrame(2));
+
+  expect(fake.draws[0]?.pipeline).not.toContain('storage');
+  expect(errors).toHaveLength(1);
+  expect(errors[0]).toMatchObject({
+    code: 'ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE',
+  });
+});
+
 function boxMesh(id: string): ICEMesh {
   return new ICEMesh({
     id,

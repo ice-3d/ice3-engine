@@ -8,7 +8,7 @@ import { createBenchmarkReport, reportToMarkdown } from './report.ts';
 
 const root = resolve(new URL('..', import.meta.url).pathname);
 const outputRoot = join(root, 'output', 'benchmarks');
-const scenarios = [
+const allScenarios = [
   'unique-meshes',
   'instanced-grid',
   'static-batches',
@@ -26,6 +26,16 @@ const headless = args.includes('--headless');
 const warmup = readNumberOption(args, '--warmup', 60);
 const frames = readNumberOption(args, '--frames', 300);
 const repetitions = readNumberOption(args, '--repetitions', 5);
+const forceStorage = args.includes('--storage');
+const scenarioFilter = readStringOption(args, '--scenarios')
+  ?.split(',')
+  .filter(Boolean);
+const scenarios = scenarioFilter
+  ? allScenarios.filter((scenario) => scenarioFilter.includes(scenario))
+  : allScenarios;
+if (scenarios.length === 0) {
+  throw new Error('ICE3_BENCHMARK_INVALID: no scenarios selected');
+}
 
 runCommand('npm', ['run', 'build']);
 runCommand(join(root, 'node_modules', '.bin', 'webpack'), [
@@ -81,13 +91,13 @@ try {
     for (const scenario of scenarios) {
       for (const backend of order) {
         process.stderr.write(
-          `benchmark ${iteration + 1}/${repetitions} ${backend} ${scenario}\n`,
+          `benchmark ${iteration + 1}/${repetitions} ${backend}${forceStorage ? ':storage' : ''} ${scenario}\n`,
         );
         await page.goto(baseUrl);
         await page.waitForFunction(() => Boolean(window.__ice3Benchmark));
         const result = await page.evaluate(async (request) => (
           window.__ice3Benchmark.run(request)
-        ), { backend, scenario, warmup, frames });
+        ), { backend, scenario, warmup, frames, forceStorage });
         rawRuns.push({ iteration, ...result });
       }
     }
@@ -124,6 +134,7 @@ try {
           pickMs: runs.flatMap((run) => run.pickMs),
         },
         stats: runs.at(-1).stats,
+        optimization: runs.at(-1).optimization,
         gpuFrameTimeUnavailableReason: gpuRuns.length === 0
           ? runs.find((run) => run.gpuFrameTimeUnavailableReason)
             ?.gpuFrameTimeUnavailableReason
@@ -233,6 +244,11 @@ function readNumberOption(values, name, fallback) {
     throw new Error(`ICE3_BENCHMARK_INVALID: ${name} must be positive`);
   }
   return parsed;
+}
+
+function readStringOption(values, name) {
+  const index = values.indexOf(name);
+  return index >= 0 ? values[index + 1] : undefined;
 }
 
 function median(values) {

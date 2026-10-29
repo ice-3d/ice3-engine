@@ -36,6 +36,21 @@ export {
   WebGPURenderPlanCache,
   type WebGPURenderPlan,
 } from './WebGPURenderPlan.js';
+export {
+  detectWebGPUAcceleration,
+  WEBGPU_STORAGE_DEFAULT,
+  type ICEWebGPUAcceleration,
+  type ICEWebGPUAccelerationTier,
+  type ICEWebGPUOptimizationStats,
+} from './WebGPUCapabilities.js';
+export {
+  INSTANCE_RECORD_BYTES,
+  WebGPUInstanceStorage,
+  type ICEInstanceStorageEntry,
+  type ICEInstanceStoragePage,
+  type ICEInstanceStoragePagePlan,
+  type WebGPUInstanceStorageOptions,
+} from './WebGPUInstanceStorage.js';
 export { WebGPUBundleCache } from './WebGPUBundleCache.js';
 export {
   buildSelectionMask,

@@ -37,6 +37,15 @@ import { WebGPUDrawStorage } from './WebGPUDrawStorage.js';
 import { WebGPURenderPlanCache } from './WebGPURenderPlan.js';
 import { WebGPUBundleCache } from './WebGPUBundleCache.js';
 import {
+  detectWebGPUAcceleration,
+  type ICEWebGPUAcceleration,
+  type ICEWebGPUOptimizationStats,
+} from './WebGPUCapabilities.js';
+import {
+  WebGPUInstanceStorage,
+  type ICEInstanceStoragePage,
+} from './WebGPUInstanceStorage.js';
+import {
   collectWebGPUPickIds,
   WebGPUPicker,
 } from './WebGPUPicker.js';
@@ -64,6 +73,10 @@ export type WebGPUDeviceContext = Readonly<{
   release?: () => void;
 }>;
 
+export type WebGPURendererBackendOptions = Readonly<{
+  readonly forceStoragePath?: boolean;
+}>;
+
 export class WebGPURendererBackend implements ICERendererBackend {
   capabilities: Readonly<ICERendererCapabilities> = {
     backend: 'webgpu',
@@ -75,6 +88,10 @@ export class WebGPURendererBackend implements ICERendererBackend {
   private device: GPUDevice;
   private readonly format: GPUTextureFormat;
   private pipeline: WebGPURenderPipeline;
+  private storagePipeline: WebGPURenderPipeline | null;
+  private storageCache: WebGPUInstanceStorage | null;
+  private readonly acceleration: ICEWebGPUAcceleration;
+  private readonly forceStoragePath: boolean;
   private readonly releaseProbe: (() => void) | undefined;
   private onContextLost: (() => void) | undefined;
   private onContextRestored: (() => void) | undefined;
@@ -92,6 +109,10 @@ export class WebGPURendererBackend implements ICERendererBackend {
   private bundleActive = true;
   private frameBindGroup: GPUBindGroup | null = null;
   private frameBindGroupKey = '';
+  private readonly storageBindGroups = new Map<
+    GPUBuffer,
+    { readonly key: string; readonly group: GPUBindGroup }
+  >();
   private uniformBufferGeneration = 0;
   private readonly optimizationWarnings = new Set<string>();
   private identityInstances: GPUBuffer | null = null;
@@ -130,29 +151,41 @@ export class WebGPURendererBackend implements ICERendererBackend {
   private readonly profiler = new RendererProfiler();
   private lastFrameProfile: ICEFrameStageProfile | null = null;
   private optimizationFailureReason: string | null = null;
+  private storageFailureReason: string | null = null;
 
   private constructor(
     context: WebGPUDeviceContext,
     pipeline: WebGPURenderPipeline,
+    storagePipeline: WebGPURenderPipeline | null,
+    storageCache: WebGPUInstanceStorage | null,
+    acceleration: ICEWebGPUAcceleration,
+    forceStoragePath: boolean,
     selectionMaskBuffer: WebGPUSelectionMaskBuffer | null,
     optimizationFailureReason: string | null,
+    storageFailureReason: string | null,
   ) {
     this.adapter = context.adapter;
     this.device = context.device;
     this.format = context.format;
     this.pipeline = pipeline;
+    this.storagePipeline = storagePipeline;
+    this.storageCache = storageCache;
+    this.acceleration = acceleration;
+    this.forceStoragePath = forceStoragePath;
     this.bundleCache = new WebGPUBundleCache(
       context.device,
       context.format,
     );
     this.selectionMaskBuffer = selectionMaskBuffer;
     this.optimizationFailureReason = optimizationFailureReason;
+    this.storageFailureReason = storageFailureReason;
     this.releaseProbe = context.release;
     this.watchDevice(this.device);
   }
 
   static async create(
     context: WebGPUDeviceContext,
+    options: WebGPURendererBackendOptions = {},
   ): Promise<WebGPURendererBackend> {
     let selectionMaskBuffer: WebGPUSelectionMaskBuffer | null = null;
     let optimizationFailureReason: string | null = null;
@@ -174,11 +207,43 @@ export class WebGPURendererBackend implements ICERendererBackend {
         context.format,
       );
     }
+    const acceleration = detectWebGPUAcceleration(context.device);
+    const forceStoragePath = Boolean(options.forceStoragePath);
+    let storagePipeline: WebGPURenderPipeline | null = null;
+    let storageCache: WebGPUInstanceStorage | null = null;
+    let storageFailureReason: string | null = null;
+    if (forceStoragePath) {
+      if (!acceleration.storage) {
+        storageFailureReason = 'limit-too-low';
+      } else {
+        try {
+          storagePipeline = await WebGPURenderPipeline.create(
+            context.device,
+            context.format,
+            {
+              selectionMask: true,
+              storageInstances: true,
+            },
+          );
+          storageCache = new WebGPUInstanceStorage(context.device);
+        } catch {
+          storagePipeline = null;
+          storageCache?.dispose();
+          storageCache = null;
+          storageFailureReason = 'pipeline-failed';
+        }
+      }
+    }
     return new WebGPURendererBackend(
       context,
       pipeline,
+      storagePipeline,
+      storageCache,
+      acceleration,
+      forceStoragePath,
       selectionMaskBuffer,
       optimizationFailureReason,
+      storageFailureReason,
     );
   }
 
@@ -212,6 +277,11 @@ export class WebGPURendererBackend implements ICERendererBackend {
       const reason = this.optimizationFailureReason;
       this.optimizationFailureReason = null;
       this.reportOptimizationFailure('selection-mask', reason);
+    }
+    if (this.storageFailureReason) {
+      const reason = this.storageFailureReason;
+      this.storageFailureReason = null;
+      this.reportOptimizationFailure('storage', reason);
     }
     this.geometryCache = new WebGPUGeometryCache({ device: this.device });
     this.instanceCache = new WebGPUInstanceCache(this.device);
@@ -310,6 +380,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     };
     cache.beginFrame();
     instanceCache.beginFrame();
+    this.storageCache?.beginFrame();
     const plan = this.renderPlan.get(frame.scene);
     const renderables = plan.renderables;
     const instances = plan.instances;
@@ -344,6 +415,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
         matrix,
         selectionBase,
         useSelectionMask: Boolean(draw.useSelectionMask),
+        pageBase: draw.storagePage?.firstInstance ?? 0,
       });
       drawList.push({
         ...draw,
@@ -362,7 +434,12 @@ export class WebGPURendererBackend implements ICERendererBackend {
     };
     const pushEdgeDraws = (
       geometry: WebGPUGeometryEntry,
-      instance: WebGPUInstanceEntry | null,
+      instance: {
+        readonly matrixBuffer: GPUBuffer;
+        readonly semanticBuffer: GPUBuffer;
+        readonly instanceCount: number;
+        readonly storagePage?: ICEInstanceStoragePage;
+      } | null,
       matrix: Float32Array,
       color: readonly [number, number, number, number],
       pipeline: GPURenderPipeline,
@@ -390,70 +467,129 @@ export class WebGPURendererBackend implements ICERendererBackend {
           clipOffset: [offsetX * clipPixelX, offsetY * clipPixelY],
           edge: true,
           ...(selection ?? {}),
+          ...(instance?.storagePage
+            ? { storagePage: instance.storagePage }
+            : {}),
         }, matrix, selection?.selectionIds);
       }
     };
 
     for (const batch of instances) {
-      const instance = instanceCache.retain(batch);
       const geometry = cache.retain(batch.geometry);
-      pushDraw({
-        geometry,
-        instanceBuffer: instance.matrixBuffer,
-        semanticBuffer: instance.semanticBuffer,
-        instanceCount: instance.instanceCount,
-        color: colorToRgba(batch.material.color),
-        useVertexColor: Boolean(batch.geometry.colors),
-        useInstancing: true,
-        pipeline: this.pipeline.triangle,
-        useSelectionMask: selectionMaskEnabled,
-      }, viewProjection.elements, batch.semanticIds);
-      if (batch.material.edgeColor) {
-        pushEdgeDraws(
-          geometry,
-          instance,
-          viewProjection.elements,
-          colorToRgba(batch.material.edgeColor),
-          this.pipeline.line,
-        );
-      }
       if (
-        selectionMaskEnabled
-        && batch.material.edgeColor
-        && batch.semanticIds.some((id) => selected.has(id))
+        this.storageActive
+        && this.storageCache
+        && this.storagePipeline
       ) {
-        pushEdgeDraws(
-          geometry,
-          instance,
-          viewProjection.elements,
-          SELECTION_RGBA,
-          this.pipeline.selectionLine,
-          {
-            selectionIds: batch.semanticIds,
-            useSelectionMask: true,
-            useSemantic: true,
-            selectionScope: batch.id,
-          },
-        );
-      } else if (!selectionMaskEnabled) {
-        for (
-          let semanticIndex = 0;
-          semanticIndex < batch.semanticIds.length;
-          semanticIndex += 1
-        ) {
-          if (!selected.has(batch.semanticIds[semanticIndex]!)) continue;
+        const storage = this.storageCache.retain(batch, batch.geometry);
+        for (const page of storage.pages) {
+          const instance = {
+            matrixBuffer: this.identityInstances,
+            semanticBuffer: geometry.semanticBuffer ?? this.zeroSemantics,
+            instanceCount: page.instanceCount,
+            storagePage: page,
+          };
           pushDraw({
             geometry,
             instanceBuffer: instance.matrixBuffer,
             semanticBuffer: instance.semanticBuffer,
             instanceCount: instance.instanceCount,
-            color: [...SELECTION_RGBA] as [number, number, number, number],
-            useVertexColor: false,
+            color: colorToRgba(batch.material.color),
+            useVertexColor: Boolean(batch.geometry.colors),
             useInstancing: true,
-            pipeline: this.pipeline.selectionTriangle,
-            semanticHighlight: semanticIndex,
-            useSemantic: true,
-          }, viewProjection.elements);
+            pipeline: this.storagePipeline.triangle,
+            useSelectionMask: selectionMaskEnabled,
+            storagePage: page,
+          }, viewProjection.elements, batch.semanticIds);
+          if (batch.material.edgeColor) {
+            pushEdgeDraws(
+              geometry,
+              instance,
+              viewProjection.elements,
+              colorToRgba(batch.material.edgeColor),
+              this.storagePipeline.line,
+            );
+          }
+          if (
+            selectionMaskEnabled
+            && batch.material.edgeColor
+            && batch.semanticIds.some((id) => selected.has(id))
+          ) {
+            pushEdgeDraws(
+              geometry,
+              instance,
+              viewProjection.elements,
+              SELECTION_RGBA,
+              this.storagePipeline.selectionLine,
+              {
+                selectionIds: batch.semanticIds,
+                useSelectionMask: true,
+                useSemantic: true,
+                selectionScope: batch.id,
+              },
+            );
+          }
+        }
+      } else {
+        const instance = instanceCache.retain(batch);
+        pushDraw({
+          geometry,
+          instanceBuffer: instance.matrixBuffer,
+          semanticBuffer: instance.semanticBuffer,
+          instanceCount: instance.instanceCount,
+          color: colorToRgba(batch.material.color),
+          useVertexColor: Boolean(batch.geometry.colors),
+          useInstancing: true,
+          pipeline: this.pipeline.triangle,
+          useSelectionMask: selectionMaskEnabled,
+        }, viewProjection.elements, batch.semanticIds);
+        if (batch.material.edgeColor) {
+          pushEdgeDraws(
+            geometry,
+            instance,
+            viewProjection.elements,
+            colorToRgba(batch.material.edgeColor),
+            this.pipeline.line,
+          );
+        }
+        if (
+          selectionMaskEnabled
+          && batch.material.edgeColor
+          && batch.semanticIds.some((id) => selected.has(id))
+        ) {
+          pushEdgeDraws(
+            geometry,
+            instance,
+            viewProjection.elements,
+            SELECTION_RGBA,
+            this.pipeline.selectionLine,
+            {
+              selectionIds: batch.semanticIds,
+              useSelectionMask: true,
+              useSemantic: true,
+              selectionScope: batch.id,
+            },
+          );
+        } else if (!selectionMaskEnabled) {
+          for (
+            let semanticIndex = 0;
+            semanticIndex < batch.semanticIds.length;
+            semanticIndex += 1
+          ) {
+            if (!selected.has(batch.semanticIds[semanticIndex]!)) continue;
+            pushDraw({
+              geometry,
+              instanceBuffer: instance.matrixBuffer,
+              semanticBuffer: instance.semanticBuffer,
+              instanceCount: instance.instanceCount,
+              color: [...SELECTION_RGBA] as [number, number, number, number],
+              useVertexColor: false,
+              useInstancing: true,
+              pipeline: this.pipeline.selectionTriangle,
+              semanticHighlight: semanticIndex,
+              useSemantic: true,
+            }, viewProjection.elements);
+          }
         }
       }
     }
@@ -644,12 +780,19 @@ export class WebGPURendererBackend implements ICERendererBackend {
       for (let index = 0; index < drawList.length; index += 1) {
         const draw = drawList[index]!;
         encoder.setPipeline(draw.pipeline);
-        encoder.setBindGroup(0, bindGroup, [
+        const drawBindGroup = draw.storagePage
+          ? this.storageBindGroupFor(draw.storagePage)
+          : bindGroup;
+        encoder.setBindGroup(0, drawBindGroup, [
           index * WEBGPU_UNIFORM_STRIDE,
         ]);
         encoder.setVertexBuffer(0, draw.geometry.vertexBuffer);
-        encoder.setVertexBuffer(1, draw.instanceBuffer);
-        encoder.setVertexBuffer(2, draw.semanticBuffer);
+        if (draw.storagePage) {
+          encoder.setVertexBuffer(1, draw.semanticBuffer);
+        } else {
+          encoder.setVertexBuffer(1, draw.instanceBuffer);
+          encoder.setVertexBuffer(2, draw.semanticBuffer);
+        }
         encoder.setIndexBuffer(
           draw.edge
             ? draw.geometry.edgeIndexBuffer!
@@ -659,6 +802,9 @@ export class WebGPURendererBackend implements ICERendererBackend {
         encoder.drawIndexed(
           draw.edge ? draw.geometry.edgeCount : draw.geometry.triangleCount,
           draw.instanceCount,
+          0,
+          0,
+          draw.storagePage?.firstInstance ?? 0,
         );
       }
     };
@@ -667,6 +813,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
       this.drawStorage.generation,
       cache.generation,
       instanceCache.generation,
+      this.storageCache?.generation ?? 0,
       this.selectionMaskBuffer?.generation ?? 0,
       this.uniformBufferGeneration,
       this.format,
@@ -755,9 +902,12 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.profiler.mark('submit');
     cache.endFrame();
     instanceCache.endFrame();
+    this.storageCache?.endFrame();
     this.frameStats.gpuUploads = cache.uploadCount;
     this.frameStats.gpuEvictions = cache.evictionCount;
-    this.frameStats.gpuBytes = cache.totalBytes + instanceCache.totalBytes;
+    this.frameStats.gpuBytes = cache.totalBytes
+      + instanceCache.totalBytes
+      + (this.storageCache?.totalBytes ?? 0);
     this.lastFrameProfile = this.profiler.end();
   }
 
@@ -808,6 +958,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.renderPlan.dispose();
     this.picker?.dispose();
     this.selectionMaskBuffer?.dispose();
+    this.storageCache?.dispose();
     this.timestampProfiler?.dispose();
     this.instanceCache?.dispose();
     this.identityInstances?.destroy();
@@ -818,6 +969,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.geometryCache = null;
     this.picker = null;
     this.selectionMaskBuffer = null;
+    this.storageCache = null;
     this.timestampProfiler = null;
     this.instanceCache = null;
     this.identityInstances = null;
@@ -910,6 +1062,76 @@ export class WebGPURendererBackend implements ICERendererBackend {
     return this.frameStats;
   }
 
+  get storageActive(): boolean {
+    return (
+      this.forceStoragePath
+      && this.storagePipeline !== null
+      && this.storageCache !== null
+    );
+  }
+
+  get optimizationStats(): ICEWebGPUOptimizationStats {
+    return {
+      tier: this.storageActive ? 'storage' : 'baseline',
+      selectionMaskActive: this.selectionMaskBuffer !== null,
+      bundleActive: this.bundleActive,
+      storageActive: this.storageActive,
+      visibilityActive: false,
+      instanceUploadBytes: this.storageCache?.totalUploadBytes ?? 0,
+      bundleRecreations: this.bundleCache.bundleRecreations,
+      ...(this.timestampProfilingUnavailableReason
+        ? {
+            timestampUnavailableReason:
+              this.timestampProfilingUnavailableReason,
+          }
+        : {}),
+    };
+  }
+
+  private storageBindGroupFor(
+    page: ICEInstanceStoragePage,
+  ): GPUBindGroup {
+    const key = [
+      this.uniformBufferGeneration,
+      this.selectionMaskBuffer?.generation ?? 0,
+    ].join(':');
+    const cached = this.storageBindGroups.get(page.buffer);
+    if (cached?.key === key) return cached.group;
+    const entries: GPUBindGroupEntry[] = [{
+      binding: 0,
+      resource: {
+        buffer: this.uniformBuffer!,
+        offset: 0,
+        size: WEBGPU_UNIFORM_BYTES,
+      },
+    }];
+    if (this.selectionMaskBuffer?.buffer) {
+      entries.push({
+        binding: 1,
+        resource: {
+          buffer: this.selectionMaskBuffer.buffer,
+          offset: 0,
+          size: this.selectionMaskBuffer.buffer.size,
+        },
+      });
+    }
+    entries.push({
+      binding: 2,
+      resource: {
+        buffer: page.buffer,
+        offset: 0,
+        size: page.buffer.size,
+      },
+    });
+    const group = this.device.createBindGroup({
+      label: 'ice3:storage-instance-pipeline',
+      layout: this.storagePipeline!.bindGroupLayout,
+      entries,
+    });
+    this.storageBindGroups.set(page.buffer, { key, group });
+    return group;
+  }
+
   private reportOptimizationFailure(
     layer: string,
     reason: string,
@@ -969,6 +1191,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.bundleCache.dispose();
     this.instanceCache?.dispose();
     this.picker?.dispose();
+    this.selectionMaskBuffer?.dispose();
+    this.storageCache?.dispose();
     this.timestampProfiler?.dispose();
     this.identityInstances?.destroy();
     this.zeroSemantics?.destroy();
@@ -976,6 +1200,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.depthTexture?.destroy();
     this.geometryCache = null;
     this.instanceCache = null;
+    this.selectionMaskBuffer = null;
+    this.storageCache = null;
     this.picker = null;
     this.timestampProfiler = null;
     this.identityInstances = null;
@@ -985,6 +1211,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.uniformCapacity = 0;
     this.frameBindGroup = null;
     this.bundleActive = true;
+    this.storagePipeline = null;
     try {
       const features: GPUFeatureName[] = this.device.features.has(
         'timestamp-query',
@@ -1093,6 +1320,7 @@ type PendingDraw = {
   readonly useSemantic?: boolean;
   readonly selectionIds?: readonly string[];
   readonly useSelectionMask?: boolean;
+  readonly storagePage?: ICEInstanceStoragePage;
   readonly clipOffset?: readonly [number, number];
   readonly edge?: boolean;
 };

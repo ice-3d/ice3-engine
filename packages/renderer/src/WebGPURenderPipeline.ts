@@ -3,7 +3,10 @@ import { ICEEngineError } from '@ice3/core';
 export const WEBGPU_UNIFORM_STRIDE = 256;
 export const WEBGPU_UNIFORM_BYTES = 128;
 
-const SHADER_SOURCE = (selectionMask: boolean): string => `
+const SHADER_SOURCE = (
+  selectionMask: boolean,
+  storageInstances: boolean,
+): string => `
 struct FrameUniforms {
   worldViewProjection: mat4x4<f32>,
   color: vec4<f32>,
@@ -16,7 +19,20 @@ struct FrameUniforms {
   pickBase: f32,
   selectionBase: f32,
   useSelectionMask: f32,
+  pageBase: f32,
 }
+
+${storageInstances
+  ? `
+struct InstanceRecord {
+  transform: mat4x4<f32>,
+  bounds: vec4<f32>,
+  semantic: u32,
+  pad0: u32,
+  pad1: u32,
+  pad2: u32,
+}`
+  : ''}
 
 struct VertexOutput {
   @builtin(position) position: vec4<f32>,
@@ -28,18 +44,38 @@ struct VertexOutput {
 ${selectionMask
   ? '@group(0) @binding(1) var<storage, read> selection: array<u32>;'
   : ''}
+${storageInstances
+  ? '@group(0) @binding(2) var<storage, read> instances: array<InstanceRecord>;'
+  : ''}
 
 @vertex
 fn vertexMain(
   @location(0) position: vec3<f32>,
   @location(1) color: vec3<f32>,
+  ${storageInstances
+    ? `
+  @builtin(instance_index) instanceIndex: u32,
+  @location(2) vertexSemantic: u32,
+`
+    : `
   @location(2) instanceColumn0: vec4<f32>,
   @location(3) instanceColumn1: vec4<f32>,
   @location(4) instanceColumn2: vec4<f32>,
   @location(5) instanceColumn3: vec4<f32>,
   @location(6) instanceSemantic: u32,
   @location(7) vertexSemantic: u32,
+`}
 ) -> VertexOutput {
+  ${storageInstances
+    ? `
+  let recordIndex = instanceIndex - u32(frame.pageBase);
+  let record = instances[recordIndex];
+  let instanceMatrix = record.transform;
+  let instanceSemantic = record.semantic;
+  let localPosition = vec4<f32>(position, 1.0);
+  let worldPosition = instanceMatrix * localPosition;
+`
+    : `
   let instanceMatrix = mat4x4<f32>(
     instanceColumn0,
     instanceColumn1,
@@ -52,6 +88,7 @@ fn vertexMain(
     instanceMatrix * localPosition,
     frame.useInstancing
   );
+`}
   var output: VertexOutput;
   output.position = frame.worldViewProjection * worldPosition;
   output.position.xy += frame.clipOffset * output.position.w;
@@ -62,7 +99,7 @@ fn vertexMain(
   output.semantic = select(
     vertexSemantic,
     instanceSemantic,
-    frame.useInstancing > 0.5
+    ${storageInstances ? 'true' : 'frame.useInstancing > 0.5'}
   );
   return output;
 }
@@ -137,6 +174,17 @@ const VERTEX_LAYOUT: GPUVertexBufferLayout[] = [
   },
 ];
 
+const STORAGE_VERTEX_LAYOUT: GPUVertexBufferLayout[] = [
+  VERTEX_LAYOUT[0]!,
+  {
+    arrayStride: 4,
+    stepMode: 'vertex',
+    attributes: [
+      { shaderLocation: 2, offset: 0, format: 'uint32' },
+    ],
+  },
+];
+
 export class WebGPURenderPipeline {
   readonly bindGroupLayout: GPUBindGroupLayout;
   readonly pipelineLayout: GPUPipelineLayout;
@@ -145,6 +193,7 @@ export class WebGPURenderPipeline {
   readonly selectionTriangle: GPURenderPipeline;
   readonly selectionLine: GPURenderPipeline;
   readonly selectionMask: boolean;
+  readonly storageInstances: boolean;
 
   private constructor(
     readonly device: GPUDevice,
@@ -156,6 +205,7 @@ export class WebGPURenderPipeline {
     selectionTriangle: GPURenderPipeline,
     selectionLine: GPURenderPipeline,
     selectionMask: boolean,
+    storageInstances: boolean,
   ) {
     this.bindGroupLayout = bindGroupLayout;
     this.pipelineLayout = pipelineLayout;
@@ -164,15 +214,22 @@ export class WebGPURenderPipeline {
     this.selectionTriangle = selectionTriangle;
     this.selectionLine = selectionLine;
     this.selectionMask = selectionMask;
+    this.storageInstances = storageInstances;
   }
 
   static async create(
     device: GPUDevice,
     format: GPUTextureFormat,
-    options: { readonly selectionMask?: boolean } = {},
+    options: {
+      readonly selectionMask?: boolean;
+      readonly storageInstances?: boolean;
+    } = {},
   ): Promise<WebGPURenderPipeline> {
     try {
-      const selectionMask = Boolean(options.selectionMask);
+      const storageInstances = Boolean(options.storageInstances);
+      const selectionMask = Boolean(
+        options.selectionMask || storageInstances,
+      );
       const bindGroupEntries: GPUBindGroupLayoutEntry[] = [{
         binding: 0,
         visibility: 3,
@@ -192,6 +249,16 @@ export class WebGPURenderPipeline {
           },
         });
       }
+      if (storageInstances) {
+        bindGroupEntries.push({
+          binding: 2,
+          visibility: 1,
+          buffer: {
+            type: 'read-only-storage',
+            minBindingSize: 96,
+          },
+        });
+      }
       const bindGroupLayout = device.createBindGroupLayout({
         entries: bindGroupEntries,
       });
@@ -199,19 +266,21 @@ export class WebGPURenderPipeline {
         bindGroupLayouts: [bindGroupLayout],
       });
       const module = device.createShaderModule({
-        code: SHADER_SOURCE(selectionMask),
+        code: SHADER_SOURCE(selectionMask, storageInstances),
       });
       const createPipeline = (
         label: string,
         topology: GPUPrimitiveTopology,
         selection = false,
       ) => device.createRenderPipelineAsync({
-        label,
+        label: storageInstances ? `${label}:storage` : label,
         layout: pipelineLayout,
         vertex: {
           module,
           entryPoint: 'vertexMain',
-          buffers: VERTEX_LAYOUT,
+          buffers: storageInstances
+            ? STORAGE_VERTEX_LAYOUT
+            : VERTEX_LAYOUT,
         },
         fragment: {
           module,
@@ -268,6 +337,7 @@ export class WebGPURenderPipeline {
         selectionTriangle,
         selectionLine,
         selectionMask,
+        storageInstances,
       );
     } catch (error) {
       throw new ICEEngineError(

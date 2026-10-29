@@ -11,6 +11,7 @@ import {
   type ICERendererBackend,
   type ICERendererStats,
   type ICEFrameStageProfile,
+  type ICEWebGPUOptimizationStats,
 } from '@ice3/renderer';
 import { benchmarkScene } from '../core/scenarios';
 import { cloneBenchmarkScene } from '../core/cloneScene';
@@ -28,6 +29,7 @@ export type ICEBenchmarkRunRequest = {
   readonly scenario: ICEBenchmarkScenarioId;
   readonly warmup: number;
   readonly frames: number;
+  readonly forceStorage?: boolean;
 };
 
 export type ICEBenchmarkRun = {
@@ -40,6 +42,7 @@ export type ICEBenchmarkRun = {
   readonly gpuFrameTimeUnavailableReason?: string;
   readonly pickMs: readonly number[];
   readonly stats: Readonly<ICERendererStats>;
+  readonly optimization?: ICEWebGPUOptimizationStats;
 };
 
 type ICEBenchmarkProfileBackend = ICERendererBackend & {
@@ -49,6 +52,7 @@ type ICEBenchmarkProfileBackend = ICERendererBackend & {
   readonly timestampProfilingUnavailableReason?: string;
   enableTimestampProfiling?(enabled: boolean): void;
   drainGpuTimings?(): Promise<readonly number[]>;
+  readonly optimizationStats?: ICEWebGPUOptimizationStats;
 };
 
 async function run(
@@ -69,7 +73,10 @@ async function run(
   let engine: ICE3 | undefined;
   let disposeScene: (() => void) | undefined;
   try {
-    const backend = await createBackend(request.backend);
+    const backend = await createBackend(
+      request.backend,
+      request.forceStorage,
+    );
     backend.enableProfiling(true);
     engine = new ICE3({ backend });
     engine.init(host);
@@ -153,6 +160,9 @@ async function run(
         : {}),
       pickMs,
       stats: backend.stats ?? emptyStats(),
+      ...(backend.optimizationStats
+        ? { optimization: backend.optimizationStats }
+        : {}),
     };
   } finally {
     disposeScene?.();
@@ -163,6 +173,7 @@ async function run(
 
 async function createBackend(
   backend: 'webgl2' | 'webgpu',
+  forceStorage = false,
 ): Promise<ICEBenchmarkProfileBackend> {
   if (backend === 'webgl2') return new WebGL2RendererBackend();
   const probe = await probeWebGPU({
@@ -171,7 +182,9 @@ async function createBackend(
   if (!probe.supported) {
     throw new Error(`WEBGPU_UNSUPPORTED: ${probe.reason}`);
   }
-  return WebGPURendererBackend.create(probe);
+  return WebGPURendererBackend.create(probe, {
+    forceStoragePath: forceStorage,
+  });
 }
 
 async function resolveScene(
