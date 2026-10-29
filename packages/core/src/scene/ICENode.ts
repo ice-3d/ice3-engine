@@ -178,7 +178,9 @@ export class ICENode extends ICEEventDispatcher {
   }
 
   clearLocalMatrix(): this {
+    if (this.localMatrixOverride === null) return this;
     this.localMatrixOverride = null;
+    this.markSceneChanged();
     return this;
   }
 

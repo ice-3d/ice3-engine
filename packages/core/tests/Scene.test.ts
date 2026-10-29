@@ -188,4 +188,19 @@ describe('scene revision', () => {
     expect(first.revision).toBeGreaterThan(firstRevision);
     expect(second.revision).toBeGreaterThan(secondRevision);
   });
+
+  it('changes when a local matrix override is cleared', () => {
+    const scene = new ICEScene({ id: 'scene' });
+    const node = mesh('clear-matrix-node');
+    scene.addChild(node);
+    node.setLocalMatrix([
+      1, 0, 0, 0,
+      0, 1, 0, 0,
+      0, 0, 1, 0,
+      4, 0, 0, 1,
+    ]);
+    const transformed = scene.revision;
+    node.clearLocalMatrix();
+    expect(scene.revision).toBeGreaterThan(transformed);
+  });
 });
