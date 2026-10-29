@@ -417,7 +417,7 @@ async function main() {
   if (options.workspaceRoot) {
     for (const name of Object.keys(AREA_BY_REPOSITORY)) {
       const path = join(resolve(options.workspaceRoot), name);
-      if (await fileExists(join(path, '.git', 'HEAD'))) roots.push(path);
+      if (await pathExists(join(path, '.git'))) roots.push(path);
     }
   } else {
     roots.push(resolve(options.root));
