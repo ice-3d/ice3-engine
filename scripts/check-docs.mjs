@@ -173,6 +173,18 @@ export async function checkRepository(root, options = {}) {
         errors.push(`${displayPath}: index links this document ${count} times`);
       }
     }
+    const rootReadme = documents.find((document) => (
+      relative(repositoryRoot, document.path) === 'README.md'
+    ));
+    if (
+      rootReadme
+      && rootReadme.status !== 'Placeholder'
+      && !rootReadme.links.some((link) => (
+        resolveLinkTarget(rootReadme.path, link.href) === index.path
+      ))
+    ) {
+      errors.push('README.md: README does not link docs/README.md');
+    }
   }
 
   const documentsByPath = new Map(
