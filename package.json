@@ -36,6 +36,7 @@
   "devDependencies": {
     "@playwright/test": "1.64.1",
     "@types/node": "24.19.2",
+    "@webgpu/types": "^0.1.74",
     "esbuild": "^0.28.2",
     "esbuild-loader": "4.5.0",
     "expect": "30.5.2",
