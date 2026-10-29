@@ -118,6 +118,7 @@ export function fakeWebGPUDevice(options: {
   readonly features?: readonly GPUFeatureName[];
   readonly timestampValues?: readonly number[];
   readonly timestampMapFails?: boolean;
+  readonly selectionMaskLayoutFails?: boolean;
 } = {}) {
   const buffers: FakeBuffer[] = [];
   const writes: Array<{
@@ -164,7 +165,13 @@ export function fakeWebGPUDevice(options: {
     createShaderModule() {
       return {};
     },
-    createBindGroupLayout() {
+    createBindGroupLayout(description?: GPUBindGroupLayoutDescriptor) {
+      if (
+        options.selectionMaskLayoutFails
+        && (description?.entries.length ?? 0) > 1
+      ) {
+        throw new Error('selection mask layout failed');
+      }
       return {};
     },
     createPipelineLayout() {

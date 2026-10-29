@@ -1,9 +1,9 @@
 import { ICEEngineError } from '@ice3/core';
 
 export const WEBGPU_UNIFORM_STRIDE = 256;
-export const WEBGPU_UNIFORM_BYTES = 112;
+export const WEBGPU_UNIFORM_BYTES = 128;
 
-const SHADER_SOURCE = `
+const SHADER_SOURCE = (selectionMask: boolean): string => `
 struct FrameUniforms {
   worldViewProjection: mat4x4<f32>,
   color: vec4<f32>,
@@ -14,6 +14,8 @@ struct FrameUniforms {
   useSemantic: f32,
   pickMode: f32,
   pickBase: f32,
+  selectionBase: f32,
+  useSelectionMask: f32,
 }
 
 struct VertexOutput {
@@ -23,6 +25,9 @@ struct VertexOutput {
 }
 
 @group(0) @binding(0) var<uniform> frame: FrameUniforms;
+${selectionMask
+  ? '@group(0) @binding(1) var<storage, read> selection: array<u32>;'
+  : ''}
 
 @vertex
 fn vertexMain(
@@ -79,6 +84,26 @@ fn fragmentMain(input: VertexOutput) -> @location(0) vec4<f32> {
   ) {
     discard;
   }
+  ${selectionMask
+    ? `
+  let isSelected =
+    selection[u32(frame.selectionBase) + input.semantic] != 0u;
+  if (frame.useSelectionMask > 0.5) {
+    if (frame.useSemantic > 0.5 && !isSelected) {
+      discard;
+    }
+    if (isSelected) {
+      return vec4<f32>(
+        mix(
+          input.color.rgb,
+          vec3<f32>(1.0, 208.0 / 255.0, 0.0),
+          0.65
+        ),
+        1.0
+      );
+    }
+  }`
+    : ''}
   return input.color;
 }
 `;
@@ -119,6 +144,7 @@ export class WebGPURenderPipeline {
   readonly line: GPURenderPipeline;
   readonly selectionTriangle: GPURenderPipeline;
   readonly selectionLine: GPURenderPipeline;
+  readonly selectionMask: boolean;
 
   private constructor(
     readonly device: GPUDevice,
@@ -129,6 +155,7 @@ export class WebGPURenderPipeline {
     line: GPURenderPipeline,
     selectionTriangle: GPURenderPipeline,
     selectionLine: GPURenderPipeline,
+    selectionMask: boolean,
   ) {
     this.bindGroupLayout = bindGroupLayout;
     this.pipelineLayout = pipelineLayout;
@@ -136,28 +163,44 @@ export class WebGPURenderPipeline {
     this.line = line;
     this.selectionTriangle = selectionTriangle;
     this.selectionLine = selectionLine;
+    this.selectionMask = selectionMask;
   }
 
   static async create(
     device: GPUDevice,
     format: GPUTextureFormat,
+    options: { readonly selectionMask?: boolean } = {},
   ): Promise<WebGPURenderPipeline> {
     try {
-      const bindGroupLayout = device.createBindGroupLayout({
-        entries: [{
-          binding: 0,
-          visibility: 3,
+      const selectionMask = Boolean(options.selectionMask);
+      const bindGroupEntries: GPUBindGroupLayoutEntry[] = [{
+        binding: 0,
+        visibility: 3,
+        buffer: {
+          type: 'uniform',
+          hasDynamicOffset: true,
+          minBindingSize: WEBGPU_UNIFORM_BYTES,
+        },
+      }];
+      if (selectionMask) {
+        bindGroupEntries.push({
+          binding: 1,
+          visibility: 2,
           buffer: {
-            type: 'uniform',
-            hasDynamicOffset: true,
-            minBindingSize: WEBGPU_UNIFORM_BYTES,
+            type: 'read-only-storage',
+            minBindingSize: 4,
           },
-        }],
+        });
+      }
+      const bindGroupLayout = device.createBindGroupLayout({
+        entries: bindGroupEntries,
       });
       const pipelineLayout = device.createPipelineLayout({
         bindGroupLayouts: [bindGroupLayout],
       });
-      const module = device.createShaderModule({ code: SHADER_SOURCE });
+      const module = device.createShaderModule({
+        code: SHADER_SOURCE(selectionMask),
+      });
       const createPipeline = (
         label: string,
         topology: GPUPrimitiveTopology,
@@ -224,6 +267,7 @@ export class WebGPURenderPipeline {
         line,
         selectionTriangle,
         selectionLine,
+        selectionMask,
       );
     } catch (error) {
       throw new ICEEngineError(

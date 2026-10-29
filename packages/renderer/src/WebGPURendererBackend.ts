@@ -41,6 +41,11 @@ import {
 } from './RendererProfiler.js';
 import { WebGPUTimestampProfiler } from './WebGPUTimestampProfiler.js';
 import {
+  buildSelectionMask,
+  WebGPUSelectionMaskBuffer,
+  type ICESelectionMaskLayout,
+} from './WebGPUSelectionMask.js';
+import {
   collectWebGPUPickIds,
   WebGPUPicker,
 } from './WebGPUPicker.js';
@@ -52,6 +57,7 @@ const RENDER_ATTACHMENT_USAGE = 16;
 const UNIFORM_BUFFER_INITIAL_DRAWS = 64;
 const SELECTION_RGBA = [1, 208 / 255, 0, 1] as const;
 const SELECTION_TINT_RGBA = [1, 208 / 255, 0, 0.65] as const;
+const EMPTY_SELECTION = new Uint32Array([0]);
 const EDGE_PIXEL_OFFSETS = [
   [0, 0],
   [-1, 0],
@@ -88,6 +94,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
   private geometryCache: WebGPUGeometryCache | null = null;
   private instanceCache: WebGPUInstanceCache | null = null;
   private picker: WebGPUPicker | null = null;
+  private selectionMaskBuffer: WebGPUSelectionMaskBuffer | null = null;
   private timestampProfiler: WebGPUTimestampProfiler | null = null;
   private timestampProfilingEnabled = false;
   private identityInstances: GPUBuffer | null = null;
@@ -124,15 +131,20 @@ export class WebGPURendererBackend implements ICERendererBackend {
   private readonly worldScratch = new ICEMatrix4();
   private readonly profiler = new RendererProfiler();
   private lastFrameProfile: ICEFrameStageProfile | null = null;
+  private optimizationFailureReason: string | null = null;
 
   private constructor(
     context: WebGPUDeviceContext,
     pipeline: WebGPURenderPipeline,
+    selectionMaskBuffer: WebGPUSelectionMaskBuffer | null,
+    optimizationFailureReason: string | null,
   ) {
     this.adapter = context.adapter;
     this.device = context.device;
     this.format = context.format;
     this.pipeline = pipeline;
+    this.selectionMaskBuffer = selectionMaskBuffer;
+    this.optimizationFailureReason = optimizationFailureReason;
     this.releaseProbe = context.release;
     this.watchDevice(this.device);
   }
@@ -140,11 +152,32 @@ export class WebGPURendererBackend implements ICERendererBackend {
   static async create(
     context: WebGPUDeviceContext,
   ): Promise<WebGPURendererBackend> {
-    const pipeline = await WebGPURenderPipeline.create(
-      context.device,
-      context.format,
+    let selectionMaskBuffer: WebGPUSelectionMaskBuffer | null = null;
+    let optimizationFailureReason: string | null = null;
+    let pipeline: WebGPURenderPipeline;
+    try {
+      selectionMaskBuffer = new WebGPUSelectionMaskBuffer(context.device);
+      selectionMaskBuffer.update(new Uint32Array([0]));
+      pipeline = await WebGPURenderPipeline.create(
+        context.device,
+        context.format,
+        { selectionMask: true },
+      );
+    } catch {
+      selectionMaskBuffer?.dispose();
+      selectionMaskBuffer = null;
+      optimizationFailureReason = 'selection-mask';
+      pipeline = await WebGPURenderPipeline.create(
+        context.device,
+        context.format,
+      );
+    }
+    return new WebGPURendererBackend(
+      context,
+      pipeline,
+      selectionMaskBuffer,
+      optimizationFailureReason,
     );
-    return new WebGPURendererBackend(context, pipeline);
   }
 
   initialize(options: {
@@ -173,6 +206,15 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.onContextLost = options.onContextLost;
     this.onContextRestored = options.onContextRestored;
     this.onError = options.onError;
+    if (this.optimizationFailureReason) {
+      const reason = this.optimizationFailureReason;
+      this.optimizationFailureReason = null;
+      this.onError?.(new ICEEngineError(
+        'ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE',
+        `ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE: ${reason}`,
+        { layer: reason },
+      ));
+    }
     this.geometryCache = new WebGPUGeometryCache({ device: this.device });
     this.instanceCache = new WebGPUInstanceCache(this.device);
     this.picker = new WebGPUPicker(this.device, this.format);
@@ -285,11 +327,19 @@ export class WebGPURendererBackend implements ICERendererBackend {
     const drawList: PendingDraw[] = [];
     const instancedMeshIds = new Set<string>();
     const selected = new Set(frame.selection);
+    const selectionMaskActive = this.selectionMaskBuffer !== null;
+    const selectionMaskEnabled = selectionMaskActive
+      && frame.selection.length > 0;
     const pushDraw = (
       draw: Omit<PendingDraw, 'matrix'>,
       matrix: Float32Array,
+      selectionIds?: readonly string[],
     ): void => {
-      drawList.push({ ...draw, matrix: new Float32Array(matrix) });
+      drawList.push({
+        ...draw,
+        ...(selectionIds ? { selectionIds } : {}),
+        matrix: new Float32Array(matrix),
+      });
     };
     const matrixFor = (source: ArrayLike<number>): Float32Array => {
       mvp.elements.set(viewProjection.elements);
@@ -311,7 +361,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
         useVertexColor: Boolean(batch.geometry.colors),
         useInstancing: true,
         pipeline: this.pipeline.triangle,
-      }, viewProjection.elements);
+        useSelectionMask: selectionMaskEnabled,
+      }, viewProjection.elements, batch.semanticIds);
       if (batch.material.edgeColor) {
         this.pushEdgeDraws(
           drawList,
@@ -322,24 +373,44 @@ export class WebGPURendererBackend implements ICERendererBackend {
           this.pipeline.line,
         );
       }
-      for (
-        let semanticIndex = 0;
-        semanticIndex < batch.semanticIds.length;
-        semanticIndex += 1
+      if (
+        selectionMaskEnabled
+        && batch.material.edgeColor
+        && batch.semanticIds.some((id) => selected.has(id))
       ) {
-        if (!selected.has(batch.semanticIds[semanticIndex]!)) continue;
-        pushDraw({
+        this.pushEdgeDraws(
+          drawList,
           geometry,
-          instanceBuffer: instance.matrixBuffer,
-          semanticBuffer: instance.semanticBuffer,
-          instanceCount: instance.instanceCount,
-          color: [...SELECTION_RGBA] as [number, number, number, number],
-          useVertexColor: false,
-          useInstancing: true,
-          pipeline: this.pipeline.selectionTriangle,
-          semanticHighlight: semanticIndex,
-          useSemantic: true,
-        }, viewProjection.elements);
+          instance,
+          viewProjection.elements,
+          SELECTION_RGBA,
+          this.pipeline.selectionLine,
+          {
+            selectionIds: batch.semanticIds,
+            useSelectionMask: true,
+            useSemantic: true,
+          },
+        );
+      } else if (!selectionMaskEnabled) {
+        for (
+          let semanticIndex = 0;
+          semanticIndex < batch.semanticIds.length;
+          semanticIndex += 1
+        ) {
+          if (!selected.has(batch.semanticIds[semanticIndex]!)) continue;
+          pushDraw({
+            geometry,
+            instanceBuffer: instance.matrixBuffer,
+            semanticBuffer: instance.semanticBuffer,
+            instanceCount: instance.instanceCount,
+            color: [...SELECTION_RGBA] as [number, number, number, number],
+            useVertexColor: false,
+            useInstancing: true,
+            pipeline: this.pipeline.selectionTriangle,
+            semanticHighlight: semanticIndex,
+            useSemantic: true,
+          }, viewProjection.elements);
+        }
       }
     }
 
@@ -349,13 +420,14 @@ export class WebGPURendererBackend implements ICERendererBackend {
       pushDraw({
         geometry,
         instanceBuffer: this.identityInstances,
-        semanticBuffer: this.zeroSemantics,
+        semanticBuffer: geometry.semanticBuffer ?? this.zeroSemantics,
         instanceCount: 1,
         color: colorToRgba(draw.batch.material.color),
         useVertexColor: Boolean(draw.batch.geometry.colors),
         useInstancing: false,
         pipeline: this.pipeline.triangle,
-      }, matrix);
+        useSelectionMask: selectionMaskEnabled,
+      }, matrix, draw.batch.semanticSelectionIds);
       this.frameStats.renderedBatches += 1;
       if (draw.batch.material.edgeColor) {
         this.pushEdgeDraws(
@@ -367,26 +439,46 @@ export class WebGPURendererBackend implements ICERendererBackend {
           this.pipeline.line,
         );
       }
-      for (
-        let semanticIndex = 0;
-        semanticIndex < draw.batch.semanticSelectionIds.length;
-        semanticIndex += 1
+      if (
+        selectionMaskEnabled
+        && draw.batch.material.edgeColor
+        && draw.batch.semanticSelectionIds.some((id) => selected.has(id))
       ) {
-        if (!selected.has(draw.batch.semanticSelectionIds[semanticIndex]!)) {
-          continue;
-        }
-        pushDraw({
+        this.pushEdgeDraws(
+          drawList,
           geometry,
-          instanceBuffer: this.identityInstances,
-          semanticBuffer: geometry.semanticBuffer ?? this.zeroSemantics,
-          instanceCount: 1,
-          color: [...SELECTION_RGBA] as [number, number, number, number],
-          useVertexColor: false,
-          useInstancing: false,
-          pipeline: this.pipeline.selectionTriangle,
-          semanticHighlight: semanticIndex,
-          useSemantic: true,
-        }, matrix);
+          null,
+          matrix,
+          SELECTION_RGBA,
+          this.pipeline.selectionLine,
+          {
+            selectionIds: draw.batch.semanticSelectionIds,
+            useSelectionMask: true,
+            useSemantic: true,
+          },
+        );
+      } else if (!selectionMaskEnabled) {
+        for (
+          let semanticIndex = 0;
+          semanticIndex < draw.batch.semanticSelectionIds.length;
+          semanticIndex += 1
+        ) {
+          if (!selected.has(draw.batch.semanticSelectionIds[semanticIndex]!)) {
+            continue;
+          }
+          pushDraw({
+            geometry,
+            instanceBuffer: this.identityInstances,
+            semanticBuffer: geometry.semanticBuffer ?? this.zeroSemantics,
+            instanceCount: 1,
+            color: [...SELECTION_RGBA] as [number, number, number, number],
+            useVertexColor: false,
+            useInstancing: false,
+            pipeline: this.pipeline.selectionTriangle,
+            semanticHighlight: semanticIndex,
+            useSemantic: true,
+          }, matrix);
+        }
       }
     }
 
@@ -403,7 +495,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
         useVertexColor: Boolean(renderable.mesh.geometry.colors),
         useInstancing: false,
         pipeline: this.pipeline.triangle,
-      }, matrix);
+        useSelectionMask: selectionMaskEnabled,
+      }, matrix, [renderable.mesh.selectionId]);
       this.frameStats.renderedMeshes += 1;
       if (renderable.mesh.material.edgeColor) {
         this.pushEdgeDraws(
@@ -416,21 +509,23 @@ export class WebGPURendererBackend implements ICERendererBackend {
         );
       }
       if (selected.has(renderable.mesh.selectionId)) {
-        pushDraw({
-          geometry,
-          instanceBuffer: this.identityInstances,
-          semanticBuffer: this.zeroSemantics,
-          instanceCount: 1,
-          color: [...SELECTION_TINT_RGBA] as [
-            number,
-            number,
-            number,
-            number,
-          ],
-          useVertexColor: false,
-          useInstancing: false,
-          pipeline: this.pipeline.selectionTriangle,
-        }, matrix);
+        if (!selectionMaskEnabled) {
+          pushDraw({
+            geometry,
+            instanceBuffer: this.identityInstances,
+            semanticBuffer: this.zeroSemantics,
+            instanceCount: 1,
+            color: [...SELECTION_TINT_RGBA] as [
+              number,
+              number,
+              number,
+              number,
+            ],
+            useVertexColor: false,
+            useInstancing: false,
+            pipeline: this.pipeline.selectionTriangle,
+          }, matrix);
+        }
         this.pushEdgeDraws(
           drawList,
           geometry,
@@ -438,10 +533,24 @@ export class WebGPURendererBackend implements ICERendererBackend {
           matrix,
           SELECTION_RGBA,
           this.pipeline.selectionLine,
+          selectionMaskEnabled
+            ? {
+                selectionIds: [renderable.mesh.selectionId],
+                useSelectionMask: true,
+                useSemantic: true,
+              }
+            : undefined,
         );
       }
     }
 
+    const selectionLayout = selectionMaskEnabled
+      ? buildSelectionMask(
+          drawList.map((draw) => draw.selectionIds ?? []),
+          frame.selection,
+        )
+      : { words: EMPTY_SELECTION, bases: [] };
+    this.selectionMaskBuffer?.update(selectionLayout.words);
     this.ensureUniformCapacity(drawList.length);
     const uniforms = new Float32Array(drawList.length * 64);
     for (let index = 0; index < drawList.length; index += 1) {
@@ -457,6 +566,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
       uniforms[offset + 25] = draw.useSemantic ? 1 : 0;
       uniforms[offset + 26] = 0;
       uniforms[offset + 27] = 0;
+      uniforms[offset + 28] = selectionLayout.bases[index] ?? 0;
+      uniforms[offset + 29] = draw.useSelectionMask ? 1 : 0;
     }
     if (uniforms.length > 0) {
       this.device.queue.writeBuffer(
@@ -466,17 +577,28 @@ export class WebGPURendererBackend implements ICERendererBackend {
       );
     }
     this.profiler.mark('prepareAndUpload');
+    const bindGroupEntries: GPUBindGroupEntry[] = [{
+      binding: 0,
+      resource: {
+        buffer: this.uniformBuffer!,
+        offset: 0,
+        size: WEBGPU_UNIFORM_BYTES,
+      },
+    }];
+    if (selectionMaskActive && this.selectionMaskBuffer?.buffer) {
+      bindGroupEntries.push({
+        binding: 1,
+        resource: {
+          buffer: this.selectionMaskBuffer.buffer,
+          offset: 0,
+          size: this.selectionMaskBuffer.buffer.size,
+        },
+      });
+    }
     const bindGroup = this.device.createBindGroup({
       label: 'ice3:frame-uniforms',
       layout: this.pipeline.bindGroupLayout,
-      entries: [{
-        binding: 0,
-        resource: {
-          buffer: this.uniformBuffer!,
-          offset: 0,
-          size: WEBGPU_UNIFORM_BYTES,
-        },
-      }],
+      entries: bindGroupEntries,
     });
     const targetTexture = context.getCurrentTexture();
     const encoder = this.device.createCommandEncoder();
@@ -607,6 +729,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.disposing = true;
     this.geometryCache?.dispose();
     this.picker?.dispose();
+    this.selectionMaskBuffer?.dispose();
     this.timestampProfiler?.dispose();
     this.instanceCache?.dispose();
     this.identityInstances?.destroy();
@@ -616,6 +739,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.context?.unconfigure();
     this.geometryCache = null;
     this.picker = null;
+    this.selectionMaskBuffer = null;
     this.timestampProfiler = null;
     this.instanceCache = null;
     this.identityInstances = null;
@@ -710,6 +834,11 @@ export class WebGPURendererBackend implements ICERendererBackend {
     matrix: Float32Array,
     color: readonly [number, number, number, number],
     pipeline: GPURenderPipeline,
+    selection?: {
+      readonly selectionIds: readonly string[];
+      readonly useSelectionMask: boolean;
+      readonly useSemantic: boolean;
+    },
   ): void {
     if (!geometry.edgeIndexBuffer || geometry.edgeCount === 0) return;
     const clipPixelX = 2 / Math.max(1, this.viewport.width * this.dpr);
@@ -727,6 +856,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
         pipeline,
         clipOffset: [offsetX * clipPixelX, offsetY * clipPixelY],
         edge: true,
+        ...(selection ?? {}),
       });
     }
   }
@@ -895,6 +1025,8 @@ type PendingDraw = {
   readonly useInstancing: boolean;
   readonly semanticHighlight?: number;
   readonly useSemantic?: boolean;
+  readonly selectionIds?: readonly string[];
+  readonly useSelectionMask?: boolean;
   readonly clipOffset?: readonly [number, number];
   readonly edge?: boolean;
 };

@@ -29,6 +29,11 @@ export {
   type WebGPUInstanceEntry,
 } from './WebGPUInstanceCache.js';
 export {
+  buildSelectionMask,
+  WebGPUSelectionMaskBuffer,
+  type ICESelectionMaskLayout,
+} from './WebGPUSelectionMask.js';
+export {
   collectWebGPUPickIds,
   WebGPUPicker,
 } from './WebGPUPicker.js';

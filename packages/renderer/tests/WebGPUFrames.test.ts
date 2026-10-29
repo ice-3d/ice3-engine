@@ -3,6 +3,7 @@ import { expect } from '../../../tests/assertions.ts';
 import {
   ICEBasicMaterial,
   ICEBoxGeometry,
+  ICEIndexedGeometry,
   ICEMesh,
   ICENode,
   ICEPerspectiveCamera,
@@ -31,11 +32,44 @@ it('renders static and adaptive batches through the same batch pipeline', async 
   expect(fake.draws).toHaveLength(2);
 });
 
-it('draws selection tint and selected edges only for selected identities', async () => {
+it('does not add one triangle draw per selected instance', async () => {
   const fake = fakeWebGPUDevice();
   const backend = await readyBackend(fake);
+  backend.render(repeatedBoxFrame(
+    2000,
+    Array.from({ length: 500 }, (_, index) => `copy-${index * 4}`),
+  ));
+  expect(backend.stats.drawCalls).toBe(1);
+  expect(fake.draws).toHaveLength(1);
+  expect(fake.selectionDraws).toHaveLength(0);
+});
+
+it('draws one masked selection edge overlay per selected batch', async () => {
+  const fake = fakeWebGPUDevice();
+  const backend = await readyBackend(fake);
+  backend.render(selectedBatchFrame());
+  expect(fake.draws.filter((draw) => (
+    draw.pipeline === 'selection:line'
+  ))).toHaveLength(5);
+  expect(fake.draws.some((draw) => (
+    draw.pipeline === 'selection:triangle'
+  ))).toBe(false);
+});
+
+it('falls back to per-object selection when the mask layout fails', async () => {
+  const fake = fakeWebGPUDevice({ selectionMaskLayoutFails: true });
+  const errors: Error[] = [];
+  const backend = await readyBackend(fake, {
+    onError: (error) => errors.push(error),
+  });
   backend.render(selectedBoxFrame('pump'));
+
   expect(fake.selectionDraws).toHaveLength(2);
+  expect(backend.stats.drawCalls).toBe(12);
+  expect(errors).toHaveLength(1);
+  expect(errors[0]).toMatchObject({
+    code: 'ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE',
+  });
 });
 
 function boxMesh(id: string): ICEMesh {
@@ -67,7 +101,10 @@ function sceneFrame(
   };
 }
 
-function repeatedBoxFrame(count: number): ICEFrame {
+function repeatedBoxFrame(
+  count: number,
+  selection: readonly string[] = [],
+): ICEFrame {
   return sceneFrame(Array.from({ length: count }, (_, index) => (
     new ICEMesh({
       id: `copy-${index}`,
@@ -76,7 +113,7 @@ function repeatedBoxFrame(count: number): ICEFrame {
       material: instanceMaterial,
       position: [index, 0, 0],
     })
-  )));
+  )), selection);
 }
 
 class TestRenderBatch extends ICENode {
@@ -99,8 +136,30 @@ function batchedFrame(count: number): ICEFrame {
   ));
 }
 
+function selectedBatchFrame(): ICEFrame {
+  return sceneFrame([
+    new TestEdgeRenderBatch({ id: 'batch-selected' }),
+  ], ['equipment-0', 'equipment-1']);
+}
+
 function selectedBoxFrame(id: string): ICEFrame {
   return sceneFrame([boxMesh(id)], [id]);
+}
+
+class TestEdgeRenderBatch extends ICENode {
+  override get typeId(): string {
+    return 'ice3:RenderBatch';
+  }
+
+  readonly geometry = edgeBatchGeometry;
+  readonly material = new ICEBasicMaterial({
+    color: '#2f81f7',
+    edgeColor: '#ffffff',
+  });
+  readonly semanticIds = ['0', '1'];
+  readonly semanticNodeIds = ['node-0', 'node-1'];
+  readonly semanticSelectionIds = ['equipment-0', 'equipment-1'];
+  readonly materialKey = '#2f81f7:#ffffff';
 }
 
 const sharedMaterial = new ICEBasicMaterial({
@@ -112,4 +171,18 @@ const sharedBoxGeometry = new ICEBoxGeometry({
   width: 1,
   height: 1,
   depth: 1,
+});
+const edgeBatchGeometry = new ICEIndexedGeometry({
+  id: 'edge-batch-geometry',
+  positions: new Float32Array([
+    -1, -1, 0,
+    1, -1, 0,
+    0, 1, 0,
+    -1, -1, 0.1,
+    1, -1, 0.1,
+    0, 1, 0.1,
+  ]),
+  indices: new Uint16Array([0, 1, 2, 3, 4, 5]),
+  edgeIndices: new Uint16Array([0, 1, 1, 2, 2, 0, 3, 4, 4, 5, 5, 3]),
+  semanticIndices: new Uint32Array([0, 0, 0, 1, 1, 1]),
 });
