@@ -6,7 +6,7 @@ import {
 } from './WebGPUResources.js';
 
 const STORAGE_USAGE = 128 | 8;
-const INDIRECT_USAGE = 256 | 128 | 8;
+const INDIRECT_USAGE = 256 | 128 | 8 | 4;
 
 export function createIndirectArguments(
   indexCount: number,
