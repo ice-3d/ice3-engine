@@ -4,6 +4,8 @@ dist-example/
 dist-example-m1/
 examples/m1/assets/*.local.glb
 examples/m1/assets/*.local.json
+examples/m1/assets/wastewater-plant/source/
+examples/m1/assets/wastewater-plant/prepared/
 coverage/
 .superpowers/
 .playwright-cli/

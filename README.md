@@ -51,6 +51,15 @@ Open <http://127.0.0.1:8103> for the programmatic M0 scene and
 Open <http://127.0.0.1:8104/?demo=adaptive> for the idle-time Worker batching
 demo.
 
+## Repository assets
+
+The runnable wastewater example uses the versioned Tileset hierarchy under
+`examples/m1/assets/wastewater-plant/tiled/`. The monolithic source GLB and the
+full-model Prepared GLB are local generated intermediates; those directories are
+ignored and must be produced with the ICE3 toolchain when needed for validation.
+Only the bounded runtime slices are committed so normal clones and static
+deployments avoid oversized Git objects.
+
 ## Verification
 
 ```bash

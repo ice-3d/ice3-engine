@@ -19,7 +19,7 @@
     "typecheck": "tsc -b --pretty false",
     "typecheck:example": "tsc -p examples/m0/tsconfig.json --pretty false && tsc -p examples/m1/tsconfig.json --pretty false",
     "test": "node scripts/run-tests.mjs",
-    "test:architecture": "node --test tests/architecture/package-boundaries.test.mjs",
+    "test:architecture": "node --test tests/architecture/*.test.mjs",
     "test:e2e": "npm run build && playwright test",
     "verify": "npm run test:architecture && npm run typecheck && npm run typecheck:example && npm test && npm run test:e2e",
     "build:example": "npm run build && webpack --config examples/m0/webpack.config.cjs",
