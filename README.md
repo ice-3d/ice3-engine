@@ -103,6 +103,17 @@ simplification 和 partitioning 属于
 从 GLB 切分、粗模生成、Tileset 发布到 `ICETilesetLoader` 接入的完整步骤见
 [端到端接入指南](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/guides/glb-to-engine.md)。
 
+### 配套工具链
+
+如果模型还不是 ICE3 Prepared GLB，请使用配套的
+[ICE3 Toolchain](https://github.com/ice-3d/ice3-toolchain/blob/main/README.md)。
+它负责 glTF、STEP、IFC、FBX、USD、OBJ 和 JT 的离线转换、验证、partition、LOD、
+render batching 与 Tileset 生成；Engine 不在浏览器中执行这些工作。
+
+- [Toolchain 功能指南](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/guides/capabilities.md)
+- [从 GLB 到 Engine 的完整接入](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/guides/glb-to-engine.md)
+- [Toolchain CLI 参考](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/reference/cli.md)
+
 共享格式和兼容规则由权威
 [Asset Preparation Contract v1](https://github.com/ice-3d/ice3-doc/blob/main/docs/contracts/asset-preparation-contract-v1.md)
 定义。

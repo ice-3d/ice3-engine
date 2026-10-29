@@ -184,6 +184,26 @@ kbd {
   font-size: 12px;
 }
 
+.toolchain-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin-left: auto;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.toolchain-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.toolchain-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
 kbd {
   color: var(--text);
 }
@@ -286,5 +306,9 @@ kbd {
 
   .stage {
     min-height: 52vh;
+  }
+
+  .toolchain-link {
+    margin-left: 0;
   }
 }
