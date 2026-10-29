@@ -6,34 +6,33 @@
 >
 > Owner: ICE3 Engine maintainers
 
-ICE3 Engine is a programmable 3D runtime for industrial applications. It
-prioritizes geometry, spatial organization, deterministic lifecycle, stable
-equipment identity, and shared 2D/3D interaction over cinematic lighting.
+ICE3 Engine 是面向工业应用的可编程 3D Runtime。它优先处理 Geometry、空间组织、
+确定性生命周期、稳定设备 identity 和共享 2D/3D 交互，而不是电影化光照。
 
-## Capabilities
+## 能力
 
-| Area | Current capability |
+| 领域 | 当前能力 |
 |---|---|
-| Scene | Typed scene graph, node ownership, transforms, serialization, disposal |
-| Rendering | Native WebGL2 geometry, flat materials, optional geometry edges |
-| Composition | Ordered Canvas2D layers over or alongside 3D content |
-| Input | Shared pointer and keyboard routing, orbit, pan, zoom, and picking |
-| Assets | ICE3 Prepared GLB Profile reader and scene builder |
-| Streaming | OGC 3D Tiles 1.1 loading, camera work sets, prefetch, and eviction |
-| LOD | Screen-space error selection with stable parent coverage |
-| Batching | Static prepared batches, instancing, and optional Worker-generated batches |
-| Diagnostics | Stable error codes, frame metrics, GPU residency, and Tileset statistics |
+| Scene | 类型化场景树、Node 所有权、变换、序列化和释放 |
+| 渲染 | 原生 WebGL2 Geometry、平光 Material 和可选 Geometry 边线 |
+| 组合 | 覆盖在 3D 内容之上或与其并排的有序 Canvas2D layers |
+| 输入 | 共享 pointer/keyboard 路由、orbit、pan、zoom 和 picking |
+| Asset | ICE3 Prepared GLB Profile reader 和 Scene builder |
+| 流式加载 | OGC 3D Tiles 1.1 加载、相机工作集、预取和驱逐 |
+| LOD | 基于屏幕空间误差的选择，并保持稳定的父级覆盖 |
+| Batch | 静态 prepared batches、instancing 和可选 Worker 生成 batches |
+| 诊断 | 稳定 error code、帧指标、GPU residency 和 Tileset 统计 |
 
-Consumers import from the public `ice3` package. The packages under `@ice3/*`
-are implementation boundaries and are not public import paths.
+消费方只从公开的 `ice3` package 导入。`@ice3/*` 下的 package 是实现边界，不是公开
+import path。
 
-## Quick Start
+## 快速开始
 
-Requirements:
+运行要求：
 
 - Node.js 24.22.1 LTS
-- npm 11 or newer
-- A browser with WebGL2
+- npm 11 或更高版本
+- 支持 WebGL2 的浏览器
 
 ```bash
 git clone https://github.com/ice-3d/ice3-engine.git
@@ -43,11 +42,11 @@ npm install
 npm run dev:example:m1
 ```
 
-Open `http://127.0.0.1:8104/`. The default example incrementally loads the
-synthetic wastewater plant. Use `http://127.0.0.1:8103/` for the minimal M0
-scene and `http://127.0.0.1:8104/?demo=adaptive` for idle-time Worker batching.
+打开 `http://127.0.0.1:8104/`。默认示例会增量加载虚构污水处理厂。使用
+`http://127.0.0.1:8103/` 查看最小 M0 Scene，使用
+`http://127.0.0.1:8104/?demo=adaptive` 查看空闲时 Worker batching。
 
-## Minimal Scene
+## 最小 Scene
 
 ```ts
 import {
@@ -82,23 +81,23 @@ engine.setScene(scene).setCamera(camera).start();
 engine.destroy();
 ```
 
-## Asset Workflow
+## Asset 工作流
 
-The runtime accepts only ICE3 Prepared GLB Profile v1 assets. General-purpose
-source parsing, conversion, simplification, and partitioning belong to
+Runtime 只接受 ICE3 Prepared GLB Profile v1 Asset。通用 source parsing、conversion、
+simplification 和 partitioning 属于
 [`ice3-toolchain`](https://github.com/ice-3d/ice3-toolchain/blob/main/README.md).
 
-The shared format and compatibility rules are defined by the canonical
-[Asset Preparation Contract v1](https://github.com/ice-3d/ice3-doc/blob/main/docs/contracts/asset-preparation-contract-v1.md).
+共享格式和兼容规则由权威
+[Asset Preparation Contract v1](https://github.com/ice-3d/ice3-doc/blob/main/docs/contracts/asset-preparation-contract-v1.md)
+定义。
 
-## Repository Assets
+## 仓库中的 Asset
 
-The runnable wastewater example uses the versioned Tileset hierarchy under
-`examples/m1/assets/wastewater-plant/tiled/`. The monolithic source GLB and
-full-model Prepared GLB are local generated intermediates and are ignored by
-Git. Only bounded runtime slices are committed.
+可运行的污水处理厂示例使用 `examples/m1/assets/wastewater-plant/tiled/` 下带版本控制的
+Tileset hierarchy。单体 source GLB 和 full-model Prepared GLB 是本地生成中间文件，
+由 Git 忽略。版本库只提交有大小边界的 runtime slices。
 
-## Verification
+## 验证
 
 ```bash
 npm run docs:check
@@ -110,35 +109,33 @@ npm run test:e2e
 npm run verify
 ```
 
-`verify` runs the documentation gate, architecture checks, type checks, unit
-tests, the build, and browser tests in Chromium and WebKit.
+`verify` 依次运行文档门禁、架构检查、类型检查、单元测试、构建，以及 Chromium 和
+WebKit 浏览器测试。
 
-## Boundaries
+## 边界
 
-- No generic source-format compatibility in the browser.
-- No animation, skins, morph targets, textures, or complex materials in the
-  current profile.
-- No implicit tiling, external Tilesets, or runtime mesh simplification.
-- No business rules, workflow engines, or Agent policy in the engine.
-- Lighting and materials are intentionally basic; geometry and spatial
-  behavior are the product priority.
+- 浏览器中不提供通用 source format 兼容。
+- 当前 profile 不支持 animation、skins、morph targets、textures 或复杂 Material。
+- 不执行隐式 tiling、外部 Tileset 加载或 runtime Mesh simplification。
+- Engine 不包含业务规则、workflow engine 或 Agent policy。
+- Lighting 和 Material 刻意保持基础能力；Geometry 与空间行为才是产品重点。
 
-## Documentation
+## 文档
 
-- [Documentation index](docs/README.md)
-- [Runtime architecture](docs/architecture.md)
-- [Getting started](docs/guides/getting-started.md)
-- [Asset loading](docs/guides/asset-loading.md)
-- [Development and troubleshooting](docs/guides/development-and-troubleshooting.md)
+- [文档索引](docs/README.md)
+- [Runtime 架构](docs/architecture.md)
+- [快速开始](docs/guides/getting-started.md)
+- [Asset 加载](docs/guides/asset-loading.md)
+- [开发与故障处理](docs/guides/development-and-troubleshooting.md)
 - [M0 API](docs/api/m0.md)
 - [M1 Asset API](docs/api/m1.md)
-- [Diagnostics](docs/diagnostics.md)
-- [Architecture decisions](docs/decisions/README.md)
+- [Diagnostic](docs/diagnostics.md)
+- [架构决策](docs/decisions/README.md)
 
-## AI-assisted development
+## AI 辅助开发
 
-This project makes substantial use of AI-assisted development. 本项目在设计和实现过程中大量使用了 AI 辅助开发。
+本项目在设计和实现过程中大量使用了 AI 辅助开发。
 
-## License
+## 许可证
 
-This project is licensed under the [MIT License](LICENSE).
+本项目采用 [MIT License](LICENSE) 许可。

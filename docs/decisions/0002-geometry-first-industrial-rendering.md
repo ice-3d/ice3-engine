@@ -1,4 +1,4 @@
-# Geometry-First Industrial Rendering
+# Geometry 优先的工业 Rendering
 
 > Document ID: ICE3-ENG-ADR-002
 >
@@ -6,47 +6,42 @@
 >
 > Owner: ICE3 Engine maintainers
 
-## Context
+## 背景
 
-Industrial users rely primarily on spatial relationships, equipment identity,
-process connections, and readable geometry. Photorealistic lighting and complex
-material authoring increase runtime cost and can obscure engineering geometry.
+工业用户主要依赖空间关系、设备 identity、流程连接和易读 Geometry。照片级 lighting
+和复杂 Material authoring 会增加 Runtime cost，并可能遮蔽工程 Geometry。
 
-## Decision
+## 决策
 
-The engine prioritizes accurate geometry, stable bounds, clear color separation,
-visible edges, spatial culling, and selection. Basic flat colors, edges, and
-minimal lighting support are sufficient for the current product scope.
+Engine 优先保证准确 Geometry、稳定 Bounds、清晰颜色分隔、可见 edge、spatial culling
+和 Selection。基本平光颜色、edge 和最小 lighting 足以满足当前产品范围。
 
-## Considered Alternatives
+## 备选方案
 
-- Optimize first for physically based rendering.
-- Depend on elaborate scene lighting for readable equipment.
-- Encode engineering meaning only through textures.
+- 优先优化 physically based rendering。
+- 依赖复杂 Scene lighting 提升设备可读性。
+- 只通过 texture 表达工程含义。
 
-These alternatives increase cost and make critical geometry harder to validate
-and select.
+这些方案增加成本，并让关键 Geometry 更难验证和选择。
 
-## Consequences
+## 影响
 
-- The flat renderer remains the primary test target.
-- Geometric and spatial regressions receive higher priority than visual effects.
-- Material features remain bounded until a concrete industrial requirement
-  justifies their cost.
+- Flat renderer 仍是主要测试目标。
+- Geometry 和空间回归优先于视觉效果。
+- 只有明确工业需求证明成本合理时才扩展 Material。
 
-## Compatibility
+## 兼容性
 
-Prepared assets preserve display colors and semantic identities. Future
-lighting or material backends must keep the geometry-first default behavior
-available.
+Prepared Asset 保留 display color 和 semantic identity。未来 lighting 或 Material
+backend 必须保留 Geometry-first 默认行为。
 
-## Verification
+## 验证
 
-- Browser tests assert a uniform flat example appearance and visible edges.
-- Picking tests assert exact geometry selection.
-- Performance diagnostics separate geometry uploads from frame presentation.
+- Browser test 校验 example 的均匀平光外观和可见 edge。
+- Picking test 校验精确 Geometry Selection。
+- Performance Diagnostic 分开统计 Geometry upload 与 frame presentation。
 
-## Related Documents
+## 关联文档
 
-- `ICE3-ENG-API-001` — [M0 Public API](../api/m0.md)
-- `ICE3-DOC-ADR-001` — [Universal engine and vertical applications](https://github.com/ice-3d/ice3-doc/blob/main/docs/decisions/0001-universal-engine-and-vertical-applications.md)
+- `ICE3-ENG-API-001` — [M0 公开 API](../api/m0.md)
+- `ICE3-DOC-ADR-001` — [通用 Engine 与垂直应用](https://github.com/ice-3d/ice3-doc/blob/main/docs/decisions/0001-universal-engine-and-vertical-applications.md)

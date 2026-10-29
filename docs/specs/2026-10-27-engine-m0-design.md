@@ -6,7 +6,6 @@
 >
 > Owner: ICE3 Engine maintainers
 >
-> English summary: Define the M0 public API, native flat renderer, layered 2D/3D input, lifecycle, and visual verification baseline.
 
 | 项目 | 内容 |
 | --- | --- |
@@ -471,8 +470,8 @@ M0 完成后按顺序评估：
 - [x] 单元、集成和 Chromium/WebKit 交互测试通过。
 - [x] 文档、代码、注释和示例无竞品或厂商名称。
 
-## Related Documents
+## 关联文档
 
-- `ICE3-ENG-IDX-001` — [Documentation index](../README.md)
-- `ICE3-ENG-PLAN-001` — [Engine M0 implementation](../plans/2026-10-27-engine-m0.md)
-- `ICE3-ENG-API-001` — [M0 Public API](../api/m0.md)
+- `ICE3-ENG-IDX-001` — [文档索引](../README.md)
+- `ICE3-ENG-PLAN-001` — [Engine M0 实施计划](../plans/2026-10-27-engine-m0.md)
+- `ICE3-ENG-API-001` — [M0 公开 API](../api/m0.md)

@@ -117,13 +117,6 @@ export async function checkRepository(root, options = {}) {
         } else {
           ids.set(document.id, document.path);
         }
-        if (
-          match[2] === 'SPEC'
-          && /\p{Script=Han}/u.test(document.source)
-          && !/^>\s*English summary:\s*\S+/mu.test(document.source)
-        ) {
-          errors.push(`${displayPath}: Chinese specification lacks English summary`);
-        }
       }
     }
     if (!document.status) {

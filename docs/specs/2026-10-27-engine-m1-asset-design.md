@@ -6,7 +6,6 @@
 >
 > Owner: ICE3 Engine maintainers
 >
-> English summary: Define the M1 Prepared GLB runtime, tiled loading, LOD selection, batching, and equipment identity behavior.
 
 | 项目 | 内容 |
 | --- | --- |
@@ -96,7 +95,7 @@ ice3-engine runtime
 
 任何工程都不得从其他工程的私有源码目录直接导入代码。工具链和引擎通过 GLB 配置档规范和契约测试协作。
 
-## 5. ICE3 Prepared GLB Profile v1
+## 5. ICE3 Prepared GLB Profile v1 规范
 
 ### 5.1 容器约束
 
@@ -441,8 +440,8 @@ M1 完成后按顺序评估：
 
 任何新增运行时能力都必须继续遵循“源格式转换在外置工具完成”的约束。
 
-## Related Documents
+## 关联文档
 
-- `ICE3-ENG-IDX-001` — [Documentation index](../README.md)
-- `ICE3-ENG-PLAN-002` — [Asset runtime implementation](../plans/2026-10-27-engine-m1-asset-runtime.md)
+- `ICE3-ENG-IDX-001` — [文档索引](../README.md)
+- `ICE3-ENG-PLAN-002` — [Asset Runtime 实施计划](../plans/2026-10-27-engine-m1-asset-runtime.md)
 - `ICE3-ENG-API-002` — [M1 Asset API](../api/m1.md)

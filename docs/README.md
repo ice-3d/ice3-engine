@@ -1,4 +1,4 @@
-# ICE3 Engine Documentation Index
+# ICE3 Engine 文档索引
 
 > Document ID: ICE3-ENG-IDX-001
 >
@@ -6,51 +6,51 @@
 >
 > Owner: ICE3 Engine maintainers
 
-## Start Here
+## 从这里开始
 
-| ID | Title | Status | Purpose |
+| ID | 标题 | Status | 用途 |
 |---|---|---|---|
-| `ICE3-ENG-RM-001` | [ICE3 Engine](../README.md) | Active | Runtime overview, quick start, and repository map |
-| `ICE3-ENG-ARC-001` | [Engine Architecture](architecture.md) | Active | Package boundaries, frame lifecycle, and asset flow |
-| `ICE3-ENG-IDX-002` | [Architecture Decisions](decisions/README.md) | Active | Index of engine design decisions |
-| `ICE3-ENG-POL-001` | [Repository policy](../AGENTS.md) | Active | Architecture and delivery constraints |
+| `ICE3-ENG-RM-001` | [ICE3 Engine](../README.md) | Active | Runtime 概览、快速开始和仓库地图 |
+| `ICE3-ENG-ARC-001` | [Engine 架构](architecture.md) | Active | package 边界、帧生命周期和 Asset 流程 |
+| `ICE3-ENG-IDX-002` | [架构决策](decisions/README.md) | Active | Engine 设计决策索引 |
+| `ICE3-ENG-POL-001` | [仓库规则](../AGENTS.md) | Active | 架构和交付约束 |
 
-## Guides
+## 指南
 
-| ID | Title | Status | Purpose |
+| ID | 标题 | Status | 用途 |
 |---|---|---|---|
-| `ICE3-ENG-GUIDE-001` | [Getting Started](guides/getting-started.md) | Active | Run the M0 and M1 examples |
-| `ICE3-ENG-GUIDE-002` | [Asset Loading](guides/asset-loading.md) | Active | Load Prepared GLB and Tileset content |
-| `ICE3-ENG-GUIDE-003` | [Development and Troubleshooting](guides/development-and-troubleshooting.md) | Active | Validate changes and diagnose failures |
+| `ICE3-ENG-GUIDE-001` | [快速开始](guides/getting-started.md) | Active | 运行 M0 和 M1 examples |
+| `ICE3-ENG-GUIDE-002` | [Asset 加载](guides/asset-loading.md) | Active | 加载 Prepared GLB 和 Tileset |
+| `ICE3-ENG-GUIDE-003` | [开发与故障处理](guides/development-and-troubleshooting.md) | Active | 验证变更并诊断失败 |
 
-## API And Reference
+## API 与参考
 
-| ID | Title | Status | Purpose |
+| ID | 标题 | Status | 用途 |
 |---|---|---|---|
-| `ICE3-ENG-API-001` | [M0 Public API](api/m0.md) | Active | Core scene, camera, renderer, layer, and input API |
-| `ICE3-ENG-API-002` | [M1 Asset API](api/m1.md) | Active | Prepared asset and Tileset runtime API |
-| `ICE3-ENG-REF-001` | [Diagnostics](diagnostics.md) | Active | Stable runtime and asset diagnostic codes |
+| `ICE3-ENG-API-001` | [M0 公开 API](api/m0.md) | Active | Core Scene、camera、renderer、layer 和 input API |
+| `ICE3-ENG-API-002` | [M1 Asset API](api/m1.md) | Active | Prepared Asset 和 Tileset runtime API |
+| `ICE3-ENG-REF-001` | [Diagnostic](diagnostics.md) | Active | 稳定 runtime 和 Asset Diagnostic codes |
 
-## Decisions
+## 决策
 
-| ID | Title | Status | Purpose |
+| ID | 标题 | Status | 用途 |
 |---|---|---|---|
-| `ICE3-ENG-ADR-001` | [Public Facade and Package Boundaries](decisions/0001-public-facade-and-package-boundaries.md) | Active | Keep consumers on the public API |
-| `ICE3-ENG-ADR-002` | [Geometry-First Industrial Rendering](decisions/0002-geometry-first-industrial-rendering.md) | Active | Prioritize geometry and spatial behavior |
-| `ICE3-ENG-ADR-003` | [Camera-Driven Tileset and LOD](decisions/0003-camera-driven-tileset-and-lod.md) | Active | Preserve complete coverage while streaming |
+| `ICE3-ENG-ADR-001` | [公开 Facade 与 package 边界](decisions/0001-public-facade-and-package-boundaries.md) | Active | 让消费方只依赖公开 API |
+| `ICE3-ENG-ADR-002` | [Geometry 优先的工业渲染](decisions/0002-geometry-first-industrial-rendering.md) | Active | 优先处理 Geometry 和空间行为 |
+| `ICE3-ENG-ADR-003` | [相机驱动的 Tileset 与 LOD](decisions/0003-camera-driven-tileset-and-lod.md) | Active | 流式加载时保持完整覆盖 |
 
-## Specifications
+## Spec
 
-| ID | Title | Status | Purpose |
+| ID | 标题 | Status | 用途 |
 |---|---|---|---|
-| `ICE3-ENG-SPEC-001` | [M0 Design](specs/2026-10-27-engine-m0-design.md) | Implemented | Engine baseline and lifecycle design |
-| `ICE3-ENG-SPEC-002` | [M1 Asset Design](specs/2026-10-27-engine-m1-asset-design.md) | Implemented | Prepared GLB and spatial runtime design |
-| `ICE3-ENG-SPEC-003` | [Equipment Selection](specs/2026-10-27-equipment-selection-design.md) | Implemented | Stable equipment picking and highlight design |
+| `ICE3-ENG-SPEC-001` | [M0 设计](specs/2026-10-27-engine-m0-design.md) | Implemented | Engine baseline 和生命周期设计 |
+| `ICE3-ENG-SPEC-002` | [M1 Asset 设计](specs/2026-10-27-engine-m1-asset-design.md) | Implemented | Prepared GLB 和空间 Runtime 设计 |
+| `ICE3-ENG-SPEC-003` | [设备 Selection](specs/2026-10-27-equipment-selection-design.md) | Implemented | 稳定设备 picking 和 highlight 设计 |
 
-## Implementation Plans
+## 实施计划
 
-| ID | Title | Status | Purpose |
+| ID | 标题 | Status | 用途 |
 |---|---|---|---|
-| `ICE3-ENG-PLAN-001` | [Engine M0](plans/2026-10-27-engine-m0.md) | Implemented | Baseline engine implementation |
-| `ICE3-ENG-PLAN-002` | [Asset Runtime](plans/2026-10-27-engine-m1-asset-runtime.md) | Implemented | Prepared asset runtime implementation |
-| `ICE3-ENG-PLAN-003` | [Equipment Selection](plans/2026-10-27-equipment-selection.md) | Implemented | Equipment selection implementation |
+| `ICE3-ENG-PLAN-001` | [Engine M0](plans/2026-10-27-engine-m0.md) | Implemented | baseline Engine 实施记录 |
+| `ICE3-ENG-PLAN-002` | [Asset Runtime](plans/2026-10-27-engine-m1-asset-runtime.md) | Implemented | Prepared Asset Runtime 实施记录 |
+| `ICE3-ENG-PLAN-003` | [设备 Selection](plans/2026-10-27-equipment-selection.md) | Implemented | 设备 Selection 实施记录 |

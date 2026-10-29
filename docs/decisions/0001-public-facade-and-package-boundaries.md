@@ -1,4 +1,4 @@
-# Public Facade And Package Boundaries
+# 公开 Facade 与 package 边界
 
 > Document ID: ICE3-ENG-ADR-001
 >
@@ -6,50 +6,44 @@
 >
 > Owner: ICE3 Engine maintainers
 
-## Context
+## 背景
 
-The runtime is implemented across several packages. Exposing their internal
-paths would make package structure, renderer internals, and asset implementation
-details part of the public contract.
+Runtime 由多个 package 实现。暴露其内部路径会让 package structure、Renderer
+internals 和 Asset implementation detail 成为公开 contract 的一部分。
 
-## Decision
+## 决策
 
-Applications import only from `ice3`. Internal packages may depend only on
-declared lower layers. `@ice3/core` has no DOM, Canvas, GPU, or sibling package
-dependency. Renderer implementations do not expose GPU objects through public
-APIs.
+应用只从 `ice3` 导入。Internal package 只能依赖声明的下层。`@ice3/core` 不依赖 DOM、
+Canvas、GPU 或同级 package。Renderer 实现不得通过公开 API 暴露 GPU object。
 
-## Considered Alternatives
+## 备选方案
 
-- Let applications import each package directly.
-- Publish renderer-specific objects through runtime methods.
-- Put all implementation in one package without enforced boundaries.
+- 允许应用直接导入每个 package。
+- 通过 Runtime method 发布 Renderer 专用 object。
+- 在没有强制边界的情况下把全部实现放入一个 package。
 
-These alternatives provide short-term convenience but make backend changes and
-independent testing unsafe.
+这些方案提供短期便利，却会让 backend change 和独立测试变得不安全。
 
-## Consequences
+## 影响
 
-- The public facade owns exports and compatibility.
-- Architecture tests can reject illegal dependency edges.
-- Internal packages remain independently testable.
-- Some internal capabilities require an explicit public facade decision before
-  applications can use them.
+- 公开 facade 管理 export 和 compatibility。
+- Architecture test 可以拒绝非法 dependency edge。
+- Internal package 保持可独立测试。
+- 部分 internal capability 需要明确 public facade 决策后才能供应用使用。
 
-## Compatibility
+## 兼容性
 
-Existing public `ice3` exports remain the supported path. Removing or changing a
-public symbol requires a versioning and migration decision.
+既有公开 `ice3` export 仍是受支持路径。移除或修改 public symbol 必须作出版本和迁移决策。
 
-## Verification
+## 验证
 
 ```bash
 npm run test:architecture
 npm run typecheck
 ```
 
-## Related Documents
+## 关联文档
 
-- `ICE3-ENG-ARC-001` — [Engine architecture](../architecture.md)
-- `ICE3-ENG-API-001` — [M0 Public API](../api/m0.md)
+- `ICE3-ENG-ARC-001` — [Engine 架构](../architecture.md)
+- `ICE3-ENG-API-001` — [M0 公开 API](../api/m0.md)
 - `ICE3-ENG-API-002` — [M1 Asset API](../api/m1.md)

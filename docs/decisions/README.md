@@ -1,4 +1,4 @@
-# ICE3 Engine Architecture Decision Index
+# ICE3 Engine 架构决策索引
 
 > Document ID: ICE3-ENG-IDX-002
 >
@@ -6,15 +6,15 @@
 >
 > Owner: ICE3 Engine maintainers
 
-## Decisions
+## 决策
 
-| ID | Decision | Status | Purpose |
+| ID | 决策 | Status | 用途 |
 |---|---|---|---|
-| `ICE3-ENG-ADR-001` | [Public facade and package boundaries](0001-public-facade-and-package-boundaries.md) | Active | Keep consumers on one public API |
-| `ICE3-ENG-ADR-002` | [Geometry-first industrial rendering](0002-geometry-first-industrial-rendering.md) | Active | Prioritize geometry and spatial behavior |
-| `ICE3-ENG-ADR-003` | [Camera-driven Tileset and LOD](0003-camera-driven-tileset-and-lod.md) | Active | Preserve coverage under bounded streaming |
+| `ICE3-ENG-ADR-001` | [公开 Facade 与 package 边界](0001-public-facade-and-package-boundaries.md) | Active | 让消费方只依赖一套公开 API |
+| `ICE3-ENG-ADR-002` | [Geometry 优先的工业 Rendering](0002-geometry-first-industrial-rendering.md) | Active | 优先 Geometry 和空间行为 |
+| `ICE3-ENG-ADR-003` | [Camera 驱动的 Tileset 与 LOD](0003-camera-driven-tileset-and-lod.md) | Active | 在有界 streaming 下保持 coverage |
 
-## Related Documents
+## 关联文档
 
-- `ICE3-ENG-IDX-001` — [Engine documentation index](../README.md)
-- `ICE3-ENG-ARC-001` — [Engine architecture](../architecture.md)
+- `ICE3-ENG-IDX-001` — [Engine 文档索引](../README.md)
+- `ICE3-ENG-ARC-001` — [Engine 架构](../architecture.md)

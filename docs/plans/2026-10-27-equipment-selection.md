@@ -1,4 +1,4 @@
-# Equipment Selection Implementation Plan
+# 设备选择实施计划
 
 > Document ID: ICE3-ENG-PLAN-003
 >
@@ -6,89 +6,89 @@
 >
 > Owner: ICE3 Engine maintainers
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **面向代理工作者的说明：** 必需子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 按任务逐项实施本计划。使用复选框（`- [ ]`）跟踪进度。
 
-**Goal:** Add precise whole-equipment single selection with GPU picking, cyan rendering highlights, and a follow-along equipment name label.
+**目标：** 添加精确的整件设备单选，包含 GPU 拾取、青色渲染高亮和跟随设备的名称标签。
 
-**Architecture:** Selection identity lives on meshes and is propagated by prepared-asset scene construction. The WebGL2 backend renders a temporary RGBA8 identity image only when picking, while runtime input distinguishes short clicks from camera drags. The normal renderer then draws a non-destructive highlight overlay from the shared selection state.
+**架构：** selection 身份存于网格上，并由已准备资产的场景构建过程传播。WebGL2 后端仅在拾取时渲染临时 RGBA8 身份图像，runtime 输入则区分短点击与相机拖动。随后，常规渲染器根据共享的 selection 状态绘制非破坏性高亮 overlay。
 
-**Tech Stack:** TypeScript, ESM, WebGL2, Canvas2D, Node.js test runner, Playwright, npm workspaces
+**技术栈：** TypeScript、ESM、WebGL2、Canvas2D、Node.js 测试运行器、Playwright、npm workspaces
 
-**Spec:** `docs/specs/2026-10-27-equipment-selection-design.md`
+**规范：** `docs/specs/2026-10-27-equipment-selection-design.md`
 
-## Global Constraints
+## 全局约束
 
-- Develop on one feature branch and merge to `main` only after `npm run verify` and `npm pack --workspaces --dry-run` pass.
-- Use Node.js 24.22.1 LTS from `.nvmrc`.
-- Keep public consumers on the `ice3` entry only.
-- Do not expose WebGL objects through public APIs.
-- Keep `@ice3/core` independent of DOM, Canvas, GPU, and sibling packages.
-- Do not modify the prepared-asset format or toolchain.
-- Use `selectionId` as the stable selection unit and `id` as the semantic object identity.
-- Treat drags longer than 4 CSS pixels as camera gestures, not selection clicks.
-- Use `#63d7ff` for selection accents and 16% opacity for surface tint.
-- Never add a real customer model or derived file to tests, fixtures, screenshots, docs, commits, or packages.
-- Use synthetic geometry or existing distributable fixtures for all automated selection tests.
-- Do not introduce competitor or vendor product names anywhere.
+- 在一个功能分支上开发，并仅在合入 `main` 前确认 `npm run verify` 和 `npm pack --workspaces --dry-run` 通过。
+- 使用 `.nvmrc` 指定的 Node.js 24.22.1 LTS。
+- 公共消费方仅使用 `ice3` 入口。
+- 不得通过公共 API 暴露 WebGL 对象。
+- 保持 `@ice3/core` 独立于 DOM、Canvas、GPU 和同级包。
+- 不得修改已准备资产格式或 toolchain。
+- 使用 `selectionId` 作为稳定选择单元，使用 `id` 作为语义对象身份。
+- 将超过 4 CSS 像素的拖动视为相机手势，而非选择点击。
+- selection 强调色使用 `#63d7ff`，表面着色使用 16% 不透明度。
+- 绝不得将真实客户模型或派生文件加入测试、fixture、截图、文档、提交或包中。
+- 所有自动化选择测试均使用合成几何或现有可分发 fixture。
+- 不得在任何位置引入竞品或厂商产品名称。
 
-## Review Focus
+## 审查重点
 
-- A drag must never change selection, even if the pointer starts over a device.
-- Overlapping geometry must select the nearest visible surface, not the nearest bounding box.
-- Multiple render primitives from one source node must resolve to one equipment identity.
-- Interactive 2D controls must block selection; the non-interactive operation hint must remain click-through.
-- Picking must survive DPR changes, context restoration, empty pixels, and resource-allocation failures without breaking normal rendering.
+- 即使指针从设备上开始，拖动也绝不能改变 selection。
+- 重叠几何必须选择最近的可见表面，而非最近的包围盒。
+- 来自一个源节点的多个渲染 primitive 必须解析为同一设备身份。
+- 交互式 2D 控件必须阻止 selection；非交互式操作提示必须保持可点击穿透。
+- 拾取必须在 DPR 变化、上下文恢复、空像素和资源分配失败后仍然可用，且不破坏常规渲染。
 
-## File Structure
+## 文件结构
 
-**Create**
+**创建**
 
-- `packages/renderer/src/WebGL2PickCodec.ts`: pure RGBA8 selection-index encoding and decoding.
-- `packages/renderer/src/WebGL2Picker.ts`: offscreen WebGL2 identity target and click-time pick pass.
-- `packages/runtime/src/input/ICESelectionGesture.ts`: click-vs-drag threshold logic.
-- `packages/renderer/tests/PickCodec.test.ts`: codec boundaries and invalid values.
-- `packages/runtime/tests/SelectionGesture.test.ts`: pointer movement threshold.
+- `packages/renderer/src/WebGL2PickCodec.ts`：纯 RGBA8 selection 索引编码和解码。
+- `packages/renderer/src/WebGL2Picker.ts`：离屏 WebGL2 身份目标和点击时拾取 pass。
+- `packages/runtime/src/input/ICESelectionGesture.ts`：点击与拖动的阈值逻辑。
+- `packages/renderer/tests/PickCodec.test.ts`：codec 边界和无效值。
+- `packages/runtime/tests/SelectionGesture.test.ts`：指针移动阈值。
 
-**Modify**
+**修改**
 
-- `packages/core/src/scene/ICENode.ts`: `displayName`.
-- `packages/core/src/scene/ICEMesh.ts`: `selectionId`.
-- `packages/core/tests/Scene.test.ts`: core metadata behavior.
-- `packages/core/tests/Serialization.test.ts`: metadata round-trip.
-- `packages/runtime/src/asset/ICEAssetSceneBuilder.ts`: propagate prepared names and selection identities.
-- `packages/runtime/tests/AssetSceneBuilder.test.ts`: asset grouping behavior.
-- `packages/renderer/src/types.ts`: pick capability, screen point, selection frame data.
-- `packages/renderer/src/FakeRendererBackend.ts`: new capabilities and test pick result.
-- `packages/renderer/src/WebGL2RendererBackend.ts`: pick delegation, overlay pass, picker lifetime.
-- `packages/renderer/tests/BackendContract.test.ts`: capability contract.
-- `packages/renderer/tests/WebGL2GeometryBatch.test.ts`: stable selection identity.
-- `packages/runtime/src/ICE3.ts`: click selection, diagnostics, frame selection.
-- `packages/runtime/src/layer/ICELabel.ts`: mutable text without label recreation.
-- `packages/runtime/tests/LayerOrder.test.ts`: text-update measurement.
-- `examples/m1/main.ts`: selection label and selected-name status.
-- `examples/m1/global.d.ts`: E2E selection probes.
-- `tests/e2e/m0.spec.ts`: drag must not select.
-- `tests/e2e/m1.spec.ts`: click, highlight, label, clear, and drag selection tests.
-- `docs/api/m0.md`: shared click semantics and diagnostics.
-- `docs/api/m1.md`: equipment selection behavior.
+- `packages/core/src/scene/ICENode.ts`：`displayName`。
+- `packages/core/src/scene/ICEMesh.ts`：`selectionId`。
+- `packages/core/tests/Scene.test.ts`：core 元数据行为。
+- `packages/core/tests/Serialization.test.ts`：元数据往返。
+- `packages/runtime/src/asset/ICEAssetSceneBuilder.ts`：传播已准备名称和 selection 身份。
+- `packages/runtime/tests/AssetSceneBuilder.test.ts`：资产分组行为。
+- `packages/renderer/src/types.ts`：pick 能力、屏幕点和 selection 帧数据。
+- `packages/renderer/src/FakeRendererBackend.ts`：新能力和测试 pick 结果。
+- `packages/renderer/src/WebGL2RendererBackend.ts`：pick 委托、overlay pass 和 picker 生命周期。
+- `packages/renderer/tests/BackendContract.test.ts`：能力契约。
+- `packages/renderer/tests/WebGL2GeometryBatch.test.ts`：稳定的 selection 身份。
+- `packages/runtime/src/ICE3.ts`：点击 selection、诊断和帧 selection。
+- `packages/runtime/src/layer/ICELabel.ts`：可变文本，无需重建标签。
+- `packages/runtime/tests/LayerOrder.test.ts`：文本更新测量。
+- `examples/m1/main.ts`：selection 标签和已选名称状态。
+- `examples/m1/global.d.ts`：E2E selection 探测。
+- `tests/e2e/m0.spec.ts`：拖动不得选择。
+- `tests/e2e/m1.spec.ts`：点击、高亮、标签、清除和拖动选择测试。
+- `docs/api/m0.md`：共享点击语义和诊断。
+- `docs/api/m1.md`：设备选择行为。
 
 ---
 
-### Task 1: Add Equipment Metadata to Core Objects
+### 任务 1：为 Core 对象添加设备元数据
 
-**Files:**
-- Modify: `packages/core/src/scene/ICENode.ts`
-- Modify: `packages/core/src/scene/ICEMesh.ts`
-- Test: `packages/core/tests/Scene.test.ts`
-- Test: `packages/core/tests/Serialization.test.ts`
+**文件：**
+- 修改：`packages/core/src/scene/ICENode.ts`
+- 修改：`packages/core/src/scene/ICEMesh.ts`
+- 测试：`packages/core/tests/Scene.test.ts`
+- 测试：`packages/core/tests/Serialization.test.ts`
 
-**Interfaces:**
-- Consumes: existing `ICENodeOptions`, `ICEMeshOptions`, serialization helpers.
-- Produces: `ICENodeOptions.displayName?: string`; `ICENode.displayName: string`; `ICEMeshOptions.selectionId?: string`; `ICEMesh.selectionId: string`.
+**接口：**
+- 消费：现有 `ICENodeOptions`、`ICEMeshOptions` 和序列化辅助函数。
+- 产出：`ICENodeOptions.displayName?: string`；`ICENode.displayName: string`；`ICEMeshOptions.selectionId?: string`；`ICEMesh.selectionId: string`。
 
-- [ ] **Step 1: Write failing metadata tests**
+- [ ] **步骤 1：编写预期失败的元数据测试**
 
-Add to `packages/core/tests/Scene.test.ts`:
+添加到 `packages/core/tests/Scene.test.ts`：
 
 ```ts
 it('uses display names for presentation and falls back to stable IDs', () => {
@@ -129,7 +129,7 @@ it('accepts a shared selection identity for multiple mesh primitives', () => {
 });
 ```
 
-Add to `packages/core/tests/Serialization.test.ts`:
+添加到 `packages/core/tests/Serialization.test.ts`：
 
 ```ts
 it('round-trips display and equipment selection names', () => {
@@ -151,19 +151,19 @@ it('round-trips display and equipment selection names', () => {
 });
 ```
 
-- [ ] **Step 2: Verify tests fail for missing APIs**
+- [ ] **步骤 2：验证测试因缺少 API 而失败**
 
-Run:
+运行：
 
 ```bash
 npm test -- packages/core/tests/Scene.test.ts packages/core/tests/Serialization.test.ts
 ```
 
-Expected: FAIL because `displayName` and `selectionId` do not exist.
+预期：FAIL，因为 `displayName` 和 `selectionId` 不存在。
 
-- [ ] **Step 3: Implement core metadata and serialization**
+- [ ] **步骤 3：实现 core 元数据和序列化**
 
-In `ICENode` add:
+在 `ICENode` 中添加：
 
 ```ts
 export interface ICENodeOptions {
@@ -192,7 +192,7 @@ toJSON(): ICESerializedNode {
 }
 ```
 
-In `ICEMesh` add:
+在 `ICEMesh` 中添加：
 
 ```ts
 export interface ICEMeshOptions extends ICENodeOptions {
@@ -209,7 +209,7 @@ constructor(options: ICEMeshOptions) {
 }
 ```
 
-Update `ICEMesh.fromJSON` with these fields:
+使用以下字段更新 `ICEMesh.fromJSON`：
 
 ```ts
 static fromJSON(value: ICESerializedNode): ICEMesh {
@@ -242,17 +242,17 @@ static fromJSON(value: ICESerializedNode): ICEMesh {
 }
 ```
 
-- [ ] **Step 4: Run tests to verify the task**
+- [ ] **步骤 4：运行测试以验证任务**
 
-Run:
+运行：
 
 ```bash
 npm test -- packages/core/tests/Scene.test.ts packages/core/tests/Serialization.test.ts
 ```
 
-Expected: PASS.
+预期：PASS。
 
-- [ ] **Step 5: Commit**
+- [ ] **步骤 5：提交**
 
 ```bash
 git add packages/core/src/scene/ICENode.ts packages/core/src/scene/ICEMesh.ts packages/core/tests/Scene.test.ts packages/core/tests/Serialization.test.ts
@@ -261,19 +261,19 @@ git commit -m "feat(core): add equipment selection metadata"
 
 ---
 
-### Task 2: Propagate Prepared Names and Equipment Groups
+### 任务 2：传播已准备名称和设备分组
 
-**Files:**
-- Modify: `packages/runtime/src/asset/ICEAssetSceneBuilder.ts`
-- Test: `packages/runtime/tests/AssetSceneBuilder.test.ts`
+**文件：**
+- 修改：`packages/runtime/src/asset/ICEAssetSceneBuilder.ts`
+- 测试：`packages/runtime/tests/AssetSceneBuilder.test.ts`
 
-**Interfaces:**
-- Consumes: `ICEPreparedNode.name`, `ICEPreparedMesh.node`, `ICEMesh.selectionId`.
-- Produces: imported mesh nodes with `displayName = source.name` and all source-node primitives sharing `selectionId = source.id`.
+**接口：**
+- 消费：`ICEPreparedNode.name`、`ICEPreparedMesh.node`、`ICEMesh.selectionId`。
+- 产出：具有 `displayName = source.name` 的导入网格节点，以及所有源节点 primitive 共享 `selectionId = source.id`。
 
-- [ ] **Step 1: Write failing scene-builder tests**
+- [ ] **步骤 1：编写预期失败的场景构建器测试**
 
-Add:
+添加：
 
 ```ts
 it('preserves prepared display names and equipment identity', () => {
@@ -304,19 +304,19 @@ it('keeps secondary primitives in the same equipment selection group', () => {
 });
 ```
 
-- [ ] **Step 2: Verify tests fail**
+- [ ] **步骤 2：验证测试失败**
 
-Run:
+运行：
 
 ```bash
 npm test -- packages/runtime/tests/AssetSceneBuilder.test.ts
 ```
 
-Expected: FAIL because the builder ignores prepared names and does not set a shared selection identity.
+预期：FAIL，因为构建器忽略已准备名称，且未设置共享 selection 身份。
 
-- [ ] **Step 3: Implement propagation**
+- [ ] **步骤 3：实现传播**
 
-For the first mesh on a node:
+对于节点上的第一个网格：
 
 ```ts
 new ICEMesh({
@@ -329,7 +329,7 @@ new ICEMesh({
 })
 ```
 
-For every additional mesh on the same source node:
+对于同一源节点上的每个额外网格：
 
 ```ts
 new ICEMesh({
@@ -341,18 +341,18 @@ new ICEMesh({
 })
 ```
 
-- [ ] **Step 4: Verify task tests and all runtime tests**
+- [ ] **步骤 4：验证任务测试和所有 runtime 测试**
 
-Run:
+运行：
 
 ```bash
 npm test -- packages/runtime/tests/AssetSceneBuilder.test.ts
 npm test -- packages/runtime
 ```
 
-Expected: PASS.
+预期：PASS。
 
-- [ ] **Step 5: Commit**
+- [ ] **步骤 5：提交**
 
 ```bash
 git add packages/runtime/src/asset/ICEAssetSceneBuilder.ts packages/runtime/tests/AssetSceneBuilder.test.ts
@@ -361,26 +361,26 @@ git commit -m "feat(assets): group prepared primitives by equipment"
 
 ---
 
-### Task 3: Add Selection Frame Data and RGBA8 Identity Codec
+### 任务 3：添加 Selection 帧数据和 RGBA8 身份 codec
 
-**Files:**
-- Modify: `packages/renderer/src/types.ts`
-- Modify: `packages/renderer/src/FakeRendererBackend.ts`
-- Modify: `packages/renderer/src/WebGL2RendererBackend.ts`
-- Create: `packages/renderer/src/WebGL2PickCodec.ts`
-- Create: `packages/renderer/tests/PickCodec.test.ts`
-- Modify: `packages/renderer/tests/BackendContract.test.ts`
+**文件：**
+- 修改：`packages/renderer/src/types.ts`
+- 修改：`packages/renderer/src/FakeRendererBackend.ts`
+- 修改：`packages/renderer/src/WebGL2RendererBackend.ts`
+- 创建：`packages/renderer/src/WebGL2PickCodec.ts`
+- 创建：`packages/renderer/tests/PickCodec.test.ts`
+- 修改：`packages/renderer/tests/BackendContract.test.ts`
 
-**Interfaces:**
-- Produces: `ICEScreenPoint = Readonly<{ x: number; y: number }>`.
-- Produces: `ICEFrame.selection: readonly string[]`.
-- Produces: `ICERendererCapabilities.picking: boolean`.
-- Produces: `ICERendererBackend.pick?(frame, point): string | undefined`.
-- Produces: `encodeSelectionIndex(index): readonly [number, number, number, 255]` and `decodeSelectionIndex(pixel): number | undefined`.
+**接口：**
+- 产出：`ICEScreenPoint = Readonly<{ x: number; y: number }>`。
+- 产出：`ICEFrame.selection: readonly string[]`。
+- 产出：`ICERendererCapabilities.picking: boolean`。
+- 产出：`ICERendererBackend.pick?(frame, point): string | undefined`。
+- 产出：`encodeSelectionIndex(index): readonly [number, number, number, 255]` 和 `decodeSelectionIndex(pixel): number | undefined`。
 
-- [ ] **Step 1: Write failing codec and contract tests**
+- [ ] **步骤 1：编写预期失败的 codec 和契约测试**
 
-Create `packages/renderer/tests/PickCodec.test.ts`:
+创建 `packages/renderer/tests/PickCodec.test.ts`：
 
 ```ts
 import { it } from 'node:test';
@@ -408,7 +408,7 @@ it('decodes zero as no selection and rejects out-of-range indices', () => {
 });
 ```
 
-Add to `BackendContract.test.ts`:
+添加到 `BackendContract.test.ts`：
 
 ```ts
 it('declares whether the backend supports exact picking', () => {
@@ -417,21 +417,21 @@ it('declares whether the backend supports exact picking', () => {
 });
 ```
 
-Update every fake frame fixture with `selection: []`.
+为每个 fake 帧 fixture 更新 `selection: []`。
 
-- [ ] **Step 2: Verify RED**
+- [ ] **步骤 2：验证 RED**
 
-Run:
+运行：
 
 ```bash
 npm test -- packages/renderer/tests/PickCodec.test.ts packages/renderer/tests/BackendContract.test.ts
 ```
 
-Expected: FAIL because the codec and capability do not exist.
+预期：FAIL，因为 codec 和能力不存在。
 
-- [ ] **Step 3: Implement types and codec**
+- [ ] **步骤 3：实现类型和 codec**
 
-In `types.ts`:
+在 `types.ts` 中：
 
 ```ts
 export type ICEScreenPoint = Readonly<{ x: number; y: number }>;
@@ -456,7 +456,7 @@ export interface ICERendererBackend {
 }
 ```
 
-Create `WebGL2PickCodec.ts`:
+创建 `WebGL2PickCodec.ts`：
 
 ```ts
 const MAX_SELECTION_INDEX = 0xffffff;
@@ -488,20 +488,20 @@ export function decodeSelectionIndex(
 }
 ```
 
-Set `picking: false` on the fake backend and `picking: true` on the WebGL2 backend.
+在 fake 后端设置 `picking: false`，在 WebGL2 后端设置 `picking: true`。
 
-- [ ] **Step 4: Verify GREEN**
+- [ ] **步骤 4：验证 GREEN**
 
-Run:
+运行：
 
 ```bash
 npm test -- packages/renderer/tests/PickCodec.test.ts packages/renderer/tests/BackendContract.test.ts
 npm run typecheck
 ```
 
-Before running, update the frame fixtures in `BackendContract.test.ts` and `ICE3.renderFrame()` with `selection: []` or the live selection array. Expected: PASS.
+运行前，在 `BackendContract.test.ts` 和 `ICE3.renderFrame()` 中用 `selection: []` 或实时 selection 数组更新帧 fixture。预期：PASS。
 
-- [ ] **Step 5: Commit**
+- [ ] **步骤 5：提交**
 
 ```bash
 git add packages/renderer/src/types.ts packages/renderer/src/FakeRendererBackend.ts packages/renderer/src/WebGL2RendererBackend.ts packages/renderer/src/WebGL2PickCodec.ts packages/renderer/tests/PickCodec.test.ts packages/renderer/tests/BackendContract.test.ts
@@ -510,22 +510,22 @@ git commit -m "feat(renderer): define pickup frame contract"
 
 ---
 
-### Task 4: Implement Offscreen WebGL2 Picking
+### 任务 4：实现离屏 WebGL2 拾取
 
-**Files:**
-- Create: `packages/renderer/src/WebGL2Picker.ts`
-- Modify: `packages/renderer/src/WebGL2RendererBackend.ts`
-- Modify: `packages/renderer/src/WebGL2Program.ts`
-- Modify: `packages/runtime/src/ICE3.ts`
-- Test: browser selection tests in Task 8
+**文件：**
+- 创建：`packages/renderer/src/WebGL2Picker.ts`
+- 修改：`packages/renderer/src/WebGL2RendererBackend.ts`
+- 修改：`packages/renderer/src/WebGL2Program.ts`
+- 修改：`packages/runtime/src/ICE3.ts`
+- 测试：任务 8 中的浏览器 selection 测试
 
-**Interfaces:**
-- Consumes: `WebGL2Program`, `WebGL2GeometryCache`, `collectRenderables`, `encodeSelectionIndex`, `decodeSelectionIndex`.
-- Produces: `ICEPickFrame`; `new WebGL2Picker(gl)`; `picker.pick(frame: ICEPickFrame, geometryCache, renderables): string | undefined`.
+**接口：**
+- 消费：`WebGL2Program`、`WebGL2GeometryCache`、`collectRenderables`、`encodeSelectionIndex`、`decodeSelectionIndex`。
+- 产出：`ICEPickFrame`；`new WebGL2Picker(gl)`；`picker.pick(frame: ICEPickFrame, geometryCache, renderables): string | undefined`。
 
-- [ ] **Step 1: Add a failing renderer capability assertion**
+- [ ] **步骤 1：添加预期失败的渲染器能力断言**
 
-Extend `tests/e2e/m1.spec.ts` with a probe that checks the real backend advertises picking:
+扩展 `tests/e2e/m1.spec.ts`，添加一个检查真实后端是否声明支持 picking 的探测：
 
 ```ts
 expect(await page.evaluate(
@@ -533,17 +533,17 @@ expect(await page.evaluate(
 )).toBe(true);
 ```
 
-Run:
+运行：
 
 ```bash
 npm run test:e2e -- tests/e2e/m1.spec.ts --project=chromium --grep="prepared industrial asset"
 ```
 
-Expected: FAIL because diagnostics do not yet expose `picking`.
+预期：FAIL，因为诊断尚未暴露 `picking`。
 
-- [ ] **Step 2: Implement the picker**
+- [ ] **步骤 2：实现 picker**
 
-Create `WebGL2Picker.ts` with these exact responsibilities:
+创建具有以下确切职责的 `WebGL2Picker.ts`：
 
 ```ts
 import { ICEEngineError, ICEMatrix4 } from '@ice3/core';
@@ -756,17 +756,17 @@ export class WebGL2Picker {
 }
 ```
 
-Immediately before `readPixels`, add:
+在 `readPixels` 之前立即添加：
 
 ```ts
 gl.pixelStorei(gl.PACK_ALIGNMENT, 1);
 ```
 
-Use `this.releaseTarget()` in `dispose()` before disposing the program so resources are deleted exactly once.
+释放 program 前，调用 `this.releaseTarget()`，且该调用位于 `dispose()` 内，确保资源恰好删除一次。
 
-- [ ] **Step 3: Delegate backend picking**
+- [ ] **步骤 3：委托后端拾取**
 
-In `WebGL2RendererBackend`:
+在 `WebGL2RendererBackend` 中：
 
 ```ts
 private picker: WebGL2Picker | null = null;
@@ -786,12 +786,11 @@ pick(frame: ICEFrame, point: ICEScreenPoint): string | undefined {
 }
 ```
 
-Create the picker in `createProgram`, delete it on context loss, recreate it on context restore, and dispose it in `dispose`.
+在 `createProgram` 中创建 picker，在上下文丢失时删除，在上下文恢复时重新创建，并在 `dispose` 中销毁。
 
-Change `WebGL2Program` fragment precision from `mediump` to `highp` so RGB byte identities remain distinct across WebGL2 implementations.
+将 `WebGL2Program` 片元精度从 `mediump` 改为 `highp`，使 RGB 字节身份在不同 WebGL2 实现之间保持可区分。
 
-Extend the declared diagnostics backend shape so the browser probe can read the
-new capability without a cast:
+扩展声明的诊断后端结构，使浏览器探测无需类型转换即可读取新能力：
 
 ```ts
 readonly backend: Readonly<{
@@ -801,18 +800,18 @@ readonly backend: Readonly<{
 }>;
 ```
 
-- [ ] **Step 4: Verify renderer tests**
+- [ ] **步骤 4：验证渲染器测试**
 
-Run:
+运行：
 
 ```bash
 npm test -- packages/renderer
 npm run typecheck
 ```
 
-Expected: PASS. The browser assertion remains failing until runtime diagnostics include backend capabilities.
+预期：PASS。在 runtime 诊断包含后端能力前，浏览器断言仍会失败。
 
-- [ ] **Step 5: Commit**
+- [ ] **步骤 5：提交**
 
 ```bash
 git add packages/renderer/src/WebGL2Picker.ts packages/renderer/src/WebGL2RendererBackend.ts packages/renderer/src/WebGL2Program.ts tests/e2e/m1.spec.ts
@@ -821,21 +820,21 @@ git commit -m "feat(renderer): add GPU equipment picking"
 
 ---
 
-### Task 5: Render Non-Destructive Selection Highlights
+### 任务 5：渲染非破坏性 Selection 高亮
 
-**Files:**
-- Modify: `packages/renderer/src/WebGL2GeometryBatch.ts`
-- Modify: `packages/renderer/src/WebGL2RendererBackend.ts`
-- Test: `packages/renderer/tests/WebGL2GeometryBatch.test.ts`
-- Test: `tests/e2e/m1.spec.ts`
+**文件：**
+- 修改：`packages/renderer/src/WebGL2GeometryBatch.ts`
+- 修改：`packages/renderer/src/WebGL2RendererBackend.ts`
+- 测试：`packages/renderer/tests/WebGL2GeometryBatch.test.ts`
+- 测试：`tests/e2e/m1.spec.ts`
 
-**Interfaces:**
-- Consumes: `ICEFrame.selection`, `ICEMesh.selectionId`.
-- Produces: `selectionIdentity(mesh: ICEMesh): string`.
+**接口：**
+- 消费：`ICEFrame.selection`、`ICEMesh.selectionId`。
+- 产出：`selectionIdentity(mesh: ICEMesh): string`。
 
-- [ ] **Step 1: Write failing selection-identity test**
+- [ ] **步骤 1：编写预期失败的 selection 身份测试**
 
-Add:
+添加：
 
 ```ts
 it('uses the declared equipment identity for rendering selection', () => {
@@ -849,23 +848,23 @@ it('uses the declared equipment identity for rendering selection', () => {
 });
 ```
 
-Run:
+运行：
 
 ```bash
 npm test -- packages/renderer/tests/WebGL2GeometryBatch.test.ts
 ```
 
-Expected: FAIL because `selectionIdentity` does not exist.
+预期：FAIL，因为 `selectionIdentity` 不存在。
 
-- [ ] **Step 2: Implement highlight pass**
+- [ ] **步骤 2：实现高亮 pass**
 
-Export from `WebGL2GeometryBatch.ts`:
+从 `WebGL2GeometryBatch.ts` 导出：
 
 ```ts
 export const selectionIdentity = (mesh: ICEMesh): string => mesh.selectionId;
 ```
 
-Change `render(frame)` to collect renderables once. After all normal meshes are drawn and before `geometryCache.endFrame()`:
+将 `render(frame)` 改为只收集一次 renderable。在所有常规网格绘制完成后、`geometryCache.endFrame()` 之前：
 
 ```ts
 if (frame.selection.length > 0) {
@@ -918,22 +917,22 @@ if (frame.selection.length > 0) {
 }
 ```
 
-The variables `renderables`, `mvp`, `world`, `viewProjection`, `clipPixelX`, and `clipPixelY` are the same values already created by the normal render loop; do not recalculate them a second time.
+变量 `renderables`、`mvp`、`world`、`viewProjection`、`clipPixelX` 和 `clipPixelY` 是常规渲染循环已创建的相同值；不要再次计算。
 
-Pass the existing `frame.selection` into the render call in `ICE3`, using `this.interaction.getSelection()`. Keep `geometryCache.beginFrame()` before the main loop and `geometryCache.endFrame()` after the highlight pass.
+将现有 `frame.selection` 传入 `ICE3` 中的渲染调用，使用 `this.interaction.getSelection()`。保持 `geometryCache.beginFrame()` 位于主循环之前，`geometryCache.endFrame()` 位于高亮 pass 之后。
 
-- [ ] **Step 3: Verify renderer tests**
+- [ ] **步骤 3：验证渲染器测试**
 
-Run:
+运行：
 
 ```bash
 npm test -- packages/renderer
 npm run typecheck
 ```
 
-Expected: PASS.
+预期：PASS。
 
-- [ ] **Step 4: Commit**
+- [ ] **步骤 4：提交**
 
 ```bash
 git add packages/renderer/src/WebGL2GeometryBatch.ts packages/renderer/src/WebGL2RendererBackend.ts packages/renderer/tests/WebGL2GeometryBatch.test.ts
@@ -942,26 +941,26 @@ git commit -m "feat(renderer): highlight selected equipment"
 
 ---
 
-### Task 6: Select on Click and Preserve Camera Drag
+### 任务 6：点击选择并保留相机拖动
 
-**Files:**
-- Create: `packages/runtime/src/input/ICESelectionGesture.ts`
-- Create: `packages/runtime/tests/SelectionGesture.test.ts`
-- Modify: `packages/runtime/src/ICE3.ts`
-- Modify: `packages/runtime/src/index.ts`
-- Modify: `packages/ice3/src/index.ts`
-- Modify: `packages/renderer/src/FakeRendererBackend.ts`
-- Modify: `packages/runtime/tests/Projection.test.ts`
-- Modify: `tests/e2e/m0.spec.ts`
+**文件：**
+- 创建：`packages/runtime/src/input/ICESelectionGesture.ts`
+- 创建：`packages/runtime/tests/SelectionGesture.test.ts`
+- 修改：`packages/runtime/src/ICE3.ts`
+- 修改：`packages/runtime/src/index.ts`
+- 修改：`packages/ice3/src/index.ts`
+- 修改：`packages/renderer/src/FakeRendererBackend.ts`
+- 修改：`packages/runtime/tests/Projection.test.ts`
+- 修改：`tests/e2e/m0.spec.ts`
 
-**Interfaces:**
-- Consumes: `ICE3.pick(point)`, `ICERendererCapabilities.picking`, `ICERendererBackend.pick`.
-- Produces: `SELECTION_CLICK_THRESHOLD_PX = 4`; `isSelectionClick(start, end): boolean`; `selectionForOutcome(outcome): readonly string[] | undefined`.
-- Produces diagnostics: `selectionCount`, `lastPickTimeMs`, `lastPickId`.
+**接口：**
+- 消费：`ICE3.pick(point)`、`ICERendererCapabilities.picking`、`ICERendererBackend.pick`。
+- 产出：`SELECTION_CLICK_THRESHOLD_PX = 4`；`isSelectionClick(start, end): boolean`；`selectionForOutcome(outcome): readonly string[] | undefined`。
+- 产出诊断：`selectionCount`、`lastPickTimeMs`、`lastPickId`。
 
-- [ ] **Step 1: Write failing gesture tests**
+- [ ] **步骤 1：编写预期失败的手势测试**
 
-Create `packages/runtime/tests/SelectionGesture.test.ts`:
+创建 `packages/runtime/tests/SelectionGesture.test.ts`：
 
 ```ts
 import { it } from 'node:test';
@@ -988,24 +987,22 @@ it('maps empty picks to a cleared selection and hits to one equipment ID', () =>
 });
 ```
 
-Update the M0 drag browser test to move away beyond the threshold, return to
-the start point, release, and expect the initial status remains `运行` and
-`selectedIds` stays empty.
+更新 M0 拖动浏览器测试，使其移动超过阈值、返回起点、释放，并预期初始状态保持 `运行` 且 `selectedIds` 为空。
 
-- [ ] **Step 2: Verify RED**
+- [ ] **步骤 2：验证 RED**
 
-Run:
+运行：
 
 ```bash
 npm test -- packages/runtime/tests/SelectionGesture.test.ts
 npm run test:e2e -- tests/e2e/m0.spec.ts --project=chromium --grep="mouse drag"
 ```
 
-Expected: gesture module missing; drag currently selects `demo-block`.
+预期：手势模块缺失；当前拖动会选择 `demo-block`。
 
-- [ ] **Step 3: Implement click selection**
+- [ ] **步骤 3：实现点击选择**
 
-Create:
+创建：
 
 ```ts
 export const SELECTION_CLICK_THRESHOLD_PX = 4;
@@ -1032,7 +1029,7 @@ export function selectionForOutcome(
 }
 ```
 
-In `ICE3`, add pointer gesture state:
+在 `ICE3` 中，添加指针手势状态：
 
 ```ts
 type PointerGesture = {
@@ -1047,10 +1044,7 @@ private lastPickTimeMs = 0;
 private lastPickId: string | undefined;
 ```
 
-On pointer down, call `inputRouter.pointerDown` and store its returned target
-with `dragged: false`. On every move, route the move and set `dragged = true`
-as soon as `isSelectionClick(start, point)` becomes false. Dragging therefore
-stays a drag even if the pointer later returns near its start. On pointer up:
+在 pointer down 时，调用 `inputRouter.pointerDown` 并将其返回的目标与 `dragged: false` 一起存储。每次移动时，路由该移动，并设置 `dragged = true`，条件是 `isSelectionClick(start, point)` 变为 false。因此，即使指针稍后返回起点附近，拖动仍保持为拖动。在 pointer up 时：
 
 ```ts
 const point = pointOf(event);
@@ -1074,11 +1068,11 @@ if (
 }
 ```
 
-Remove selection from `dispatchInput`. Clear gestures on `pointercancel`, window blur, stop, and destroy.
+从 `dispatchInput` 中移除 selection。在 `pointercancel`、window blur、stop 和 destroy 时清除手势。
 
-Change the input router’s `pickScene` callback to return `{ kind: 'scene' }` without running a pick. This keeps pointer-down routing cheap and defers exact GPU picking to pointer-up.
+将输入路由器的 `pickScene` 回调改为返回 `{ kind: 'scene' }` 而不执行拾取。这样可保持 pointer-down 路由开销较低，并将精确 GPU 拾取推迟到 pointer-up。
 
-Add the internal result type:
+添加内部结果类型：
 
 ```ts
 type ICEPickResult =
@@ -1087,7 +1081,7 @@ type ICEPickResult =
   | { readonly kind: 'error' };
 ```
 
-Update `FakeRendererBackend` with:
+使用以下内容更新 `FakeRendererBackend`：
 
 ```ts
 constructor(options: {
@@ -1109,12 +1103,11 @@ pick(): string | undefined {
 }
 ```
 
-Keep capabilities `picking: false` by default so existing CPU-picker tests
-continue to use `pickSceneNode`.
+默认保持能力 `picking: false`，以便现有 CPU picker 测试继续使用 `pickSceneNode`。
 
-- [ ] **Step 4: Route semantic `pick()` through GPU**
+- [ ] **步骤 4：通过 GPU 路由语义 `pick()`**
 
-Add diagnostics fields `selectionCount`, `lastPickTimeMs`, `lastPickId`, then implement:
+添加诊断字段 `selectionCount`、`lastPickTimeMs`、`lastPickId`，然后实现：
 
 ```ts
 pick(point: ICEScreenPoint): ICENode | undefined {
@@ -1156,13 +1149,11 @@ private samplePick(point: ICEScreenPoint): ICEPickResult {
 }
 ```
 
-The `{ kind: 'error' }` branch deliberately returns `undefined` from
-`selectionForOutcome`, so pointer-up leaves the current selection unchanged
-while `samplePick` records `ICE3_PICK_UNAVAILABLE`.
+`{ kind: 'error' }` 分支有意返回 `undefined`，由 `selectionForOutcome` 产生，因此 pointer-up 保持当前 selection 不变，同时 `samplePick` 记录 `ICE3_PICK_UNAVAILABLE`。
 
-- [ ] **Step 5: Verify GREEN**
+- [ ] **步骤 5：验证 GREEN**
 
-Run:
+运行：
 
 ```bash
 npm test -- packages/runtime/tests/SelectionGesture.test.ts packages/runtime/tests/Projection.test.ts
@@ -1170,9 +1161,9 @@ npm run test:e2e -- tests/e2e/m0.spec.ts --project=chromium --grep="mouse drag"
 npm run typecheck
 ```
 
-Expected: PASS; drag rotates without selection, normal click still selects.
+预期：PASS；拖动会旋转但不选择，常规点击仍可选择。
 
-- [ ] **Step 6: Commit**
+- [ ] **步骤 6：提交**
 
 ```bash
 git add packages/runtime/src/input/ICESelectionGesture.ts packages/runtime/src/ICE3.ts packages/runtime/src/index.ts packages/ice3/src/index.ts packages/renderer/src/FakeRendererBackend.ts packages/runtime/tests/SelectionGesture.test.ts packages/runtime/tests/Projection.test.ts tests/e2e/m0.spec.ts
@@ -1181,22 +1172,22 @@ git commit -m "feat(runtime): select equipment on click"
 
 ---
 
-### Task 7: Add Selection Name Label to the M1 Example
+### 任务 7：为 M1 示例添加 Selection 名称标签
 
-**Files:**
-- Modify: `packages/runtime/src/layer/ICELabel.ts`
-- Modify: `packages/runtime/tests/LayerOrder.test.ts`
-- Modify: `examples/m1/main.ts`
-- Modify: `examples/m1/global.d.ts`
+**文件：**
+- 修改：`packages/runtime/src/layer/ICELabel.ts`
+- 修改：`packages/runtime/tests/LayerOrder.test.ts`
+- 修改：`examples/m1/main.ts`
+- 修改：`examples/m1/global.d.ts`
 
-**Interfaces:**
-- Consumes: `ICENode.displayName`, `SELECTION_CHANGE`, `ICEScreenLayer`, `ICELabel`.
-- Produces: `ICELabel.setText(text: string): this`.
-- Produces: `window.__ice3M1.selectedLabelText(): string | undefined`.
+**接口：**
+- 消费：`ICENode.displayName`、`SELECTION_CHANGE`、`ICEScreenLayer`、`ICELabel`。
+- 产出：`ICELabel.setText(text: string): this`。
+- 产出：`window.__ice3M1.selectedLabelText(): string | undefined`。
 
-- [ ] **Step 1: Write failing label test**
+- [ ] **步骤 1：编写预期失败的标签测试**
 
-Add:
+添加：
 
 ```ts
 it('updates label text and remeasures without replacing the label', () => {
@@ -1215,19 +1206,19 @@ it('updates label text and remeasures without replacing the label', () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- [ ] **步骤 2：验证 RED**
 
-Run:
+运行：
 
 ```bash
 npm test -- packages/runtime/tests/LayerOrder.test.ts
 ```
 
-Expected: FAIL because `setText` does not exist.
+预期：FAIL，因为 `setText` 不存在。
 
-- [ ] **Step 3: Implement mutable label text**
+- [ ] **步骤 3：实现可变标签文本**
 
-Replace the public readonly field with:
+将公共 readonly 字段替换为：
 
 ```ts
 private currentText: string;
@@ -1243,11 +1234,11 @@ setText(text: string): this {
 }
 ```
 
-Initialize `currentText` in the constructor before calling the width calculation.
+在调用宽度计算前，于构造函数中初始化 `currentText`。
 
-- [ ] **Step 4: Add the selection label to the M1 example**
+- [ ] **步骤 4：为 M1 示例添加 selection 标签**
 
-Create a non-interactive screen layer:
+创建非交互式屏幕图层：
 
 ```ts
 const selectionLayer = new ICEScreenLayer({
@@ -1268,7 +1259,7 @@ selectionLayer.addChild(selectionLabel);
 engine.addLayer(selectionLayer);
 ```
 
-Track `selectedNode: ICENode | null`. On `SELECTION_CHANGE`, resolve the node and call:
+跟踪 `selectedNode: ICENode | null`。在 `SELECTION_CHANGE` 时解析节点并调用：
 
 ```ts
 selectedNode = selectedId ? handle?.scene.findByID(selectedId) ?? null : null;
@@ -1279,11 +1270,11 @@ status.textContent = selectedNode
   : '资产已加载';
 ```
 
-On `BEFORE_RENDER`, project `selectedNode.getWorldPosition()`, clamp the label rect inside the viewport, and place it 24px above the projected point.
+在 `BEFORE_RENDER` 时投影 `selectedNode.getWorldPosition()`，将标签矩形钳制在视口内，并放置在投影点上方 24px。
 
-When the asset is disposed, call `engine.setSelection([])`, hide the label, and clear `selectedNode`.
+资产销毁时，调用 `engine.setSelection([])`、隐藏标签并清除 `selectedNode`。
 
-Expose:
+暴露：
 
 ```ts
 selectedLabelText: () => selectionLabel.visible
@@ -1291,18 +1282,18 @@ selectedLabelText: () => selectionLabel.visible
   : undefined,
 ```
 
-- [ ] **Step 5: Verify label and TypeScript**
+- [ ] **步骤 5：验证标签和 TypeScript**
 
-Run:
+运行：
 
 ```bash
 npm test -- packages/runtime/tests/LayerOrder.test.ts
 npm run typecheck:example
 ```
 
-Expected: PASS.
+预期：PASS。
 
-- [ ] **Step 6: Commit**
+- [ ] **步骤 6：提交**
 
 ```bash
 git add packages/runtime/src/layer/ICELabel.ts packages/runtime/tests/LayerOrder.test.ts examples/m1/main.ts examples/m1/global.d.ts
@@ -1311,24 +1302,24 @@ git commit -m "feat(example): label selected equipment"
 
 ---
 
-### Task 8: Verify Selection End to End and Document Behavior
+### 任务 8：端到端验证 Selection 并记录行为
 
-**Files:**
-- Modify: `examples/m0/main.ts`
-- Modify: `tests/e2e/m0.spec.ts`
-- Modify: `tests/e2e/m1.spec.ts`
-- Create: `tests/e2e/selection-dpr.spec.ts`
-- Modify: `docs/api/m0.md`
-- Modify: `docs/api/m1.md`
-- Modify: `README.md`
+**文件：**
+- 修改：`examples/m0/main.ts`
+- 修改：`tests/e2e/m0.spec.ts`
+- 修改：`tests/e2e/m1.spec.ts`
+- 创建：`tests/e2e/selection-dpr.spec.ts`
+- 修改：`docs/api/m0.md`
+- 修改：`docs/api/m1.md`
+- 修改：`README.md`
 
-**Interfaces:**
-- Consumes: `window.__ice3M1.selectedIds()`, `selectedLabelText()`, `scenePixelAtProjection()`, selection diagnostics.
-- Produces: browser evidence for click, highlight, label, clear, drag, and DPR behavior.
+**接口：**
+- 消费：`window.__ice3M1.selectedIds()`、`selectedLabelText()`、`scenePixelAtProjection()`、selection 诊断。
+- 产出：点击、高亮、标签、清除、拖动和 DPR 行为的浏览器证据。
 
-- [ ] **Step 1: Add failing end-to-end selection tests**
+- [ ] **步骤 1：添加预期失败的端到端 selection 测试**
 
-Add to `tests/e2e/m1.spec.ts`:
+添加到 `tests/e2e/m1.spec.ts`：
 
 ```ts
 test('selects one equipment unit with a label and cyan highlight', async ({ page }) => {
@@ -1380,7 +1371,7 @@ test('clears selection on empty click and does not select while dragging', async
 });
 ```
 
-Create `tests/e2e/selection-dpr.spec.ts`:
+创建 `tests/e2e/selection-dpr.spec.ts`：
 
 ```ts
 import { expect, test } from '@playwright/test';
@@ -1400,7 +1391,7 @@ test('selects at the projected center with a two-times device scale', async ({ p
 });
 ```
 
-Add a synthetic overlapping-device mode to `examples/m0/main.ts`:
+向 `examples/m0/main.ts` 添加合成重叠设备模式：
 
 ```ts
 const overlapProbe = new URLSearchParams(window.location.search)
@@ -1424,7 +1415,7 @@ if (overlapProbe) {
 }
 ```
 
-Add to `tests/e2e/m0.spec.ts`:
+添加到 `tests/e2e/m0.spec.ts`：
 
 ```ts
 test('GPU picking selects the nearest overlapping device', async ({ page }) => {
@@ -1439,22 +1430,21 @@ test('GPU picking selects the nearest overlapping device', async ({ page }) => {
 });
 ```
 
-Extend the context-loss M0 test to click the probe center after restoration
-and assert `near-small` is selected. This exercises picker recreation.
+扩展 M0 上下文丢失测试，在恢复后点击探测中心，并断言选中 `near-small`。这会检验 picker 重建。
 
-- [ ] **Step 2: Run tests and verify failures where behavior is incomplete**
+- [ ] **步骤 2：运行测试并验证行为不完整处的失败**
 
-Run:
+运行：
 
 ```bash
 npm run test:e2e -- tests/e2e/m1.spec.ts --project=chromium --grep="selects one equipment|clears selection"
 ```
 
-Expected before final wiring: FAIL at label/highlight/clear assertions with focused errors. Fix production code rather than weakening the assertions.
+最终接线前的预期：在标签、高亮、清除断言处 FAIL，并给出聚焦错误。应修复生产代码，不得削弱断言。
 
-- [ ] **Step 3: Document the public behavior**
+- [ ] **步骤 3：记录公共行为**
 
-Add to `docs/api/m0.md`:
+添加到 `docs/api/m0.md`：
 
 ```md
 Selection is committed on short click release, not pointer down. Camera drags
@@ -1463,7 +1453,7 @@ active backend advertises that capability and otherwise uses the semantic
 fallback used by tests.
 ```
 
-Add to `docs/api/m1.md`:
+添加到 `docs/api/m1.md`：
 
 ```md
 For prepared assets, one named mesh node is one selectable equipment unit.
@@ -1472,29 +1462,28 @@ Short-clicking visible geometry highlights the equipment and shows its source
 display name; clicking empty space clears the selection.
 ```
 
-Add an M1 README bullet for precise equipment click selection and non-destructive
-cyan highlighting.
+在 M1 README 中添加一条说明，介绍精确的设备点击选择和非破坏性青色高亮。
 
-- [ ] **Step 4: Run the complete project verification**
+- [ ] **步骤 4：运行完整项目验证**
 
-Run:
+运行：
 
 ```bash
 npm run verify
 npm pack --workspaces --dry-run
 ```
 
-Expected:
+预期：
 
-- architecture tests pass
-- TypeScript and example type checks pass
-- all Node.js tests pass
-- all Chromium and WebKit tests pass
-- workspace package dry-runs exclude customer assets and reports
+- 架构测试通过
+- TypeScript 和示例类型检查通过
+- 所有 Node.js 测试通过
+- 所有 Chromium 和 WebKit 测试通过
+- workspace 包 dry-run 排除客户资产和报告
 
-- [ ] **Step 5: Audit assets and names**
+- [ ] **步骤 5：审计资产和名称**
 
-Run:
+运行：
 
 ```bash
 git status --short --branch
@@ -1503,11 +1492,9 @@ git ls-files '*.glb' '*.gltf'
 git status --short --ignored
 ```
 
-Review the tracked model list against the approved synthetic fixtures. Review
-every changed doc and code file against the legal-name rules in `AGENTS.md`.
-Expected: no tracked customer assets, scratch output, or restricted names.
+对照已批准的合成 fixture 审查已跟踪模型列表。对照 `AGENTS.md` 中的名称法律规则审查每个已更改的文档和代码文件。预期：没有已跟踪的客户资产、临时输出或受限名称。
 
-- [ ] **Step 6: Commit and merge**
+- [ ] **步骤 6：提交并合并**
 
 ```bash
 git add examples/m0/main.ts tests/e2e/m0.spec.ts tests/e2e/m1.spec.ts tests/e2e/selection-dpr.spec.ts docs/api/m0.md docs/api/m1.md README.md
@@ -1516,9 +1503,9 @@ git switch main
 git merge --ff-only feature/equipment-selection
 ```
 
-Then restart the M1 development server and verify the locally supplied model through the ignored local reference without capturing or committing it.
+然后重启 M1 开发服务器，并通过被忽略的本地引用验证本地提供的模型，不得捕获或提交该模型。
 
-## Related Documents
+## 相关文档
 
-- `ICE3-ENG-IDX-001` — [Documentation index](../README.md)
-- `ICE3-ENG-SPEC-003` — [Equipment selection design](../specs/2026-10-27-equipment-selection-design.md)
+- `ICE3-ENG-IDX-001` — [文档索引](../README.md)
+- `ICE3-ENG-SPEC-003` — [设备选择设计](../specs/2026-10-27-equipment-selection-design.md)
