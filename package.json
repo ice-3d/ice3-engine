@@ -31,7 +31,9 @@
     "build:example:m2": "npm run build && webpack --config examples/m2/webpack.config.cjs",
     "dev:example:m2": "npm run build && webpack serve --config examples/m2/webpack.config.cjs",
     "release:package": "npm run build && node scripts/build-release-package.mjs",
-    "release:check": "npm run release:package && node scripts/check-release-package.mjs"
+    "release:check": "npm run release:package && node scripts/check-release-package.mjs",
+    "benchmark:renderers": "node --import tsx benchmarks/run-renderers.mjs",
+    "benchmark:renderers:headless": "node --import tsx benchmarks/run-renderers.mjs --headless"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",

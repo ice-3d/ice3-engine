@@ -1,0 +1,212 @@
+import { spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { extname, join, normalize, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { chromium } from '@playwright/test';
+import { createBenchmarkReport, reportToMarkdown } from './report.ts';
+
+const root = resolve(new URL('..', import.meta.url).pathname);
+const outputRoot = join(root, 'output', 'benchmarks');
+const scenarios = [
+  'unique-meshes',
+  'instanced-grid',
+  'static-batches',
+  'selection',
+  'picking',
+  'wastewater-mixed',
+];
+const args = process.argv.slice(2);
+const headless = args.includes('--headless');
+const warmup = readNumberOption(args, '--warmup', 60);
+const frames = readNumberOption(args, '--frames', 300);
+const repetitions = readNumberOption(args, '--repetitions', 5);
+
+runCommand('npm', ['run', 'build']);
+runCommand(join(root, 'node_modules', '.bin', 'webpack'), [
+  '--config',
+  join(root, 'benchmarks', 'webpack.config.cjs'),
+]);
+
+const server = createBenchmarkServer();
+await new Promise((resolveListen) => server.listen(0, '127.0.0.1', resolveListen));
+const address = server.address();
+if (!address || typeof address === 'string') {
+  throw new Error('ICE3_BENCHMARK_SERVER_FAILED');
+}
+
+let browser;
+try {
+  browser = await chromium.launch({
+    headless,
+    args: ['--enable-unsafe-webgpu'],
+  });
+  const page = await browser.newPage({
+    viewport: { width: 1440, height: 1000 },
+    deviceScaleFactor: 1,
+  });
+  page.setDefaultTimeout(180_000);
+  const baseUrl = `http://127.0.0.1:${address.port}/`;
+  await page.goto(baseUrl);
+  await page.waitForFunction(() => Boolean(window.__ice3Benchmark));
+  const environment = await page.evaluate(async () => {
+    let adapter = 'unavailable';
+    if (navigator.gpu) {
+      const value = await navigator.gpu.requestAdapter();
+      const info = value?.info;
+      adapter = info
+        ? [info.vendor, info.architecture, info.device]
+            .filter(Boolean)
+            .join(' / ')
+        : 'adapter available';
+    }
+    return {
+      browser: navigator.userAgent,
+      platform: navigator.platform,
+      adapter,
+    };
+  });
+  const rawRuns = [];
+  for (let iteration = 0; iteration < repetitions; iteration += 1) {
+    const order = iteration % 2 === 0
+      ? ['webgl2', 'webgpu']
+      : ['webgpu', 'webgl2'];
+    for (const scenario of scenarios) {
+      for (const backend of order) {
+        process.stderr.write(
+          `benchmark ${iteration + 1}/${repetitions} ${backend} ${scenario}\n`,
+        );
+        await page.goto(baseUrl);
+        await page.waitForFunction(() => Boolean(window.__ice3Benchmark));
+        const result = await page.evaluate(async (request) => (
+          window.__ice3Benchmark.run(request)
+        ), { backend, scenario, warmup, frames });
+        rawRuns.push({ iteration, ...result });
+      }
+    }
+  }
+  const grouped = [];
+  for (const scenario of scenarios) {
+    for (const backend of ['webgl2', 'webgpu']) {
+      const runs = rawRuns.filter(
+        (run) => run.scenario === scenario && run.backend === backend,
+      );
+      if (runs.length === 0) continue;
+      grouped.push({
+        backend,
+        scenario,
+        warmupFrames: warmup,
+        measuredFrames: frames * runs.length,
+        initializationMs: median(runs.map((run) => run.initializationMs)),
+        samples: {
+          cpuFrameMs: runs.flatMap((run) => run.cpuFrameMs),
+          gpuFrameMs: runs.every((run) => run.gpuFrameMs === null)
+            ? null
+            : runs[0].gpuFrameMs,
+          pickMs: runs.flatMap((run) => run.pickMs),
+        },
+        stats: runs.at(-1).stats,
+        gpuFrameTimeUnavailableReason:
+          runs[0].gpuFrameTimeUnavailableReason,
+      });
+    }
+  }
+  const report = createBenchmarkReport({
+    environment,
+    runs: grouped,
+  });
+  await mkdir(outputRoot, { recursive: true });
+  const stamp = report.generatedAt.replace(/[:.]/g, '-');
+  const jsonPath = join(outputRoot, `${stamp}.json`);
+  const markdownPath = join(outputRoot, `${stamp}.md`);
+  await writeFile(
+    jsonPath,
+    `${JSON.stringify({ report, runs: rawRuns }, null, 2)}\n`,
+  );
+  await writeFile(markdownPath, reportToMarkdown(report));
+  console.log(reportToMarkdown(report));
+  console.log(`JSON: ${jsonPath}`);
+  console.log(`Markdown: ${markdownPath}`);
+} finally {
+  await browser?.close();
+  await new Promise((resolveClose, rejectClose) => {
+    server.close((error) => {
+      if (error) rejectClose(error);
+      else resolveClose();
+    });
+  });
+}
+
+function createBenchmarkServer() {
+  return createServer(async (request, response) => {
+    try {
+      const url = new URL(request.url ?? '/', 'http://127.0.0.1');
+      const pathname = decodeURIComponent(url.pathname);
+      const relative = pathname === '/'
+        ? 'index.html'
+        : pathname.slice(1);
+      const filePath = pathname.startsWith('/assets/')
+        ? join(root, 'examples', 'm1', relative)
+        : pathname === '/main.js'
+          ? join(root, 'dist-benchmark', 'main.js')
+          : join(root, 'benchmarks', 'web', relative);
+      const normalized = normalize(filePath);
+      const permittedRoot = pathname.startsWith('/assets/')
+        ? join(root, 'examples', 'm1', 'assets')
+        : pathname === '/main.js'
+          ? join(root, 'dist-benchmark')
+          : join(root, 'benchmarks', 'web');
+      if (!normalized.startsWith(permittedRoot)) {
+        response.writeHead(403).end('Forbidden');
+        return;
+      }
+      const body = await readFile(normalized);
+      response.writeHead(200, {
+        'content-type': contentType(normalized),
+        'cache-control': 'no-store',
+      });
+      response.end(body);
+    } catch {
+      response.writeHead(404).end('Not found');
+    }
+  });
+}
+
+function contentType(path) {
+  return {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.glb': 'model/gltf-binary',
+  }[extname(path)] ?? 'application/octet-stream';
+}
+
+function runCommand(command, args) {
+  const result = spawnSync(command, args, {
+    cwd: root,
+    env: process.env,
+    stdio: 'inherit',
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`${command} ${args.join(' ')} exited ${result.status}`);
+  }
+}
+
+function readNumberOption(values, name, fallback) {
+  const index = values.indexOf(name);
+  const parsed = index >= 0 ? Number(values[index + 1]) : fallback;
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`ICE3_BENCHMARK_INVALID: ${name} must be positive`);
+  }
+  return parsed;
+}
+
+function median(values) {
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[middle - 1] + sorted[middle]) / 2
+    : sorted[middle];
+}
