@@ -22,6 +22,10 @@ import { WebGL2Picker } from './WebGL2Picker.js';
 import { WebGL2Program } from './WebGL2Program.js';
 import { WebGL2SemanticProgram } from './WebGL2SemanticProgram.js';
 import { colorToRgba } from './Color.js';
+import {
+  RendererProfiler,
+  type ICEFrameStageProfile,
+} from './RendererProfiler.js';
 import type {
   ICERendererBackend,
   ICERendererCapabilities,
@@ -66,6 +70,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private readonly batchesScratch: ICERenderBatchDraw[] = [];
   private readonly instancesScratch: ICEInstanceBatch[] = [];
   private readonly instancedMeshIds = new Set<string>();
+  private readonly profiler = new RendererProfiler();
+  private lastFrameProfile: ICEFrameStageProfile | null = null;
   private backgroundRgba: readonly [number, number, number, number] = [
     0.035,
     0.055,
@@ -186,6 +192,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     ) {
       throw new ICEEngineError('ICE3_ENGINE_NOT_READY', 'Renderer is not initialized');
     }
+    this.profiler.begin();
+    this.lastFrameProfile = null;
     const gl = this.gl;
     gl.clearColor(...this.backgroundRgba);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -219,7 +227,10 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       renderables,
       this.instancesScratch,
     );
+    const batches = collectRenderBatches(frame.scene, this.batchesScratch);
+    this.profiler.mark('collect');
     this.program.setInstancing(true);
+    this.profiler.mark('prepareAndUpload');
     for (const batch of instances) {
       const instance = this.instanceCache!.retain(
         gl,
@@ -268,7 +279,6 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     }
     this.program.setInstancing(false);
     this.program.setClipOffset(0, 0);
-    const batches = collectRenderBatches(frame.scene, this.batchesScratch);
     for (const draw of batches) {
       this.program.setClipOffset(0, 0);
       mvp.elements.set(viewProjection.elements);
@@ -498,6 +508,18 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.frameStats.gpuEvictions = this.geometryCache.evictionCount;
     this.frameStats.gpuBytes = this.geometryCache.totalBytes
       + this.instanceCache!.totalBytes;
+    this.profiler.mark('encode');
+    this.profiler.mark('submit');
+    this.lastFrameProfile = this.profiler.end();
+  }
+
+  enableProfiling(enabled: boolean): void {
+    this.profiler.enable(enabled);
+    this.lastFrameProfile = null;
+  }
+
+  get frameProfile(): ICEFrameStageProfile | null {
+    return this.lastFrameProfile;
   }
 
   async pick(

@@ -3,6 +3,7 @@ import {
   summarizeSamples,
   type ICEBenchmarkSummary,
 } from './core/statistics.js';
+import type { ICEBenchmarkCpuStageSamples } from './core/types.js';
 import type { ICERendererStats } from '@ice3/renderer';
 
 export type ICEBenchmarkRunInput = Readonly<{
@@ -14,6 +15,7 @@ export type ICEBenchmarkRunInput = Readonly<{
   stats?: ICERendererStats;
   samples: Readonly<{
     cpuFrameMs: readonly number[];
+    cpuStages: ICEBenchmarkCpuStageSamples;
     gpuFrameMs: readonly number[] | null;
     pickMs: readonly number[];
   }>;
@@ -36,6 +38,12 @@ export type ICEBenchmarkReport = Readonly<{
     stats?: ICERendererStats;
     metrics: Readonly<{
       cpuFrameMs: ICEBenchmarkSummary;
+      cpuStages: Readonly<{
+        collectMs: ICEBenchmarkSummary;
+        prepareAndUploadMs: ICEBenchmarkSummary;
+        encodeMs: ICEBenchmarkSummary;
+        submitMs: ICEBenchmarkSummary;
+      }>;
       gpuFrameMs: ICEBenchmarkSummary | null;
       pickMs: ICEBenchmarkSummary | null;
     }>;
@@ -63,6 +71,14 @@ export function createBenchmarkReport(input: {
     ...(run.stats ? { stats: run.stats } : {}),
     metrics: {
       cpuFrameMs: summarizeSamples(run.samples.cpuFrameMs),
+      cpuStages: {
+        collectMs: summarizeSamples(run.samples.cpuStages.collectMs),
+        prepareAndUploadMs: summarizeSamples(
+          run.samples.cpuStages.prepareAndUploadMs,
+        ),
+        encodeMs: summarizeSamples(run.samples.cpuStages.encodeMs),
+        submitMs: summarizeSamples(run.samples.cpuStages.submitMs),
+      },
       gpuFrameMs: run.samples.gpuFrameMs
         ? summarizeSamples(run.samples.gpuFrameMs)
         : null,
@@ -125,8 +141,8 @@ export function reportToMarkdown(report: ICEBenchmarkReport): string {
     `Platform: ${report.environment.platform}`,
     `Adapter: ${report.environment.adapter}`,
     '',
-    '| Scenario | Backend | Init ms | CPU median ms | CPU p95 ms | GPU median ms | Pick median ms | Draw calls | GPU bytes | CPU improvement |',
-    '|---|---|---:|---:|---:|---:|---:|---:|---:|---:|',
+    '| Scenario | Backend | Init ms | CPU median ms | CPU p95 ms | Collect ms | Prepare ms | Encode ms | Submit ms | GPU median ms | Pick median ms | Draw calls | GPU bytes | CPU improvement |',
+    '|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|',
   ];
   for (const run of report.runs) {
     const improvement = report.improvements.find(
@@ -138,6 +154,10 @@ export function reportToMarkdown(report: ICEBenchmarkReport): string {
       formatNumber(run.initializationMs),
       formatNumber(run.metrics.cpuFrameMs.median),
       formatNumber(run.metrics.cpuFrameMs.p95),
+      formatNumber(run.metrics.cpuStages.collectMs.median),
+      formatNumber(run.metrics.cpuStages.prepareAndUploadMs.median),
+      formatNumber(run.metrics.cpuStages.encodeMs.median),
+      formatNumber(run.metrics.cpuStages.submitMs.median),
       run.metrics.gpuFrameMs
         ? formatNumber(run.metrics.gpuFrameMs.median)
         : 'n/a',

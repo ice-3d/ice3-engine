@@ -36,6 +36,10 @@ import {
   WEBGPU_UNIFORM_STRIDE,
 } from './WebGPURenderPipeline.js';
 import {
+  RendererProfiler,
+  type ICEFrameStageProfile,
+} from './RendererProfiler.js';
+import {
   collectWebGPUPickIds,
   WebGPUPicker,
 } from './WebGPUPicker.js';
@@ -115,6 +119,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
   private readonly instancesScratch: ICEInstanceBatch[] = [];
   private readonly mvpScratch = new ICEMatrix4();
   private readonly worldScratch = new ICEMatrix4();
+  private readonly profiler = new RendererProfiler();
+  private lastFrameProfile: ICEFrameStageProfile | null = null;
 
   private constructor(
     context: WebGPUDeviceContext,
@@ -227,6 +233,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
   }
 
   render(frame: ICEFrame): void {
+    this.profiler.begin();
+    this.lastFrameProfile = null;
     this.lastFrame = frame;
     const context = this.context;
     const cache = this.requireGeometryCache();
@@ -263,6 +271,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
       this.instancesScratch,
     );
     const batches = collectRenderBatches(frame.scene, this.batchesScratch);
+    this.profiler.mark('collect');
     const aspect = frame.viewport.width / Math.max(frame.viewport.height, 1);
     const viewProjection = frame.camera.getViewProjectionMatrix(aspect);
     const world = this.worldScratch;
@@ -450,6 +459,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
         uniforms as unknown as BufferSource,
       );
     }
+    this.profiler.mark('prepareAndUpload');
     const bindGroup = this.device.createBindGroup({
       label: 'ice3:frame-uniforms',
       layout: this.pipeline.bindGroupLayout,
@@ -519,12 +529,25 @@ export class WebGPURendererBackend implements ICERendererBackend {
       );
       this.captureRequest = null;
     }
-    this.device.queue.submit([encoder.finish()]);
+    const commandBuffer = encoder.finish();
+    this.profiler.mark('encode');
+    this.device.queue.submit([commandBuffer]);
+    this.profiler.mark('submit');
     cache.endFrame();
     instanceCache.endFrame();
     this.frameStats.gpuUploads = cache.uploadCount;
     this.frameStats.gpuEvictions = cache.evictionCount;
     this.frameStats.gpuBytes = cache.totalBytes + instanceCache.totalBytes;
+    this.lastFrameProfile = this.profiler.end();
+  }
+
+  enableProfiling(enabled: boolean): void {
+    this.profiler.enable(enabled);
+    this.lastFrameProfile = null;
+  }
+
+  get frameProfile(): ICEFrameStageProfile | null {
+    return this.lastFrameProfile;
   }
 
   async pick(

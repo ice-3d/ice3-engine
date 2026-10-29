@@ -43,6 +43,12 @@ export {
 } from './InstanceBatch.js';
 export { queueBatchGeneration } from './ICEWebGL2BatchGenerationUploader.js';
 export type {
+  ICEFrameStageProfile,
+} from './RendererProfiler.js';
+export {
+  RendererProfiler,
+} from './RendererProfiler.js';
+export type {
   ICEBatchGenerationHandle,
   ICEBatchUploadBuffer,
   ICEBatchUploadOptions,

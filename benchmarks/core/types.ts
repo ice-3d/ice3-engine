@@ -27,8 +27,16 @@ export type ICEBenchmarkScene = Readonly<{
 export type ICEBenchmarkMetrics = Readonly<{
   initializationMs: number;
   cpuFrameMs: readonly number[];
+  cpuStages: ICEBenchmarkCpuStageSamples;
   gpuFrameMs: readonly number[] | null;
   gpuFrameTimeUnavailableReason?: string;
   pickMs: readonly number[];
   stats: Readonly<ICERendererStats>;
+}>;
+
+export type ICEBenchmarkCpuStageSamples = Readonly<{
+  collectMs: readonly number[];
+  prepareAndUploadMs: readonly number[];
+  encodeMs: readonly number[];
+  submitMs: readonly number[];
 }>;

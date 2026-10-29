@@ -102,6 +102,14 @@ try {
         initializationMs: median(runs.map((run) => run.initializationMs)),
         samples: {
           cpuFrameMs: runs.flatMap((run) => run.cpuFrameMs),
+          cpuStages: {
+            collectMs: runs.flatMap((run) => run.cpuStages.collectMs),
+            prepareAndUploadMs: runs.flatMap(
+              (run) => run.cpuStages.prepareAndUploadMs,
+            ),
+            encodeMs: runs.flatMap((run) => run.cpuStages.encodeMs),
+            submitMs: runs.flatMap((run) => run.cpuStages.submitMs),
+          },
           gpuFrameMs: runs.every((run) => run.gpuFrameMs === null)
             ? null
             : runs[0].gpuFrameMs,

@@ -10,9 +10,11 @@ import {
   probeWebGPU,
   type ICERendererBackend,
   type ICERendererStats,
+  type ICEFrameStageProfile,
 } from '@ice3/renderer';
 import { benchmarkScene } from '../core/scenarios';
 import type {
+  ICEBenchmarkCpuStageSamples,
   ICEBenchmarkScenarioId,
   ICEBenchmarkScene,
 } from '../core/types';
@@ -32,10 +34,16 @@ export type ICEBenchmarkRun = {
   readonly scenario: ICEBenchmarkScenarioId;
   readonly initializationMs: number;
   readonly cpuFrameMs: readonly number[];
+  readonly cpuStages: ICEBenchmarkCpuStageSamples;
   readonly gpuFrameMs: readonly number[] | null;
   readonly gpuFrameTimeUnavailableReason: string;
   readonly pickMs: readonly number[];
   readonly stats: Readonly<ICERendererStats>;
+};
+
+type ICEBenchmarkProfileBackend = ICERendererBackend & {
+  enableProfiling(enabled: boolean): void;
+  readonly frameProfile: ICEFrameStageProfile | null;
 };
 
 async function run(
@@ -57,6 +65,7 @@ async function run(
   let disposeScene: (() => void) | undefined;
   try {
     const backend = await createBackend(request.backend);
+    backend.enableProfiling(true);
     engine = new ICE3({ backend });
     engine.init(host);
     backend.resize({ x: 0, y: 0, width: WIDTH, height: HEIGHT }, 1);
@@ -78,11 +87,25 @@ async function run(
     }
     await backend.finish?.();
     const cpuFrameMs: number[] = [];
+    const cpuStages = {
+      collectMs: [] as number[],
+      prepareAndUploadMs: [] as number[],
+      encodeMs: [] as number[],
+      submitMs: [] as number[],
+    };
     for (let index = 0; index < request.frames; index += 1) {
       frame.frameId += 1;
       const frameStartedAt = performance.now();
       backend.render(frame);
       cpuFrameMs.push(performance.now() - frameStartedAt);
+      const profile = backend.frameProfile;
+      if (!profile) {
+        throw new Error('ICE3_BENCHMARK_INVALID: frame profile is unavailable');
+      }
+      cpuStages.collectMs.push(profile.collectMs);
+      cpuStages.prepareAndUploadMs.push(profile.prepareAndUploadMs);
+      cpuStages.encodeMs.push(profile.encodeMs);
+      cpuStages.submitMs.push(profile.submitMs);
       if ((index + 1) % 30 === 0) {
         await backend.finish?.();
       }
@@ -99,6 +122,7 @@ async function run(
       scenario: request.scenario,
       initializationMs,
       cpuFrameMs,
+      cpuStages,
       gpuFrameMs: null,
       gpuFrameTimeUnavailableReason:
         'ICE3 Renderer API does not expose portable GPU timestamps',
@@ -114,7 +138,7 @@ async function run(
 
 async function createBackend(
   backend: 'webgl2' | 'webgpu',
-): Promise<ICERendererBackend> {
+): Promise<ICEBenchmarkProfileBackend> {
   if (backend === 'webgl2') return new WebGL2RendererBackend();
   const probe = await probeWebGPU();
   if (!probe.supported) {
