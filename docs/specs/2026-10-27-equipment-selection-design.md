@@ -1,8 +1,16 @@
 # ICE3 设备选择设计规格
 
+> Document ID: ICE3-ENG-SPEC-003
+>
+> Status: Implemented
+>
+> Owner: ICE3 Engine maintainers
+
+>
+> English summary: Define precise whole-equipment selection with stable semantic identity and non-destructive highlighting.
 | 项目 | 内容 |
 | --- | --- |
-| 状态 | 待用户评审 |
+| 状态 | 已实现 |
 | 版本 | 1.1 |
 | 日期 | 2026-10-27 |
 | 范围 | `ice3-engine` 的 M1 设备级单选能力 |

@@ -1,5 +1,10 @@
 # ICE3 Engine
 
+> Document ID: ICE3-ENG-RM-001
+>
+> Status: Active
+>
+> Owner: ICE3 Engine maintainers
 ICE3 Engine is a modern, programmable 3D engine for industrial applications. M0 is a runnable vertical slice that proves the public API, native WebGL2 scene rendering, shared 2D/3D input, layered composition, lifecycle management, and browser verification.
 
 ## Architecture
@@ -16,7 +21,7 @@ Consumers import only from `ice3`. Internal package paths are private.
 
 Cross-repository asset formats, shared metrics, budgets, compatibility, and
 diagnostic codes are defined by the canonical
-[Asset Preparation Contract v1](../ice3-doc/docs/contracts/asset-preparation-contract-v1.md).
+[Asset Preparation Contract v1](https://github.com/ice-3d/ice3-doc/blob/main/docs/contracts/asset-preparation-contract-v1.md).
 
 ## M0 capabilities
 

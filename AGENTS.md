@@ -1,5 +1,10 @@
 # ICE3 Engine Repository Rules
 
+> Document ID: ICE3-ENG-POL-001
+>
+> Status: Active
+>
+> Owner: ICE3 Engine maintainers
 ## Architecture
 
 - Public consumers import only from `ice3`.

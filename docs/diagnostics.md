@@ -1,5 +1,10 @@
 # ICE3 Diagnostics
 
+> Document ID: ICE3-ENG-REF-001
+>
+> Status: Active
+>
+> Owner: ICE3 Engine maintainers
 Diagnostics use stable codes. Callers should branch on `code`, not on message text.
 
 ## Engine and target

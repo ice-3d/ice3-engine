@@ -1,5 +1,11 @@
 # ICE3 Engine M1 Asset Runtime Implementation Plan
 
+> Document ID: ICE3-ENG-PLAN-002
+>
+> Status: Implemented
+>
+> Owner: ICE3 Engine maintainers
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Load ICE3 Prepared GLB Profile v1 assets in the browser without a source-format or geometry-conversion pipeline, render prepared triangle and edge buffers, and release their resources safely.
@@ -8,9 +14,9 @@
 
 **Tech Stack:** Node.js 24 LTS, TypeScript 7, ESM, Webpack 5, Node.js built-in test runner, `expect`, `tsx`, Playwright 1.64, native WebGL2.
 
-**Spec:** `docs/superpowers/specs/2026-10-27-engine-m1-asset-design.md`
+**Spec:** `docs/specs/2026-10-27-engine-m1-asset-design.md`
 
-**Prerequisite plan:** `../ice3-toolchain/docs/superpowers/plans/2026-10-27-toolchain-m1-glb-pipeline.md`
+**Prerequisite plan:** [ICE3 Toolchain M1 GLB Pipeline Plan](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/plans/2026-10-27-toolchain-m1-glb-pipeline.md)
 
 ## Global Constraints
 
@@ -744,7 +750,7 @@ git commit -m "feat(example): load prepared GLB asset"
 - Modify: `README.md`
 - Modify: `docs/diagnostics.md`
 - Modify: `AGENTS.md`
-- Modify: `docs/superpowers/specs/2026-10-27-engine-m1-asset-design.md`
+- Modify: `docs/specs/2026-10-27-engine-m1-asset-design.md`
 
 **Interfaces:**
 - Consumes: complete M1 implementation.
