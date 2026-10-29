@@ -98,7 +98,17 @@ async function createDefaultWebGPU(): Promise<ICERendererBackend> {
       { reason: result.reason },
     );
   }
-  return WebGPURendererBackend.create(result);
+  try {
+    return await WebGPURendererBackend.create(result);
+  } catch (error) {
+    throw new ICEEngineError(
+      'ICE3_WEBGPU_UNAVAILABLE',
+      `ICE3_WEBGPU_UNAVAILABLE: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      { reason: 'pipeline-failed' },
+    );
+  }
 }
 
 function failureReason(

@@ -35,7 +35,7 @@ type ICEPickFrame = ICEFrame & {
 
 const VERTEX_USAGE = 32 | 8;
 const UNIFORM_USAGE = 64 | 8;
-const PICK_TEXTURE_USAGE = 16 | 4;
+const PICK_TEXTURE_USAGE = 16 | 1;
 const DEPTH_USAGE = 16;
 const MAP_READ = 1;
 const COPY_DST = 8;

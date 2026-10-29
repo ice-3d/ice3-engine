@@ -110,3 +110,50 @@ it('commits only the latest pointer click when picks finish out of order', async
 
   expect(committed.at(-1)).toEqual(['valve']);
 });
+
+it('releases pointer capture while an asynchronous pick is pending', async () => {
+  const backend = new FakeRendererBackend({ picking: true });
+  let finishPick!: (value: string | undefined) => void;
+  backend.pick = () => new Promise((resolve) => {
+    finishPick = resolve;
+  });
+  const host = createHost();
+  const engine = new ICE3({ backend }).init(host);
+  engine.setScene(new ICEScene({ id: 'scene' })).setCamera(
+    new ICEPerspectiveCamera({
+      id: 'camera',
+      position: [0, 0, 4],
+      target: [0, 0, 0],
+    }),
+  ).start();
+  const overlay = host.querySelector<HTMLCanvasElement>(
+    'canvas[data-layer="overlay"]',
+  )!;
+  let released = false;
+  overlay.setPointerCapture = () => {};
+  overlay.releasePointerCapture = () => {
+    released = true;
+  };
+  Object.defineProperty(overlay, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({
+      x: 0, y: 0, left: 0, top: 0, right: 640, bottom: 360,
+      width: 640, height: 360, toJSON: () => ({}),
+    }),
+  });
+  for (const type of ['pointerdown', 'pointerup'] as const) {
+    const event = new Event(type, { bubbles: true, cancelable: true });
+    Object.defineProperties(event, {
+      clientX: { value: 20 },
+      clientY: { value: 20 },
+      pointerId: { value: 1 },
+      button: { value: 0 },
+    });
+    overlay.dispatchEvent(event);
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(released).toBe(true);
+  finishPick(undefined);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+});

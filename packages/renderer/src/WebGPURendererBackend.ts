@@ -102,6 +102,11 @@ export class WebGPURendererBackend implements ICERendererBackend {
     gpuEvictions: 0,
     gpuBytes: 0,
   };
+  private lastFrame: ICEFrame | null = null;
+  private captureRequest: {
+    readonly buffer: GPUBuffer;
+    readonly bytesPerRow: number;
+  } | null = null;
   private readonly renderablesScratch: ICEGeometryRenderable[] = [];
   private readonly batchesScratch: ICERenderBatchDraw[] = [];
   private readonly instancesScratch: ICEInstanceBatch[] = [];
@@ -147,7 +152,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
       device: this.device,
       format: this.format,
       alphaMode: 'premultiplied',
-      usage: RENDER_ATTACHMENT_USAGE | 4,
+      usage: RENDER_ATTACHMENT_USAGE | 1,
     });
     this.canvas = options.canvas;
     this.context = context;
@@ -220,6 +225,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
   }
 
   render(frame: ICEFrame): void {
+    this.lastFrame = frame;
     const context = this.context;
     const cache = this.requireGeometryCache();
     const instanceCache = this.instanceCache;
@@ -454,10 +460,11 @@ export class WebGPURendererBackend implements ICERendererBackend {
         },
       }],
     });
+    const targetTexture = context.getCurrentTexture();
     const encoder = this.device.createCommandEncoder();
     const pass = encoder.beginRenderPass({
       colorAttachments: [{
-        view: context.getCurrentTexture().createView(),
+        view: targetTexture.createView(),
         clearValue: {
           r: this.backgroundRgba[0],
           g: this.backgroundRgba[1],
@@ -494,6 +501,22 @@ export class WebGPURendererBackend implements ICERendererBackend {
       this.frameStats.drawCalls += 1;
     }
     pass.end();
+    if (this.captureRequest) {
+      encoder.copyTextureToBuffer(
+        { texture: targetTexture },
+        {
+          buffer: this.captureRequest.buffer,
+          bytesPerRow: this.captureRequest.bytesPerRow,
+          rowsPerImage: this.canvas!.height,
+        },
+        {
+          width: this.canvas!.width,
+          height: this.canvas!.height,
+          depthOrArrayLayers: 1,
+        },
+      );
+      this.captureRequest = null;
+    }
     this.device.queue.submit([encoder.finish()]);
     cache.endFrame();
     instanceCache.endFrame();
@@ -558,10 +581,10 @@ export class WebGPURendererBackend implements ICERendererBackend {
   }
 
   async capture(): Promise<Blob> {
-    if (!this.context || !this.canvas) {
+    if (!this.context || !this.canvas || !this.lastFrame) {
       throw new ICEEngineError(
         'ICE3_ENGINE_NOT_READY',
-        'Renderer is not initialized',
+        'Renderer has no frame to capture',
       );
     }
     const width = this.canvas.width;
@@ -572,13 +595,14 @@ export class WebGPURendererBackend implements ICERendererBackend {
       size: bytesPerRow * height,
       usage: 1 | 8,
     });
-    const encoder = this.device.createCommandEncoder();
-    encoder.copyTextureToBuffer(
-      { texture: this.context.getCurrentTexture() },
-      { buffer: readback, bytesPerRow, rowsPerImage: height },
-      { width, height, depthOrArrayLayers: 1 },
-    );
-    this.device.queue.submit([encoder.finish()]);
+    this.captureRequest = { buffer: readback, bytesPerRow };
+    try {
+      this.render(this.lastFrame);
+    } catch (error) {
+      this.captureRequest = null;
+      readback.destroy();
+      throw error;
+    }
     let bytes: Uint8Array;
     try {
       await readback.mapAsync(1);
@@ -734,8 +758,11 @@ async function pixelsToPng(
     const canvas = new OffscreenCanvas(width, height);
     const context = canvas.getContext('2d');
     if (!context) throw new Error('ICE3_GPU_RESOURCE_FAILED: 2D context');
+    const image = typeof ImageData === 'undefined'
+      ? { data: pixels, width, height } as ImageData
+      : new ImageData(pixels, width, height);
     context.putImageData(
-      { data: pixels, width, height } as ImageData,
+      image,
       0,
       0,
     );
@@ -746,8 +773,11 @@ async function pixelsToPng(
   canvas.height = height;
   const context = canvas.getContext('2d');
   if (!context) throw new Error('ICE3_GPU_RESOURCE_FAILED: 2D context');
+  const image = typeof ImageData === 'undefined'
+    ? { data: pixels, width, height } as ImageData
+    : new ImageData(pixels, width, height);
   context.putImageData(
-    { data: pixels, width, height } as ImageData,
+    image,
     0,
     0,
   );

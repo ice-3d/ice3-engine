@@ -28,7 +28,17 @@ declare global {
       ): Readonly<Record<string, unknown>> | undefined;
       whenLodIdle(): Promise<void>;
       visibleMeshCount(): number;
-      scenePixelAtProjection(): readonly [number, number, number, number];
+      scenePixelAtProjection(): Promise<
+        readonly [number, number, number, number]
+      >;
+      scenePixelAt(
+        x: number,
+        y: number,
+      ): Promise<readonly [number, number, number, number]>;
+      yellowPixelCount(): Promise<number>;
+      pickSelectionId(
+        point: Readonly<{ x: number; y: number }>,
+      ): Promise<string | undefined>;
       selectedIds(): readonly string[];
       disposeAsset(): void;
       assetStats(): {

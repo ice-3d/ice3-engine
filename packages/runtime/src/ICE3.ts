@@ -447,6 +447,17 @@ export class ICE3 extends ICEEventDispatcher {
     return Object.freeze(item ? { item } : {});
   }
 
+  async capture(): Promise<Blob> {
+    this.assertActive();
+    if (!this.backend.capture) {
+      throw new ICEEngineError(
+        'ICE3_CAPTURE_UNAVAILABLE',
+        'ICE3_CAPTURE_UNAVAILABLE: the active renderer cannot capture pixels',
+      );
+    }
+    return this.backend.capture();
+  }
+
   getDiagnostics(): Readonly<ICEEngineDiagnostics> {
     return {
       frameId: this.frameId,
@@ -703,6 +714,7 @@ export class ICE3 extends ICEEventDispatcher {
       const gesture = this.pointerGestures.get(event.pointerId);
       this.inputRouter.pointerUp(point, event.pointerId);
       this.pointerGestures.delete(event.pointerId);
+      overlay.releasePointerCapture?.(event.pointerId);
       if (
         gesture
         && gesture.target.kind === 'scene'
@@ -728,7 +740,6 @@ export class ICE3 extends ICEEventDispatcher {
           this.setSelection(nextSelection);
         }
       }
-      overlay.releasePointerCapture?.(event.pointerId);
     });
     listen('pointercancel', (event) => {
       this.inputRouter.pointerCancel(event.pointerId);

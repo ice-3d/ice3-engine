@@ -527,6 +527,21 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     );
   }
 
+  async capture(): Promise<Blob> {
+    if (!this.canvas) {
+      throw new ICEEngineError(
+        'ICE3_ENGINE_NOT_READY',
+        'Renderer is not initialized',
+      );
+    }
+    return new Promise<Blob>((resolve, reject) => {
+      this.canvas!.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('ICE3_CAPTURE_UNAVAILABLE: PNG encoding failed'));
+      }, 'image/png');
+    });
+  }
+
   dispose(): void {
     if (this.canvas) {
       this.canvas.removeEventListener('webglcontextlost', this.handleContextLost);
