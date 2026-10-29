@@ -69,6 +69,16 @@ it('resolves a backend pick through the stable selection identity', async () => 
   ).resolves.toBe('box');
 });
 
+it('waits for submitted WebGPU work to finish', async () => {
+  const fake = fakeWebGPUDevice();
+  const backend = await WebGPURendererBackend.create(fake.context);
+  backend.initialize({ canvas: fake.canvas() });
+
+  await backend.finish();
+
+  expect(fake.submittedWorkWaitCount()).toBe(1);
+});
+
 function emptyFrame(): ICEFrame {
   return {
     frameId: 1,

@@ -37,6 +37,7 @@ if (!address || typeof address === 'string') {
 
 let browser;
 let page;
+let completed = false;
 try {
   browser = await chromium.launch({
     headless,
@@ -128,18 +129,26 @@ try {
   console.log(reportToMarkdown(report));
   console.log(`JSON: ${jsonPath}`);
   console.log(`Markdown: ${markdownPath}`);
+  completed = true;
 } finally {
   if (page) {
-    await page.goto('about:blank').catch(() => undefined);
+    await raceWithTimeout(
+      page.goto('about:blank'),
+      5_000,
+    ).catch(() => undefined);
   }
-  await browser?.close();
   server.closeAllConnections();
-  await new Promise((resolveClose, rejectClose) => {
-    server.close((error) => {
-      if (error) rejectClose(error);
-      else resolveClose();
-    });
-  });
+  await raceWithTimeout(
+    new Promise((resolveClose, rejectClose) => {
+      server.close((error) => {
+        if (error) rejectClose(error);
+        else resolveClose();
+      });
+    }),
+    2_000,
+  ).catch(() => undefined);
+  await raceWithTimeout(browser?.close(), 5_000).catch(() => undefined);
+  if (completed) process.exit(0);
 }
 
 function createBenchmarkServer() {
@@ -214,4 +223,13 @@ function median(values) {
   return sorted.length % 2 === 0
     ? (sorted[middle - 1] + sorted[middle]) / 2
     : sorted[middle];
+}
+
+function raceWithTimeout(promise, timeoutMs) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('ICE3_BENCHMARK_CLEANUP_TIMEOUT')), timeoutMs);
+    }),
+  ]);
 }

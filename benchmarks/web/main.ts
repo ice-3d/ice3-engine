@@ -76,13 +76,18 @@ async function run(
       frame.frameId += 1;
       backend.render(frame);
     }
+    await backend.finish?.();
     const cpuFrameMs: number[] = [];
     for (let index = 0; index < request.frames; index += 1) {
       frame.frameId += 1;
       const frameStartedAt = performance.now();
       backend.render(frame);
       cpuFrameMs.push(performance.now() - frameStartedAt);
+      if ((index + 1) % 30 === 0) {
+        await backend.finish?.();
+      }
     }
+    await backend.finish?.();
     const pickMs: number[] = [];
     for (let index = 0; index < benchmark.pickCount; index += 1) {
       const pickStartedAt = performance.now();

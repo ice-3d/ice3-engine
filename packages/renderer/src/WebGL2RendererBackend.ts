@@ -542,6 +542,10 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     });
   }
 
+  async finish(): Promise<void> {
+    this.gl?.finish();
+  }
+
   dispose(): void {
     if (this.canvas) {
       this.canvas.removeEventListener('webglcontextlost', this.handleContextLost);

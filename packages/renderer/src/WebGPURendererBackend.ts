@@ -630,6 +630,10 @@ export class WebGPURendererBackend implements ICERendererBackend {
     return pixelsToPng(imageBytes, width, height);
   }
 
+  async finish(): Promise<void> {
+    await this.device.queue.onSubmittedWorkDone?.();
+  }
+
   private pushEdgeDraws(
     output: PendingDraw[],
     geometry: WebGPUGeometryEntry,

@@ -120,6 +120,7 @@ export function fakeWebGPUDevice(options: {
   let capturePixel = new Uint8Array(options.capturePixel ?? [0, 0, 0, 255]);
   let captureCopies = 0;
   let mappedBytes = new Uint8Array();
+  let submittedWorkWaits = 0;
   let resolveLost!: (info: GPUDeviceLostInfo) => void;
   let resolveReplacement!: (device: GPUDevice) => void;
   const lost = new Promise<GPUDeviceLostInfo>((resolve) => {
@@ -278,6 +279,9 @@ export function fakeWebGPUDevice(options: {
       submit(commands: GPUCommandBuffer[]) {
         submissions.push(commands);
       },
+      async onSubmittedWorkDone() {
+        submittedWorkWaits += 1;
+      },
     },
     lost,
     destroy() {},
@@ -340,6 +344,7 @@ export function fakeWebGPUDevice(options: {
     currentCapturePixel: () => new Uint8Array(capturePixel),
     captureCopyCount: () => captureCopies,
     lastMappedBytes: () => mappedBytes.slice(),
+    submittedWorkWaitCount: () => submittedWorkWaits,
     async loseDevice(reason: GPUDeviceLostReason) {
       resolveLost({ reason, message: `lost:${reason}` });
       await Promise.resolve();

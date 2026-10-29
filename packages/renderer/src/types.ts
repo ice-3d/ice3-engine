@@ -65,6 +65,7 @@ export interface ICERendererBackend {
     point: ICEScreenPoint,
   ): Promise<string | undefined>;
   render(frame: ICEFrame): void;
+  finish?(): Promise<void>;
   capture?(): Promise<Blob>;
   dispose(): void;
 }
