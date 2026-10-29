@@ -69,9 +69,12 @@ export class WebGPURendererBackend implements ICERendererBackend {
   };
 
   private readonly adapter: GPUAdapter;
-  private readonly device: GPUDevice;
+  private device: GPUDevice;
   private readonly format: GPUTextureFormat;
-  private readonly pipeline: WebGPURenderPipeline;
+  private pipeline: WebGPURenderPipeline;
+  private onContextLost: (() => void) | undefined;
+  private onContextRestored: (() => void) | undefined;
+  private disposing = false;
   private canvas: HTMLCanvasElement | null = null;
   private context: GPUCanvasContext | null = null;
   private geometryCache: WebGPUGeometryCache | null = null;
@@ -113,6 +116,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.device = context.device;
     this.format = context.format;
     this.pipeline = pipeline;
+    this.watchDevice(this.device);
   }
 
   static async create(
@@ -143,9 +147,12 @@ export class WebGPURendererBackend implements ICERendererBackend {
       device: this.device,
       format: this.format,
       alphaMode: 'premultiplied',
+      usage: RENDER_ATTACHMENT_USAGE | 4,
     });
     this.canvas = options.canvas;
     this.context = context;
+    this.onContextLost = options.onContextLost;
+    this.onContextRestored = options.onContextRestored;
     this.geometryCache = new WebGPUGeometryCache({ device: this.device });
     this.instanceCache = new WebGPUInstanceCache(this.device);
     this.picker = new WebGPUPicker(
@@ -527,6 +534,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
   }
 
   dispose(): void {
+    this.disposing = true;
     this.geometryCache?.dispose();
     this.picker?.dispose();
     this.instanceCache?.dispose();
@@ -544,6 +552,58 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.depthTexture = null;
     this.context = null;
     this.canvas = null;
+    this.device.destroy();
+    this.onContextLost = undefined;
+    this.onContextRestored = undefined;
+  }
+
+  async capture(): Promise<Blob> {
+    if (!this.context || !this.canvas) {
+      throw new ICEEngineError(
+        'ICE3_ENGINE_NOT_READY',
+        'Renderer is not initialized',
+      );
+    }
+    const width = this.canvas.width;
+    const height = this.canvas.height;
+    const bytesPerRow = Math.ceil(width * 4 / 256) * 256;
+    const readback = this.device.createBuffer({
+      label: 'ice3:capture-readback',
+      size: bytesPerRow * height,
+      usage: 1 | 8,
+    });
+    const encoder = this.device.createCommandEncoder();
+    encoder.copyTextureToBuffer(
+      { texture: this.context.getCurrentTexture() },
+      { buffer: readback, bytesPerRow, rowsPerImage: height },
+      { width, height, depthOrArrayLayers: 1 },
+    );
+    this.device.queue.submit([encoder.finish()]);
+    let bytes: Uint8Array;
+    try {
+      await readback.mapAsync(1);
+      bytes = new Uint8Array(readback.getMappedRange()).slice();
+    } finally {
+      readback.unmap();
+      readback.destroy();
+    }
+    for (let offset = 0; offset < bytes.length; offset += 4) {
+      if (this.format === 'bgra8unorm' || this.format === 'bgra8unorm-srgb') {
+        [bytes[offset], bytes[offset + 2]] = [
+          bytes[offset + 2]!,
+          bytes[offset]!,
+        ];
+      }
+    }
+    const imageBytes = new Uint8Array(width * height * 4);
+    const rowBytes = width * 4;
+    for (let row = 0; row < height; row += 1) {
+      imageBytes.set(
+        bytes.subarray(row * bytesPerRow, row * bytesPerRow + rowBytes),
+        row * rowBytes,
+      );
+    }
+    return pixelsToPng(imageBytes, width, height);
   }
 
   private pushEdgeDraws(
@@ -599,12 +659,104 @@ export class WebGPURendererBackend implements ICERendererBackend {
     });
     this.uniformCapacity = capacity;
   }
+
+  private watchDevice(device: GPUDevice): void {
+    void device.lost.then((info) => {
+      if (
+        this.disposing
+        || device !== this.device
+        || info.reason === 'destroyed'
+      ) {
+        return;
+      }
+      void this.recoverDevice();
+    });
+  }
+
+  private async recoverDevice(): Promise<void> {
+    this.onContextLost?.();
+    this.geometryCache?.dispose();
+    this.instanceCache?.dispose();
+    this.picker?.dispose();
+    this.identityInstances?.destroy();
+    this.zeroSemantics?.destroy();
+    this.uniformBuffer?.destroy();
+    this.depthTexture?.destroy();
+    this.geometryCache = null;
+    this.instanceCache = null;
+    this.picker = null;
+    this.identityInstances = null;
+    this.zeroSemantics = null;
+    this.uniformBuffer = null;
+    this.depthTexture = null;
+    this.uniformCapacity = 0;
+    try {
+      const device = await this.adapter.requestDevice();
+      const pipeline = await WebGPURenderPipeline.create(device, this.format);
+      this.device = device;
+      this.pipeline = pipeline;
+      this.watchDevice(device);
+      if (this.canvas) {
+        this.initialize({
+          canvas: this.canvas,
+          ...(this.onContextLost
+            ? { onContextLost: this.onContextLost }
+            : {}),
+          ...(this.onContextRestored
+            ? { onContextRestored: this.onContextRestored }
+            : {}),
+        });
+      }
+      this.onContextRestored?.();
+    } catch {
+      // The Engine receives Device Lost and can rebuild the scene.
+    }
+  }
 }
 
 function drawCountPowerOfTwo(value: number): number {
   let result = 1;
   while (result < Math.max(1, value)) result *= 2;
   return result;
+}
+
+async function pixelsToPng(
+  bytes: Uint8Array,
+  width: number,
+  height: number,
+): Promise<Blob> {
+  const pixels = new Uint8ClampedArray(
+    bytes.buffer,
+    bytes.byteOffset,
+    width * height * 4,
+  ).slice();
+  if (typeof OffscreenCanvas !== 'undefined') {
+    const canvas = new OffscreenCanvas(width, height);
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('ICE3_GPU_RESOURCE_FAILED: 2D context');
+    context.putImageData(
+      { data: pixels, width, height } as ImageData,
+      0,
+      0,
+    );
+    return canvas.convertToBlob({ type: 'image/png' });
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('ICE3_GPU_RESOURCE_FAILED: 2D context');
+  context.putImageData(
+    { data: pixels, width, height } as ImageData,
+    0,
+    0,
+  );
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error('ICE3_GPU_RESOURCE_FAILED: PNG encoding failed'));
+    }, 'image/png');
+  });
 }
 
 type PendingDraw = {

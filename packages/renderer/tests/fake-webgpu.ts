@@ -118,6 +118,16 @@ export function fakeWebGPUDevice(options: {
   const copyCalls: any[] = [];
   let pickPixel = new Uint8Array(options.pickPixel ?? [0, 0, 0, 255]);
   let capturePixel = new Uint8Array(options.capturePixel ?? [0, 0, 0, 255]);
+  let captureCopies = 0;
+  let mappedBytes = new Uint8Array();
+  let resolveLost!: (info: GPUDeviceLostInfo) => void;
+  let resolveReplacement!: (device: GPUDevice) => void;
+  const lost = new Promise<GPUDeviceLostInfo>((resolve) => {
+    resolveLost = resolve;
+  });
+  const replacement = new Promise<GPUDevice>((resolve) => {
+    resolveReplacement = resolve;
+  });
 
   const device = {
     limits: {
@@ -149,8 +159,12 @@ export function fakeWebGPUDevice(options: {
         },
         async mapAsync() {},
         getMappedRange() {
-          const data = new Uint8Array(256);
-          data.set(pickPixel, 0);
+          const data = new Uint8Array(buffer.size);
+          data.set(
+            buffer.label.includes('capture') ? capturePixel : pickPixel,
+            0,
+          );
+          mappedBytes = data.slice();
           return data.buffer;
         },
         unmap() {},
@@ -235,6 +249,11 @@ export function fakeWebGPUDevice(options: {
             ...extent,
             origin: source.origin,
           });
+          if (
+            (destination.buffer as FakeBuffer).label.includes('capture')
+          ) {
+            captureCopies += 1;
+          }
         },
         finish() {
           return {};
@@ -260,7 +279,7 @@ export function fakeWebGPUDevice(options: {
         submissions.push(commands);
       },
     },
-    lost: new Promise(() => {}),
+    lost,
     destroy() {},
   } as unknown as GPUDevice;
 
@@ -288,7 +307,17 @@ export function fakeWebGPUDevice(options: {
     height: 180,
     getContext: () => context,
   } as unknown as HTMLCanvasElement;
+  const adapter = {
+    limits: {
+      maxTextureDimension2D: 8192,
+      maxBufferSize: 1 << 30,
+    },
+    features: new Set(),
+    requestDevice: async () => replacement,
+  } as unknown as GPUAdapter;
+  context.adapter = adapter;
   return {
+    adapter,
     device,
     context,
     canvas: () => canvas,
@@ -309,6 +338,19 @@ export function fakeWebGPUDevice(options: {
     },
     mappedPixels: () => new Uint8Array(pickPixel),
     currentCapturePixel: () => new Uint8Array(capturePixel),
+    captureCopyCount: () => captureCopies,
+    lastMappedBytes: () => mappedBytes.slice(),
+    async loseDevice(reason: GPUDeviceLostReason) {
+      resolveLost({ reason, message: `lost:${reason}` });
+      await Promise.resolve();
+    },
+    async completeReplacementDevice() {
+      const next = Object.assign({}, device, {
+        lost: new Promise<GPUDeviceLostInfo>(() => {}),
+      }) as GPUDevice;
+      resolveReplacement(next);
+      await Promise.resolve();
+    },
   };
 }
 
