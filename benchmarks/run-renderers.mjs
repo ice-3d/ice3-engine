@@ -36,12 +36,13 @@ if (!address || typeof address === 'string') {
 }
 
 let browser;
+let page;
 try {
   browser = await chromium.launch({
     headless,
     args: ['--enable-unsafe-webgpu'],
   });
-  const page = await browser.newPage({
+  page = await browser.newPage({
     viewport: { width: 1440, height: 1000 },
     deviceScaleFactor: 1,
   });
@@ -128,7 +129,11 @@ try {
   console.log(`JSON: ${jsonPath}`);
   console.log(`Markdown: ${markdownPath}`);
 } finally {
+  if (page) {
+    await page.goto('about:blank').catch(() => undefined);
+  }
   await browser?.close();
+  server.closeAllConnections();
   await new Promise((resolveClose, rejectClose) => {
     server.close((error) => {
       if (error) rejectClose(error);

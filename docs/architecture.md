@@ -18,7 +18,7 @@ Prepared GLB / Tileset
           ↓
     @ice3/runtime scene
           ↓
- @ice3/renderer WebGL2
+ @ice3/renderer WebGL2 / WebGPU
           ↓
        browser GPU
 
@@ -31,7 +31,7 @@ consumer → ice3 public facade → internal packages
 |---|---|
 | `@ice3/core` | Math、Scene graph、Geometry、Material、Camera、Event、Serialization 和 Diagnostic；不依赖 DOM 或 GPU |
 | `@ice3/assets` | Prepared GLB 和 Tileset parsing、profile validation 及不可变 snapshot |
-| `@ice3/renderer` | WebGL2 frame execution、Geometry residency、instancing、render batch 和 picking |
+| `@ice3/renderer` | WebGPU/WebGL2 backend、能力探测、frame execution、Geometry residency、instancing、render batch 和 picking |
 | `@ice3/runtime` | Engine lifecycle、2D layer、input routing、Asset handle、Tileset scheduling 和 LOD |
 | `ice3` | 供应用使用的公开 package facade |
 

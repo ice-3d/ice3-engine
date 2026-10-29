@@ -14,7 +14,7 @@
 
 - Node.js 24.22.1 LTS
 - npm 11 或更高版本
-- 支持 WebGL2 的 Chromium 或 WebKit
+- 支持 WebGL2 的 Chromium 或 WebKit；现代桌面浏览器可自动使用 WebGPU
 
 ## 操作步骤
 
@@ -36,6 +36,9 @@ npm run dev:example:m1
 
 Open `http://127.0.0.1:8104/`.
 
+追加 `?renderer=webgpu` 或 `?renderer=webgl2` 可强制图形后端。默认 `auto` 只在
+Adapter、Device、Context 和最小 Pipeline 探测通过时选择 WebGPU。
+
 ## 预期结果
 
 - M0 显示平光 cube，并呈现清晰 Geometry edge。
@@ -49,6 +52,7 @@ Open `http://127.0.0.1:8104/`.
 | 现象 | 检查 |
 |---|---|
 | WebGL2 不可用 | 启用硬件加速并使用当前浏览器 |
+| WebGPU 可用但选择了 WebGL2 | 在 `getDiagnostics().rendererSelection.fallbackReason` 查看探测失败原因 |
 | M1 Scene 空白 | 检查 `docs/diagnostics.md` 以及浏览器 network panel 中的 Tileset/GLB failure |
 | Asset 显示为 placeholder | 确认版本库中的 `tiled/` tree 存在 |
 | Connection refused | 确认 command 仍在文档指定端口运行 |
