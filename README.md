@@ -46,6 +46,17 @@ npm run dev:example:m1
 `http://127.0.0.1:8103/` 查看最小 M0 Scene，使用
 `http://127.0.0.1:8104/?demo=adaptive` 查看空闲时 Worker batching。
 
+## npm package
+
+公开 Engine package 为 `ice3`：
+
+```bash
+npm install ice3
+```
+
+应用只从 `ice3` 导入。仓库内的 `@ice3/*` package 是实现边界，不单独发布；npm
+发行产物会把它们打入 `ice3`。
+
 ## 最小 Scene
 
 ```ts

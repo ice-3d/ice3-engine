@@ -11,6 +11,7 @@
 | ID | 标题 | Status | 用途 |
 |---|---|---|---|
 | `ICE3-ENG-RM-001` | [ICE3 Engine](../README.md) | Active | Runtime 概览、快速开始和仓库地图 |
+| `ICE3-ENG-RM-002` | [npm package ice3](../packages/ice3/README.md) | Active | 发布 package 的安装和最小使用说明 |
 | `ICE3-ENG-ARC-001` | [Engine 架构](architecture.md) | Active | package 边界、帧生命周期和 Asset 流程 |
 | `ICE3-ENG-IDX-002` | [架构决策](decisions/README.md) | Active | Engine 设计决策索引 |
 | `ICE3-ENG-POL-001` | [仓库规则](../AGENTS.md) | Active | 架构和交付约束 |

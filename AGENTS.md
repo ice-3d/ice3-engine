@@ -13,6 +13,7 @@
 - `@ice3/core` 必须独立于 DOM、Canvas、GPU 和同级 package。
 - Renderer 实现不得通过公开 API 泄漏 GPU objects。
 - Runtime 只接受 ICE3 Prepared GLB Profile Asset；source format parsing 和重型 Geometry conversion 留在 `ice3-toolchain`。
+- npm 公开发布入口只有 `ice3`；`@ice3/core`、`@ice3/assets`、`@ice3/renderer` 和 `@ice3/runtime` 保持私有 workspace package，并打入 `ice3` 发布产物。
 - 应用、脚本、测试、编辑器和外部 adapter 使用同一套公开 semantic API。
 - Runtime 以 Geometry 为先；Material 和 lighting 保持基础能力。
 - Selection、LOD、camera、Canvas layers 和 input routing 必须保持稳定 Scene identity。
