@@ -35,6 +35,11 @@ import {
   WEBGPU_UNIFORM_BYTES,
   WEBGPU_UNIFORM_STRIDE,
 } from './WebGPURenderPipeline.js';
+import {
+  collectWebGPUPickIds,
+  WebGPUPicker,
+} from './WebGPUPicker.js';
+import type { ICEScreenPoint } from './types.js';
 
 const VERTEX_USAGE = 32 | 8;
 const UNIFORM_USAGE = 64 | 8;
@@ -71,6 +76,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
   private context: GPUCanvasContext | null = null;
   private geometryCache: WebGPUGeometryCache | null = null;
   private instanceCache: WebGPUInstanceCache | null = null;
+  private picker: WebGPUPicker | null = null;
   private identityInstances: GPUBuffer | null = null;
   private zeroSemantics: GPUBuffer | null = null;
   private uniformBuffer: GPUBuffer | null = null;
@@ -142,6 +148,11 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.context = context;
     this.geometryCache = new WebGPUGeometryCache({ device: this.device });
     this.instanceCache = new WebGPUInstanceCache(this.device);
+    this.picker = new WebGPUPicker(
+      this.device,
+      this.format,
+      this.pipeline,
+    );
     this.capabilities = {
       backend: 'webgpu',
       maxTextureSize: this.device.limits.maxTextureDimension2D,
@@ -186,6 +197,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
       format: 'depth24plus',
       usage: RENDER_ATTACHMENT_USAGE,
     });
+    this.picker?.resize(this.canvas.width, this.canvas.height);
   }
 
   setBackgroundColor(color: string): void {
@@ -483,8 +495,40 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.frameStats.gpuBytes = cache.totalBytes + instanceCache.totalBytes;
   }
 
+  async pick(
+    frame: ICEFrame,
+    point: ICEScreenPoint,
+  ): Promise<string | undefined> {
+    if (!this.picker) {
+      throw new ICEEngineError(
+        'ICE3_WEBGPU_PICK_UNAVAILABLE',
+        'ICE3_WEBGPU_PICK_UNAVAILABLE: picker is not initialized',
+      );
+    }
+    try {
+      return await this.picker.pick(
+        { ...frame, point },
+        this.requireGeometryCache(),
+        collectWebGPUPickIds(frame),
+      );
+    } catch (error) {
+      if (
+        error instanceof ICEEngineError
+        && error.code === 'ICE3_WEBGPU_PICK_UNAVAILABLE'
+      ) {
+        throw error;
+      }
+      throw new ICEEngineError(
+        'ICE3_WEBGPU_PICK_UNAVAILABLE',
+        'ICE3_WEBGPU_PICK_UNAVAILABLE: exact pick failed',
+        { cause: error },
+      );
+    }
+  }
+
   dispose(): void {
     this.geometryCache?.dispose();
+    this.picker?.dispose();
     this.instanceCache?.dispose();
     this.identityInstances?.destroy();
     this.zeroSemantics?.destroy();
@@ -492,6 +536,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.depthTexture?.destroy();
     this.context?.unconfigure();
     this.geometryCache = null;
+    this.picker = null;
     this.instanceCache = null;
     this.identityInstances = null;
     this.zeroSemantics = null;

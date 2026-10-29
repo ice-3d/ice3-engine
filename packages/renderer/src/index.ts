@@ -23,6 +23,10 @@ export {
   type WebGPUInstanceEntry,
 } from './WebGPUInstanceCache.js';
 export {
+  collectWebGPUPickIds,
+  WebGPUPicker,
+} from './WebGPUPicker.js';
+export {
   collectRenderables,
   selectionIdentity,
   type ICEGeometryRenderable,

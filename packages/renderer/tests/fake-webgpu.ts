@@ -115,6 +115,7 @@ export function fakeWebGPUDevice(options: {
   const draws: any[] = [];
   const selectionDraws: any[] = [];
   const contexts: any[] = [];
+  const copyCalls: any[] = [];
   let pickPixel = new Uint8Array(options.pickPixel ?? [0, 0, 0, 255]);
   let capturePixel = new Uint8Array(options.capturePixel ?? [0, 0, 0, 255]);
 
@@ -146,6 +147,13 @@ export function fakeWebGPUDevice(options: {
         destroy() {
           buffer.destroyed = true;
         },
+        async mapAsync() {},
+        getMappedRange() {
+          const data = new Uint8Array(256);
+          data.set(pickPixel, 0);
+          return data.buffer;
+        },
+        unmap() {},
       } as FakeBuffer;
       buffers.push(buffer);
       return buffer;
@@ -219,11 +227,14 @@ export function fakeWebGPUDevice(options: {
         copyTextureToBuffer(
           source: GPUTexelCopyTextureInfo,
           destination: GPUTexelCopyBufferInfo,
-          size: GPUExtent3DStrict,
+          extent: GPUExtent3DStrict,
         ) {
-          void source;
-          void destination;
-          void size;
+          copyCalls.push({
+            source,
+            destination,
+            ...extent,
+            origin: source.origin,
+          });
         },
         finish() {
           return {};
@@ -288,6 +299,7 @@ export function fakeWebGPUDevice(options: {
     draws,
     selectionDraws,
     contexts,
+    copyCalls,
     depthTextures,
     setPickPixel(value: Uint8Array) {
       pickPixel = value;

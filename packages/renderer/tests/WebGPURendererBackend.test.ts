@@ -56,6 +56,19 @@ it('draws one mesh and reports its renderer statistics', async () => {
   });
 });
 
+it('resolves a backend pick through the stable selection identity', async () => {
+  const fake = fakeWebGPUDevice({
+    pickPixel: new Uint8Array([0, 0, 1, 255]),
+  });
+  const backend = await WebGPURendererBackend.create(fake.context);
+  backend.initialize({ canvas: fake.canvas() });
+  backend.resize({ x: 0, y: 0, width: 320, height: 180 }, 1);
+
+  await expect(
+    backend.pick(meshFrame(), { x: 160, y: 90 }),
+  ).resolves.toBe('box');
+});
+
 function emptyFrame(): ICEFrame {
   return {
     frameId: 1,
