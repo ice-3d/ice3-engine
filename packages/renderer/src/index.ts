@@ -29,6 +29,10 @@ export {
   type WebGPUInstanceEntry,
 } from './WebGPUInstanceCache.js';
 export {
+  WebGPUDrawStorage,
+  type ICEWebGPUDrawUniform,
+} from './WebGPUDrawStorage.js';
+export {
   buildSelectionMask,
   WebGPUSelectionMaskBuffer,
   type ICESelectionMaskLayout,

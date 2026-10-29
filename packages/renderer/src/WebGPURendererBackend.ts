@@ -45,6 +45,7 @@ import {
   WebGPUSelectionMaskBuffer,
   type ICESelectionMaskLayout,
 } from './WebGPUSelectionMask.js';
+import { WebGPUDrawStorage } from './WebGPUDrawStorage.js';
 import {
   collectWebGPUPickIds,
   WebGPUPicker,
@@ -127,6 +128,10 @@ export class WebGPURendererBackend implements ICERendererBackend {
   private readonly renderablesScratch: ICEGeometryRenderable[] = [];
   private readonly batchesScratch: ICERenderBatchDraw[] = [];
   private readonly instancesScratch: ICEInstanceBatch[] = [];
+  private readonly drawListScratch: PendingDraw[] = [];
+  private readonly instancedMeshIds = new Set<string>();
+  private readonly selected = new Set<string>();
+  private readonly drawStorage = new WebGPUDrawStorage();
   private readonly mvpScratch = new ICEMatrix4();
   private readonly worldScratch = new ICEMatrix4();
   private readonly profiler = new RendererProfiler();
@@ -324,28 +329,77 @@ export class WebGPURendererBackend implements ICERendererBackend {
     const viewProjection = frame.camera.getViewProjectionMatrix(aspect);
     const world = this.worldScratch;
     const mvp = this.mvpScratch;
-    const drawList: PendingDraw[] = [];
-    const instancedMeshIds = new Set<string>();
-    const selected = new Set(frame.selection);
+    const drawList = this.drawListScratch;
+    drawList.length = 0;
+    this.drawStorage.begin(0);
+    const instancedMeshIds = this.instancedMeshIds;
+    instancedMeshIds.clear();
+    const selected = this.selected;
+    selected.clear();
+    for (const id of frame.selection) selected.add(id);
     const selectionMaskActive = this.selectionMaskBuffer !== null;
     const selectionMaskEnabled = selectionMaskActive
       && frame.selection.length > 0;
+    let selectionEntryCount = 0;
     const pushDraw = (
-      draw: Omit<PendingDraw, 'matrix'>,
+      draw: Omit<PendingDraw, 'selectionBase'>,
       matrix: Float32Array,
       selectionIds?: readonly string[],
     ): void => {
+      const selectionBase = selectionMaskEnabled
+        ? selectionEntryCount
+        : 0;
+      this.drawStorage.append({
+        ...draw,
+        matrix,
+        selectionBase,
+        useSelectionMask: Boolean(draw.useSelectionMask),
+      });
       drawList.push({
         ...draw,
         ...(selectionIds ? { selectionIds } : {}),
-        matrix: new Float32Array(matrix),
+        selectionBase,
       });
+      if (selectionMaskEnabled && selectionIds) {
+        selectionEntryCount += selectionIds.length;
+      }
     };
     const matrixFor = (source: ArrayLike<number>): Float32Array => {
       mvp.elements.set(viewProjection.elements);
       world.elements.set(source);
       mvp.multiply(world);
       return mvp.elements;
+    };
+    const pushEdgeDraws = (
+      geometry: WebGPUGeometryEntry,
+      instance: WebGPUInstanceEntry | null,
+      matrix: Float32Array,
+      color: readonly [number, number, number, number],
+      pipeline: GPURenderPipeline,
+      selection?: {
+        readonly selectionIds: readonly string[];
+        readonly useSelectionMask: boolean;
+        readonly useSemantic: boolean;
+      },
+    ): void => {
+      if (!geometry.edgeIndexBuffer || geometry.edgeCount === 0) return;
+      const clipPixelX = 2 / Math.max(1, this.viewport.width * this.dpr);
+      const clipPixelY = 2 / Math.max(1, this.viewport.height * this.dpr);
+      for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
+        pushDraw({
+          geometry,
+          instanceBuffer: instance?.matrixBuffer ?? this.identityInstances!,
+          semanticBuffer: instance?.semanticBuffer ?? this.zeroSemantics!,
+          instanceCount: instance?.instanceCount ?? 1,
+          color,
+          useVertexColor: false,
+          useInstancing: instance !== null,
+          pipeline,
+          clipOffset: [offsetX * clipPixelX, offsetY * clipPixelY],
+          edge: true,
+          ...(selection ?? {}),
+        }, matrix, selection?.selectionIds);
+      }
     };
 
     for (const batch of instances) {
@@ -364,8 +418,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
         useSelectionMask: selectionMaskEnabled,
       }, viewProjection.elements, batch.semanticIds);
       if (batch.material.edgeColor) {
-        this.pushEdgeDraws(
-          drawList,
+        pushEdgeDraws(
           geometry,
           instance,
           viewProjection.elements,
@@ -378,8 +431,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
         && batch.material.edgeColor
         && batch.semanticIds.some((id) => selected.has(id))
       ) {
-        this.pushEdgeDraws(
-          drawList,
+        pushEdgeDraws(
           geometry,
           instance,
           viewProjection.elements,
@@ -430,8 +482,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
       }, matrix, draw.batch.semanticSelectionIds);
       this.frameStats.renderedBatches += 1;
       if (draw.batch.material.edgeColor) {
-        this.pushEdgeDraws(
-          drawList,
+        pushEdgeDraws(
           geometry,
           null,
           matrix,
@@ -444,8 +495,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
         && draw.batch.material.edgeColor
         && draw.batch.semanticSelectionIds.some((id) => selected.has(id))
       ) {
-        this.pushEdgeDraws(
-          drawList,
+        pushEdgeDraws(
           geometry,
           null,
           matrix,
@@ -499,8 +549,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
       }, matrix, [renderable.mesh.selectionId]);
       this.frameStats.renderedMeshes += 1;
       if (renderable.mesh.material.edgeColor) {
-        this.pushEdgeDraws(
-          drawList,
+        pushEdgeDraws(
           geometry,
           null,
           matrix,
@@ -526,8 +575,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
             pipeline: this.pipeline.selectionTriangle,
           }, matrix);
         }
-        this.pushEdgeDraws(
-          drawList,
+        pushEdgeDraws(
           geometry,
           null,
           matrix,
@@ -551,24 +599,11 @@ export class WebGPURendererBackend implements ICERendererBackend {
         )
       : { words: EMPTY_SELECTION, bases: [] };
     this.selectionMaskBuffer?.update(selectionLayout.words);
-    this.ensureUniformCapacity(drawList.length);
-    const uniforms = new Float32Array(drawList.length * 64);
-    for (let index = 0; index < drawList.length; index += 1) {
-      const draw = drawList[index]!;
-      const offset = index * 64;
-      uniforms.set(draw.matrix, offset);
-      uniforms.set(draw.color, offset + 16);
-      uniforms[offset + 20] = draw.clipOffset?.[0] ?? 0;
-      uniforms[offset + 21] = draw.clipOffset?.[1] ?? 0;
-      uniforms[offset + 22] = draw.useVertexColor ? 1 : 0;
-      uniforms[offset + 23] = draw.useInstancing ? 1 : 0;
-      uniforms[offset + 24] = draw.semanticHighlight ?? 0;
-      uniforms[offset + 25] = draw.useSemantic ? 1 : 0;
-      uniforms[offset + 26] = 0;
-      uniforms[offset + 27] = 0;
-      uniforms[offset + 28] = selectionLayout.bases[index] ?? 0;
-      uniforms[offset + 29] = draw.useSelectionMask ? 1 : 0;
-    }
+    this.ensureUniformCapacity(this.drawStorage.drawCount);
+    const uniforms = this.drawStorage.uniformData.subarray(
+      0,
+      this.drawStorage.drawCount * 64,
+    );
     if (uniforms.length > 0) {
       this.device.queue.writeBuffer(
         this.uniformBuffer!,
@@ -827,40 +862,6 @@ export class WebGPURendererBackend implements ICERendererBackend {
       : 'timestamp-query unavailable';
   }
 
-  private pushEdgeDraws(
-    output: PendingDraw[],
-    geometry: WebGPUGeometryEntry,
-    instance: WebGPUInstanceEntry | null,
-    matrix: Float32Array,
-    color: readonly [number, number, number, number],
-    pipeline: GPURenderPipeline,
-    selection?: {
-      readonly selectionIds: readonly string[];
-      readonly useSelectionMask: boolean;
-      readonly useSemantic: boolean;
-    },
-  ): void {
-    if (!geometry.edgeIndexBuffer || geometry.edgeCount === 0) return;
-    const clipPixelX = 2 / Math.max(1, this.viewport.width * this.dpr);
-    const clipPixelY = 2 / Math.max(1, this.viewport.height * this.dpr);
-    for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
-      output.push({
-        geometry,
-        instanceBuffer: instance?.matrixBuffer ?? this.identityInstances!,
-        semanticBuffer: instance?.semanticBuffer ?? this.zeroSemantics!,
-        instanceCount: instance?.instanceCount ?? 1,
-        matrix: new Float32Array(matrix),
-        color,
-        useVertexColor: false,
-        useInstancing: instance !== null,
-        pipeline,
-        clipOffset: [offsetX * clipPixelX, offsetY * clipPixelY],
-        edge: true,
-        ...(selection ?? {}),
-      });
-    }
-  }
-
   get stats(): Readonly<typeof this.frameStats> {
     return this.frameStats;
   }
@@ -1019,7 +1020,7 @@ type PendingDraw = {
   readonly instanceBuffer: GPUBuffer;
   readonly semanticBuffer: GPUBuffer;
   readonly instanceCount: number;
-  readonly matrix: Float32Array;
+  readonly selectionBase: number;
   readonly color: readonly [number, number, number, number];
   readonly useVertexColor: boolean;
   readonly useInstancing: boolean;
