@@ -3,6 +3,7 @@ import {
   ICEBoxGeometry,
   ICEIndexedGeometry,
   ICEMesh,
+  ICENode,
   ICEPerspectiveCamera,
   ICEScene,
 } from '@ice3/core';
@@ -27,15 +28,27 @@ export function benchmarkScene(
     case 'picking':
       return uniqueMeshScene(scenario === 'picking' ? 100 : 0);
     case 'instanced-grid':
-      return instancedScene();
+      return instancedScene(10_000);
+    case 'instanced-50k':
+      return instancedScene(50_000);
+    case 'culling-20k':
+      return cullingScene();
     case 'static-batches':
       return batchScene();
     case 'selection':
       return uniqueMeshScene(0, true);
     case 'wastewater-mixed':
+    case 'wastewater-1x':
+    case 'wastewater-5x':
+    case 'wastewater-20x':
       return {
         ...emptyScene(),
         assetUrl: '/assets/wastewater-plant/tiled/tileset.json',
+        scale: scenario === 'wastewater-20x'
+          ? 20
+          : scenario === 'wastewater-5x'
+            ? 5
+            : 1,
       };
   }
 }
@@ -67,31 +80,93 @@ function uniqueMeshScene(
     trianglesPerBatch: 0,
     selection,
     pickCount,
+    scale: 1,
   };
 }
 
-function instancedScene(): ICEBenchmarkScene {
+function instancedScene(count: number): ICEBenchmarkScene {
   const scene = new ICEScene({ id: 'benchmark-instances' });
-  for (let index = 0; index < 10_000; index += 1) {
+  const width = Math.ceil(Math.sqrt(count));
+  const meshes: ICENode[] = [];
+  for (let index = 0; index < count; index += 1) {
     const id = `benchmark/instance/${index.toString().padStart(5, '0')}`;
-    scene.addChild(new ICEMesh({
+    meshes.push(new ICEMesh({
       id,
       selectionId: id,
       geometry: SHARED_BOX,
       material: SHARED_MATERIAL,
-      position: [(index % 100) * 1.4, 0, Math.floor(index / 100) * 1.4],
+      position: [(index % width) * 1.4, 0, Math.floor(index / width) * 1.4],
     }));
   }
+  scene.addChild(new BenchmarkMeshCollection(
+    'benchmark/instance-collection',
+    meshes,
+  ));
   return {
     scene,
     camera: benchmarkCamera(),
     meshCount: 0,
-    instanceCount: 10_000,
+    instanceCount: count,
     batchCount: 0,
     trianglesPerBatch: 0,
     selection: [],
     pickCount: 0,
+    scale: 1,
   };
+}
+
+function cullingScene(): ICEBenchmarkScene {
+  const scene = new ICEScene({ id: 'benchmark-culling' });
+  const groupOffsets = [
+    [0, 0, 0],
+    [0, 0, -10_000],
+    [10_000, 0, 0],
+    [-10_000, 0, 0],
+  ] as const;
+  const meshes: ICENode[] = [];
+  for (let group = 0; group < groupOffsets.length; group += 1) {
+    const offset = groupOffsets[group]!;
+    for (let index = 0; index < 5_000; index += 1) {
+      const id = `benchmark/culling/${group}/${index}`;
+      meshes.push(new ICEMesh({
+        id,
+        selectionId: id,
+        geometry: SHARED_BOX,
+        material: SHARED_MATERIAL,
+        position: [
+          offset[0] + (index % 50) * 2,
+          offset[1],
+          offset[2] + Math.floor(index / 50) * 2,
+        ],
+      }));
+    }
+  }
+  scene.addChild(new BenchmarkMeshCollection(
+    'benchmark/culling-collection',
+    meshes,
+  ));
+  return {
+    scene,
+    camera: benchmarkCamera(),
+    meshCount: 0,
+    instanceCount: 20_000,
+    batchCount: 0,
+    trianglesPerBatch: 0,
+    selection: [],
+    pickCount: 0,
+    scale: 1,
+    visibleInstanceHint: 5_000,
+  };
+}
+
+class BenchmarkMeshCollection extends ICENode {
+  constructor(id: string, private readonly meshes: readonly ICENode[]) {
+    super({ id });
+  }
+
+  override get children(): readonly ICENode[] {
+    return this.meshes;
+  }
 }
 
 function batchScene(): ICEBenchmarkScene {
@@ -130,6 +205,7 @@ function batchScene(): ICEBenchmarkScene {
     trianglesPerBatch: 10_000,
     selection: [],
     pickCount: 0,
+    scale: 1,
   };
 }
 
@@ -143,6 +219,7 @@ function emptyScene(): ICEBenchmarkScene {
     trianglesPerBatch: 0,
     selection: [],
     pickCount: 0,
+    scale: 1,
   };
 }
 

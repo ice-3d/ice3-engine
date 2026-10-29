@@ -13,6 +13,7 @@ import {
   type ICEFrameStageProfile,
 } from '@ice3/renderer';
 import { benchmarkScene } from '../core/scenarios';
+import { cloneBenchmarkScene } from '../core/cloneScene';
 import type {
   ICEBenchmarkCpuStageSamples,
   ICEBenchmarkScenarioId,
@@ -198,9 +199,13 @@ async function resolveScene(
   const loader = new ICETilesetLoader(engine, { camera: benchmark.camera });
   const handle = await loader.open(benchmark.assetUrl);
   await handle.whenIdle();
+  const scaled = benchmark.scale > 1
+    ? cloneBenchmarkScene(handle.scene, benchmark.scale)
+    : handle.scene;
+  engine.setScene(scaled).start();
   engine.stop();
   return {
-    scene: handle.scene,
+    scene: scaled,
     camera: benchmark.camera,
     selection: benchmark.selection,
     pickCount: benchmark.pickCount,
@@ -255,6 +260,11 @@ function isScenario(value: string): value is ICEBenchmarkScenarioId {
     'static-batches',
     'selection',
     'picking',
+    'instanced-50k',
+    'culling-20k',
     'wastewater-mixed',
+    'wastewater-1x',
+    'wastewater-5x',
+    'wastewater-20x',
   ].includes(value);
 }

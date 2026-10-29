@@ -14,7 +14,12 @@ const scenarios = [
   'static-batches',
   'selection',
   'picking',
+  'instanced-50k',
+  'culling-20k',
   'wastewater-mixed',
+  'wastewater-1x',
+  'wastewater-5x',
+  'wastewater-20x',
 ];
 const args = process.argv.slice(2);
 const headless = args.includes('--headless');

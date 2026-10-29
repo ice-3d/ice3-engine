@@ -19,3 +19,11 @@ it('produces deterministic scene identities', () => {
     benchmarkScene('unique-meshes').scene.children.map((node) => node.id),
   );
 });
+
+it('declares scale and GPU-culling workloads', () => {
+  expect(benchmarkScene('instanced-50k').instanceCount).toBe(50_000);
+  expect(benchmarkScene('culling-20k').instanceCount).toBe(20_000);
+  expect(benchmarkScene('culling-20k').visibleInstanceHint).toBe(5_000);
+  expect(benchmarkScene('wastewater-5x').scale).toBe(5);
+  expect(benchmarkScene('wastewater-20x').scale).toBe(20);
+});

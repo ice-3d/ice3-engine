@@ -10,7 +10,12 @@ export type ICEBenchmarkScenarioId =
   | 'static-batches'
   | 'selection'
   | 'picking'
-  | 'wastewater-mixed';
+  | 'instanced-50k'
+  | 'culling-20k'
+  | 'wastewater-mixed'
+  | 'wastewater-1x'
+  | 'wastewater-5x'
+  | 'wastewater-20x';
 
 export type ICEBenchmarkScene = Readonly<{
   scene: ICEScene;
@@ -21,6 +26,8 @@ export type ICEBenchmarkScene = Readonly<{
   trianglesPerBatch: number;
   selection: readonly string[];
   pickCount: number;
+  scale: number;
+  visibleInstanceHint?: number;
   assetUrl?: string;
 }>;
 
