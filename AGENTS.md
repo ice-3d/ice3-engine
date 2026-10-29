@@ -14,6 +14,15 @@
 - Renderer implementations must not leak GPU objects through public APIs.
 - Runtime accepts only ICE3 Prepared GLB Profile assets; source-format parsing and heavy geometry conversion stay in `ice3-toolchain`.
 - Applications, scripts, tests, editors, and external adapters use the same public semantic API.
+- Runtime behavior is geometry-first; material and lighting support stays intentionally basic.
+- Selection, LOD, camera, Canvas layers, and input routing preserve stable scene identity.
+
+## Asset boundary
+
+- Runtime fixtures and examples contain only synthetic, sanitized, or explicitly redistributable assets.
+- Do not add customer models, converted fragments, coarse models, previews, or extracted textures to this repository.
+- Prepared asset compatibility and budget definitions follow the canonical contract in `ice3-doc`.
+- Changes to the Prepared GLB profile require matching `ice3-toolchain` generation and conformance verification.
 
 ## Delivery
 
@@ -32,24 +41,9 @@
 
 - Do not use competitor, vendor, or third-party product names in documents, code, comments, identifiers, links, or examples.
 - Do not use their brand words, case variants, truncations, or concatenations as package names, directories, classes, or variables.
-- Describe comparisons only with approved neutral categories such as “general 3D library”, “declarative chart extension”, or “commercial HMI/SCADA implementation”.
-- Do not link to external materials that expose prohibited names. Keep any necessary research outside product repositories and subject it to legal review.
+- Describe comparisons only with approved neutral categories.
+- Do not link to external research that exposes prohibited names.
 - Audit names before every commit and release.
-
-## Customer asset protection
-
-- Real customer model assets remain in a controlled local directory outside every repository.
-- Original models and derived assets must not enter source, tests, examples, documentation, screenshots, logs, build output, packages, or Git history.
-- Derived assets include converted models, simplified models, previews, thumbnails, extracted textures, and other identifiable content.
-- Do not stage, commit, push, or upload customer assets or derivative data to any remote service.
-- Tests, demos, and public builds use synthetic, sanitized, or explicitly redistributable assets.
-- Before completing asset-related work, inspect Git status, tracked files, ignore rules, and staged content.
-
-## Cross-repository contracts
-
-- `ice3-doc` is the single source of truth for formats, metrics, budgets, compatibility rules, shared diagnostics, and other cross-project contracts.
-- This repository documents its own implementation and links to the canonical contract instead of independently maintaining a complete copy.
-- A contract change requires checking every consumer in the ICE3 family and passing the frozen contract or conformance tests.
 
 ## Verification
 
