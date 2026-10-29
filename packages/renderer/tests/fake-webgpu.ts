@@ -84,3 +84,173 @@ export function fakeWebGPUEnvironment(options: {
     destroyCount: () => destroyed,
   };
 }
+
+type FakeBuffer = GPUBuffer & {
+  readonly size: number;
+  readonly usage: GPUBufferUsageFlags;
+  readonly label: string;
+  destroyed: boolean;
+};
+
+type FakeTexture = GPUTexture & {
+  readonly size: readonly [number, number];
+  readonly usage: GPUTextureUsageFlags;
+  destroyed: boolean;
+};
+
+export function fakeWebGPUDevice(options: {
+  readonly pickPixel?: Uint8Array;
+  readonly capturePixel?: readonly number[];
+} = {}) {
+  const buffers: FakeBuffer[] = [];
+  const writes: Array<{
+    readonly buffer: FakeBuffer;
+    readonly offset: number;
+    readonly size: number;
+    readonly data: Uint8Array;
+  }> = [];
+  const depthTextures: FakeTexture[] = [];
+  const submissions: GPUCommandBuffer[][] = [];
+  const renderPasses: any[] = [];
+  const draws: any[] = [];
+  const contexts: any[] = [];
+  let pickPixel = new Uint8Array(options.pickPixel ?? [0, 0, 0, 255]);
+  let capturePixel = new Uint8Array(options.capturePixel ?? [0, 0, 0, 255]);
+
+  const device = {
+    createBuffer(description: GPUBufferDescriptor) {
+      const buffer = {
+        size: description.size,
+        usage: description.usage,
+        label: description.label ?? '',
+        destroyed: false,
+        destroy() {
+          buffer.destroyed = true;
+        },
+      } as FakeBuffer;
+      buffers.push(buffer);
+      return buffer;
+    },
+    createTexture(description: GPUTextureDescriptor) {
+      const width = typeof description.size === 'number'
+        ? description.size
+        : description.size[0];
+      const height = typeof description.size === 'number'
+        ? description.size
+        : description.size[1];
+      const texture = {
+        size: [width, height] as const,
+        usage: description.usage,
+        destroyed: false,
+        createView: () => ({ texture }),
+        destroy() {
+          texture.destroyed = true;
+        },
+      } as unknown as FakeTexture;
+      depthTextures.push(texture);
+      return texture;
+    },
+    createCommandEncoder() {
+      return {
+        beginRenderPass(description: GPURenderPassDescriptor) {
+          const pass = {
+            description,
+            draws,
+            setPipeline() {},
+            setBindGroup() {},
+            setVertexBuffer() {},
+            setIndexBuffer() {},
+            draw(indexCount: number, instanceCount = 1) {
+              draws.push({ indexCount, instanceCount });
+            },
+            drawIndexed(
+              indexCount: number,
+              instanceCount = 1,
+              firstIndex = 0,
+            ) {
+              draws.push({ indexCount, instanceCount, firstIndex });
+            },
+            end() {},
+          };
+          renderPasses.push(pass);
+          return pass;
+        },
+        copyTextureToBuffer(
+          source: GPUTexelCopyTextureInfo,
+          destination: GPUTexelCopyBufferInfo,
+          size: GPUExtent3DStrict,
+        ) {
+          void source;
+          void destination;
+          void size;
+        },
+        finish() {
+          return {};
+        },
+      };
+    },
+    queue: {
+      writeBuffer(
+        buffer: FakeBuffer,
+        offset: number,
+        data: ArrayBufferView,
+      ) {
+        const bytes = data instanceof Uint8Array
+          ? data.slice()
+          : new Uint8Array(
+              data.buffer,
+              data.byteOffset,
+              data.byteLength,
+            ).slice();
+        writes.push({ buffer, offset, size: bytes.byteLength, data: bytes });
+      },
+      submit(commands: GPUCommandBuffer[]) {
+        submissions.push(commands);
+      },
+    },
+    lost: new Promise(() => {}),
+    destroy() {},
+  } as unknown as GPUDevice;
+
+  const context = {
+    configuration: undefined as GPUCanvasConfiguration | undefined,
+    configure(configuration: GPUCanvasConfiguration) {
+      context.configuration = configuration;
+      contexts.push(context);
+    },
+    unconfigure() {
+      context.configuration = undefined;
+    },
+    getCurrentTexture: () => ({
+      createView: () => ({}),
+    }),
+    currentTexture: {
+      createView: () => ({}),
+    },
+  };
+  const canvas = {
+    width: 320,
+    height: 180,
+    getContext: () => context,
+  } as unknown as HTMLCanvasElement;
+  return {
+    device,
+    context,
+    canvas: () => canvas,
+    buffers,
+    writes,
+    submissions,
+    renderPasses,
+    draws,
+    contexts,
+    depthTextures,
+    setPickPixel(value: Uint8Array) {
+      pickPixel = value;
+    },
+    setCapturePixel(value: Uint8Array) {
+      capturePixel = value;
+    },
+    mappedPixels: () => new Uint8Array(pickPixel),
+    currentCapturePixel: () => new Uint8Array(capturePixel),
+  };
+}

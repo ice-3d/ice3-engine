@@ -10,6 +10,15 @@ export type {
   ICEWebGPUProbeResult,
 } from './WebGPUProbe.js';
 export {
+  WebGPUGeometryCache,
+  type WebGPUGeometryCacheOptions,
+  type WebGPUGeometryEntry,
+} from './WebGPUGeometryCache.js';
+export {
+  WebGPUInstanceCache,
+  type WebGPUInstanceEntry,
+} from './WebGPUInstanceCache.js';
+export {
   collectRenderables,
   selectionIdentity,
   type ICEGeometryRenderable,
