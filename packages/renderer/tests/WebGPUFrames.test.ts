@@ -169,6 +169,47 @@ it('falls back to vertex attributes when storage pipeline creation fails', async
   });
 });
 
+it('uses compute visibility and indirect draw for a large batch', async () => {
+  const fake = fakeWebGPUDevice({
+    limits: {
+      maxStorageBuffersPerShaderStage: 8,
+      maxStorageBufferBindingSize: 1 << 20,
+      minStorageBufferOffsetAlignment: 256,
+    },
+    computedInstanceCount: 12,
+  });
+  const backend = await readyBackend(fake, {}, {
+    forceGpuDriven: true,
+  });
+  backend.render(repeatedBoxFrame(2048));
+
+  expect(fake.computePasses).toHaveLength(1);
+  expect(fake.indirectDraws).toHaveLength(1);
+  expect(fake.indirectDraws[0]?.instanceCount).toBe(12);
+});
+
+it('falls back when compute pipeline creation fails', async () => {
+  const fake = fakeWebGPUDevice({
+    limits: {
+      maxStorageBuffersPerShaderStage: 8,
+      maxStorageBufferBindingSize: 1 << 20,
+      minStorageBufferOffsetAlignment: 256,
+    },
+    computePipelineFails: true,
+  });
+  const errors: Error[] = [];
+  const backend = await readyBackend(fake, {
+    onError: (error) => errors.push(error),
+  }, {
+    forceGpuDriven: true,
+  });
+  backend.render(repeatedBoxFrame(2048));
+
+  expect(fake.indirectDraws).toHaveLength(0);
+  expect(fake.draws.length).toBeGreaterThan(0);
+  expect(errors).toHaveLength(1);
+});
+
 function boxMesh(id: string): ICEMesh {
   return new ICEMesh({
     id,

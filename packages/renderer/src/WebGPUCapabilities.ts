@@ -5,6 +5,8 @@ export type ICEWebGPUAccelerationTier =
 
 // Measured CPU benefit was below the 10% promotion threshold.
 export const WEBGPU_STORAGE_DEFAULT = false;
+export const WEBGPU_GPU_DRIVEN_DEFAULT = false;
+export const WEBGPU_INSTANCE_VISIBILITY_THRESHOLD = 1024;
 
 export type ICEWebGPUOptimizationStats = Readonly<{
   tier: ICEWebGPUAccelerationTier;
@@ -40,9 +42,9 @@ export function detectWebGPUAcceleration(
     && alignment >= 4
     && Number.isInteger(alignment)
   );
-  const visibility = false;
+  const visibility = storage && maxBuffers >= 3;
   return {
-    tier: storage ? 'storage' : 'baseline',
+    tier: visibility ? 'gpu-driven' : storage ? 'storage' : 'baseline',
     storage,
     visibility,
     maxStorageBufferBindingSize: maxBindingBytes,

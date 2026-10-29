@@ -21,7 +21,7 @@ it('enables storage when vertex storage limits are sufficient', () => {
     },
   });
   expect(detectWebGPUAcceleration(fake.device)).toMatchObject({
-    tier: 'storage',
+    tier: 'gpu-driven',
     storage: true,
   });
 });

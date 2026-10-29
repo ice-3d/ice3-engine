@@ -30,6 +30,7 @@ export type ICEBenchmarkRunRequest = {
   readonly warmup: number;
   readonly frames: number;
   readonly forceStorage?: boolean;
+  readonly forceGpuDriven?: boolean;
 };
 
 export type ICEBenchmarkRun = {
@@ -76,6 +77,7 @@ async function run(
     const backend = await createBackend(
       request.backend,
       request.forceStorage,
+      request.forceGpuDriven,
     );
     backend.enableProfiling(true);
     engine = new ICE3({ backend });
@@ -174,6 +176,7 @@ async function run(
 async function createBackend(
   backend: 'webgl2' | 'webgpu',
   forceStorage = false,
+  forceGpuDriven = false,
 ): Promise<ICEBenchmarkProfileBackend> {
   if (backend === 'webgl2') return new WebGL2RendererBackend();
   const probe = await probeWebGPU({
@@ -184,6 +187,7 @@ async function createBackend(
   }
   return WebGPURendererBackend.create(probe, {
     forceStoragePath: forceStorage,
+    forceGpuDriven,
   });
 }
 

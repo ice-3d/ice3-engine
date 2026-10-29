@@ -6,6 +6,7 @@ export const WEBGPU_UNIFORM_BYTES = 128;
 const SHADER_SOURCE = (
   selectionMask: boolean,
   storageInstances: boolean,
+  indirectInstances: boolean,
 ): string => `
 struct FrameUniforms {
   worldViewProjection: mat4x4<f32>,
@@ -20,6 +21,7 @@ struct FrameUniforms {
   selectionBase: f32,
   useSelectionMask: f32,
   pageBase: f32,
+  useIndirect: f32,
 }
 
 ${storageInstances
@@ -47,6 +49,9 @@ ${selectionMask
 ${storageInstances
   ? '@group(0) @binding(2) var<storage, read> instances: array<InstanceRecord>;'
   : ''}
+${indirectInstances
+  ? '@group(0) @binding(3) var<storage, read> visibleIndices: array<u32>;'
+  : ''}
 
 @vertex
 fn vertexMain(
@@ -68,7 +73,12 @@ fn vertexMain(
 ) -> VertexOutput {
   ${storageInstances
     ? `
-  let recordIndex = instanceIndex - u32(frame.pageBase);
+  let visibleIndex = ${
+    indirectInstances
+      ? 'visibleIndices[instanceIndex]'
+      : 'instanceIndex - u32(frame.pageBase)'
+  };
+  let recordIndex = visibleIndex;
   let record = instances[recordIndex];
   let instanceMatrix = record.transform;
   let instanceSemantic = record.semantic;
@@ -194,6 +204,7 @@ export class WebGPURenderPipeline {
   readonly selectionLine: GPURenderPipeline;
   readonly selectionMask: boolean;
   readonly storageInstances: boolean;
+  readonly indirectInstances: boolean;
 
   private constructor(
     readonly device: GPUDevice,
@@ -206,6 +217,7 @@ export class WebGPURenderPipeline {
     selectionLine: GPURenderPipeline,
     selectionMask: boolean,
     storageInstances: boolean,
+    indirectInstances: boolean,
   ) {
     this.bindGroupLayout = bindGroupLayout;
     this.pipelineLayout = pipelineLayout;
@@ -215,6 +227,7 @@ export class WebGPURenderPipeline {
     this.selectionLine = selectionLine;
     this.selectionMask = selectionMask;
     this.storageInstances = storageInstances;
+    this.indirectInstances = indirectInstances;
   }
 
   static async create(
@@ -223,10 +236,14 @@ export class WebGPURenderPipeline {
     options: {
       readonly selectionMask?: boolean;
       readonly storageInstances?: boolean;
+      readonly indirectInstances?: boolean;
     } = {},
   ): Promise<WebGPURenderPipeline> {
     try {
       const storageInstances = Boolean(options.storageInstances);
+      const indirectInstances = (
+        storageInstances && Boolean(options.indirectInstances)
+      );
       const selectionMask = Boolean(
         options.selectionMask || storageInstances,
       );
@@ -259,6 +276,16 @@ export class WebGPURenderPipeline {
           },
         });
       }
+      if (indirectInstances) {
+        bindGroupEntries.push({
+          binding: 3,
+          visibility: 1,
+          buffer: {
+            type: 'read-only-storage',
+            minBindingSize: 4,
+          },
+        });
+      }
       const bindGroupLayout = device.createBindGroupLayout({
         entries: bindGroupEntries,
       });
@@ -266,14 +293,22 @@ export class WebGPURenderPipeline {
         bindGroupLayouts: [bindGroupLayout],
       });
       const module = device.createShaderModule({
-        code: SHADER_SOURCE(selectionMask, storageInstances),
+        code: SHADER_SOURCE(
+          selectionMask,
+          storageInstances,
+          indirectInstances,
+        ),
       });
       const createPipeline = (
         label: string,
         topology: GPUPrimitiveTopology,
         selection = false,
       ) => device.createRenderPipelineAsync({
-        label: storageInstances ? `${label}:storage` : label,
+        label: indirectInstances
+          ? `${label}:storage:indirect`
+          : storageInstances
+            ? `${label}:storage`
+            : label,
         layout: pipelineLayout,
         vertex: {
           module,
@@ -338,6 +373,7 @@ export class WebGPURenderPipeline {
         selectionLine,
         selectionMask,
         storageInstances,
+        indirectInstances,
       );
     } catch (error) {
       throw new ICEEngineError(

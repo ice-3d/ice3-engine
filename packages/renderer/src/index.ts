@@ -38,6 +38,8 @@ export {
 } from './WebGPURenderPlan.js';
 export {
   detectWebGPUAcceleration,
+  WEBGPU_GPU_DRIVEN_DEFAULT,
+  WEBGPU_INSTANCE_VISIBILITY_THRESHOLD,
   WEBGPU_STORAGE_DEFAULT,
   type ICEWebGPUAcceleration,
   type ICEWebGPUAccelerationTier,
@@ -51,6 +53,12 @@ export {
   type ICEInstanceStoragePagePlan,
   type WebGPUInstanceStorageOptions,
 } from './WebGPUInstanceStorage.js';
+export {
+  createIndirectArguments,
+  isAabbVisible,
+  WebGPUVisibilityEncoder,
+  type ICEVisibilityEntry,
+} from './WebGPUVisibility.js';
 export { WebGPUBundleCache } from './WebGPUBundleCache.js';
 export {
   buildSelectionMask,

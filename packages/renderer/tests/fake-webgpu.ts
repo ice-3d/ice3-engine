@@ -123,6 +123,9 @@ export function fakeWebGPUDevice(options: {
   readonly bundleExecutionFails?: boolean;
   readonly limits?: Partial<Record<keyof GPUSupportedLimits, number>>;
   readonly storagePipelineFails?: boolean;
+  readonly computePipelineFails?: boolean;
+  readonly indirectFails?: boolean;
+  readonly computedInstanceCount?: number;
 } = {}) {
   const buffers: FakeBuffer[] = [];
   const writes: Array<{
@@ -147,6 +150,8 @@ export function fakeWebGPUDevice(options: {
   }> = [];
   const bundleEncoders: any[] = [];
   const executedBundles: GPURenderBundle[][] = [];
+  const computePasses: any[] = [];
+  const indirectDraws: any[] = [];
   let pickPixel = new Uint8Array(options.pickPixel ?? [0, 0, 0, 255]);
   let capturePixel = new Uint8Array(options.capturePixel ?? [0, 0, 0, 255]);
   let timestampValues = [...(options.timestampValues
@@ -195,6 +200,14 @@ export function fakeWebGPUDevice(options: {
       }
       return { label: description.label ?? '' };
     },
+    createComputePipelineAsync: async (
+      description: GPUComputePipelineDescriptor,
+    ) => {
+      if (options.computePipelineFails) {
+        throw new Error('compute pipeline failed');
+      }
+      return { label: description.label ?? '' };
+    },
     createBindGroup() {
       return {};
     },
@@ -218,6 +231,7 @@ export function fakeWebGPUDevice(options: {
       }
       const calls: string[] = [];
       const bundleDraws: any[] = [];
+      const bundleIndirectDraws: any[] = [];
       let currentPipeline: { readonly label?: string } | undefined;
       const encoder = {
         description,
@@ -246,7 +260,25 @@ export function fakeWebGPUDevice(options: {
             pipeline: currentPipeline?.label,
           });
         },
-        finish: () => ({ calls, draws: bundleDraws }),
+        drawIndexedIndirect(buffer: FakeBuffer, offset: number) {
+          if (options.indirectFails) {
+            throw new Error('indirect draw failed');
+          }
+          calls.push('drawIndexedIndirect');
+          const draw = {
+            buffer,
+            offset,
+            indexCount: 36,
+            instanceCount: options.computedInstanceCount ?? 1,
+          };
+          bundleIndirectDraws.push(draw);
+          bundleDraws.push({ ...draw, pipeline: currentPipeline?.label });
+        },
+        finish: () => ({
+          calls,
+          draws: bundleDraws,
+          indirectDraws: bundleIndirectDraws,
+        }),
       };
       bundleEncoders.push(encoder);
       return encoder;
@@ -360,6 +392,7 @@ export function fakeWebGPUDevice(options: {
               executedBundles.push(bundles);
               for (const bundle of bundles) {
                 draws.push(...((bundle as any).draws ?? []));
+                indirectDraws.push(...((bundle as any).indirectDraws ?? []));
               }
             },
             draw(indexCount: number, instanceCount = 1) {
@@ -385,6 +418,20 @@ export function fakeWebGPUDevice(options: {
                 pipeline: currentPipeline?.label,
               });
             },
+            drawIndexedIndirect(
+              buffer: FakeBuffer,
+              offset: number,
+            ) {
+              if (options.indirectFails) {
+                throw new Error('indirect draw failed');
+              }
+              indirectDraws.push({
+                buffer,
+                offset,
+                indexCount: 36,
+                instanceCount: options.computedInstanceCount ?? 1,
+              });
+            },
             end() {},
           };
           renderPasses.push(pass);
@@ -408,6 +455,27 @@ export function fakeWebGPUDevice(options: {
           }
         },
         resolveQuerySet() {},
+        clearBuffer() {},
+        copyBufferToBuffer() {},
+        beginComputePass() {
+          let pipeline = '';
+          let workgroups = 0;
+          const bindGroups: unknown[] = [];
+          return {
+            setPipeline(value: { readonly label?: string }) {
+              pipeline = value.label ?? '';
+            },
+            setBindGroup(_index: number, bindGroup: unknown) {
+              bindGroups.push(bindGroup);
+            },
+            dispatchWorkgroups(value: number) {
+              workgroups += value;
+            },
+            end() {
+              computePasses.push({ pipeline, workgroups, bindGroups });
+            },
+          };
+        },
         finish() {
           return {};
         },
@@ -496,6 +564,8 @@ export function fakeWebGPUDevice(options: {
     querySets,
     bundleEncoders,
     executedBundles,
+    computePasses,
+    indirectDraws,
     setPickPixel(value: Uint8Array) {
       pickPixel = value;
     },
@@ -533,6 +603,7 @@ export async function readyBackend(
   } = {},
   options: {
     readonly forceStoragePath?: boolean;
+    readonly forceGpuDriven?: boolean;
   } = {},
 ): Promise<WebGPURendererBackend> {
   const backend = await WebGPURendererBackend.create(

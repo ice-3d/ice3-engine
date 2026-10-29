@@ -12,6 +12,7 @@ export type ICEWebGPUDrawUniform = Readonly<{
   selectionBase: number;
   useSelectionMask: boolean;
   pageBase?: number;
+  useIndirect?: boolean;
 }>;
 
 export class WebGPUDrawStorage {
@@ -54,6 +55,7 @@ export class WebGPUDrawStorage {
     this.uniformBuffer[offset + 28] = draw.selectionBase;
     this.uniformBuffer[offset + 29] = draw.useSelectionMask ? 1 : 0;
     this.uniformBuffer[offset + 30] = draw.pageBase ?? 0;
+    this.uniformBuffer[offset + 31] = draw.useIndirect ? 1 : 0;
     this.count += 1;
     return index;
   }

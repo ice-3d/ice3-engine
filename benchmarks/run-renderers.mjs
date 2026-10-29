@@ -27,6 +27,7 @@ const warmup = readNumberOption(args, '--warmup', 60);
 const frames = readNumberOption(args, '--frames', 300);
 const repetitions = readNumberOption(args, '--repetitions', 5);
 const forceStorage = args.includes('--storage');
+const forceGpuDriven = args.includes('--gpu-driven');
 const scenarioFilter = readStringOption(args, '--scenarios')
   ?.split(',')
   .filter(Boolean);
@@ -91,13 +92,20 @@ try {
     for (const scenario of scenarios) {
       for (const backend of order) {
         process.stderr.write(
-          `benchmark ${iteration + 1}/${repetitions} ${backend}${forceStorage ? ':storage' : ''} ${scenario}\n`,
+          `benchmark ${iteration + 1}/${repetitions} ${backend}${forceGpuDriven ? ':gpu-driven' : forceStorage ? ':storage' : ''} ${scenario}\n`,
         );
         await page.goto(baseUrl);
         await page.waitForFunction(() => Boolean(window.__ice3Benchmark));
         const result = await page.evaluate(async (request) => (
           window.__ice3Benchmark.run(request)
-        ), { backend, scenario, warmup, frames, forceStorage });
+        ), {
+          backend,
+          scenario,
+          warmup,
+          frames,
+          forceStorage,
+          forceGpuDriven,
+        });
         rawRuns.push({ iteration, ...result });
       }
     }
