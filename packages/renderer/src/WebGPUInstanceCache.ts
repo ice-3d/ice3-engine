@@ -8,7 +8,7 @@ import type { ICEInstanceBatch } from './InstanceBatch.js';
 export interface WebGPUInstanceEntry {
   readonly matrixBuffer: GPUBuffer;
   readonly semanticBuffer: GPUBuffer;
-  readonly instanceCount: number;
+  instanceCount: number;
   readonly bytes: number;
 }
 
@@ -57,6 +57,7 @@ export class WebGPUInstanceCache {
     }
     writeGPUData(this.device, entry.matrixBuffer, batch.instanceMatrices);
     writeGPUData(this.device, entry.semanticBuffer, batch.semanticIndices);
+    entry.instanceCount = batch.semanticIds.length;
     return entry;
   }
 

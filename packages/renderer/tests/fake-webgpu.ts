@@ -113,6 +113,7 @@ export function fakeWebGPUDevice(options: {
   const submissions: GPUCommandBuffer[][] = [];
   const renderPasses: any[] = [];
   const draws: any[] = [];
+  const selectionDraws: any[] = [];
   const contexts: any[] = [];
   let pickPixel = new Uint8Array(options.pickPixel ?? [0, 0, 0, 255]);
   let capturePixel = new Uint8Array(options.capturePixel ?? [0, 0, 0, 255]);
@@ -130,7 +131,9 @@ export function fakeWebGPUDevice(options: {
     createPipelineLayout() {
       return {};
     },
-    createRenderPipelineAsync: async () => ({}),
+    createRenderPipelineAsync: async (
+      description: GPURenderPipelineDescriptor,
+    ) => ({ label: description.label ?? '' }),
     createBindGroup() {
       return {};
     },
@@ -170,23 +173,43 @@ export function fakeWebGPUDevice(options: {
       return {
         beginRenderPass(description: GPURenderPassDescriptor) {
           const attachment = description.colorAttachments[0]!;
+          let currentPipeline: { readonly label?: string } | undefined;
+          let lastSelectionLabel: string | undefined;
           const pass = {
             description,
             clearValue: attachment.clearValue,
             draws,
-            setPipeline() {},
+            setPipeline(pipeline: { readonly label?: string }) {
+              currentPipeline = pipeline;
+              if (
+                pipeline.label?.startsWith('selection:')
+                && pipeline.label !== lastSelectionLabel
+              ) {
+                selectionDraws.push(pipeline);
+                lastSelectionLabel = pipeline.label;
+              }
+            },
             setBindGroup() {},
             setVertexBuffer() {},
             setIndexBuffer() {},
             draw(indexCount: number, instanceCount = 1) {
-              draws.push({ indexCount, instanceCount });
+              draws.push({
+                indexCount,
+                instanceCount,
+                pipeline: currentPipeline?.label,
+              });
             },
             drawIndexed(
               indexCount: number,
               instanceCount = 1,
               firstIndex = 0,
             ) {
-              draws.push({ indexCount, instanceCount, firstIndex });
+              draws.push({
+                indexCount,
+                instanceCount,
+                firstIndex,
+                pipeline: currentPipeline?.label,
+              });
             },
             end() {},
           };
@@ -263,6 +286,7 @@ export function fakeWebGPUDevice(options: {
     submissions,
     renderPasses,
     draws,
+    selectionDraws,
     contexts,
     depthTextures,
     setPickPixel(value: Uint8Array) {
