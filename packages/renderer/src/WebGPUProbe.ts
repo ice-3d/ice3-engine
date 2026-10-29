@@ -45,6 +45,7 @@ export type ICEWebGPUProbeResult =
       readonly adapter: GPUAdapter;
       readonly device: GPUDevice;
       readonly format: GPUTextureFormat;
+      readonly enabledFeatures: ReadonlySet<GPUFeatureName>;
       readonly release: () => void;
     }
   | {
@@ -57,11 +58,12 @@ export type ICEWebGPUProbeOptions = {
   readonly gpu?: GPU;
   readonly timeoutMs?: number;
   readonly createCanvas?: () => OffscreenCanvas | HTMLCanvasElement;
+  readonly optionalFeatures?: readonly GPUFeatureName[];
 };
 
 const successfulProbes = new WeakMap<
   GPU,
-  Promise<ICEWebGPUProbeResult>
+  Map<string, Promise<ICEWebGPUProbeResult>>
 >();
 
 export function probeWebGPU(
@@ -80,20 +82,33 @@ export function probeWebGPU(
     ));
   }
 
-  const cached = successfulProbes.get(gpu);
+  const featureKey = [...(options.optionalFeatures ?? [])]
+    .sort()
+    .join('|');
+  const probes = successfulProbes.get(gpu);
+  const cached = probes?.get(featureKey);
   if (cached) return cached;
 
   const probe = executeProbe(gpu, options).then((result) => (
     result.supported
       ? {
           ...result,
-          release: () => successfulProbes.delete(gpu),
+          release: () => {
+            const current = successfulProbes.get(gpu);
+            current?.delete(featureKey);
+            if (current?.size === 0) successfulProbes.delete(gpu);
+          },
         }
       : result
   ));
-  successfulProbes.set(gpu, probe);
+  const featureProbes = probes ?? new Map();
+  featureProbes.set(featureKey, probe);
+  successfulProbes.set(gpu, featureProbes);
   void probe.then((result) => {
-    if (!result.supported) successfulProbes.delete(gpu);
+    if (!result.supported) {
+      featureProbes.delete(featureKey);
+      if (featureProbes.size === 0) successfulProbes.delete(gpu);
+    }
   });
   return probe;
 }
@@ -137,7 +152,11 @@ async function executeProbe(
 
   let device: GPUDevice;
   try {
-    device = await adapter.requestDevice();
+    const features = (options.optionalFeatures ?? [])
+      .filter((feature) => adapter.features.has(feature));
+    device = await adapter.requestDevice({
+      ...(features.length > 0 ? { requiredFeatures: features } : {}),
+    });
   } catch (error) {
     return failure('device-failed', errorMessage(error));
   }
@@ -210,6 +229,9 @@ async function executeProbe(
       adapter,
       device,
       format,
+      enabledFeatures: new Set<GPUFeatureName>(
+        Array.from(device.features) as GPUFeatureName[],
+      ),
       release: () => undefined,
     };
   } catch (error) {

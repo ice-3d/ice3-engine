@@ -36,7 +36,7 @@ export type ICEBenchmarkRun = {
   readonly cpuFrameMs: readonly number[];
   readonly cpuStages: ICEBenchmarkCpuStageSamples;
   readonly gpuFrameMs: readonly number[] | null;
-  readonly gpuFrameTimeUnavailableReason: string;
+  readonly gpuFrameTimeUnavailableReason?: string;
   readonly pickMs: readonly number[];
   readonly stats: Readonly<ICERendererStats>;
 };
@@ -44,6 +44,10 @@ export type ICEBenchmarkRun = {
 type ICEBenchmarkProfileBackend = ICERendererBackend & {
   enableProfiling(enabled: boolean): void;
   readonly frameProfile: ICEFrameStageProfile | null;
+  readonly timestampProfilingAvailable?: boolean;
+  readonly timestampProfilingUnavailableReason?: string;
+  enableTimestampProfiling?(enabled: boolean): void;
+  drainGpuTimings?(): Promise<readonly number[]>;
 };
 
 async function run(
@@ -81,11 +85,18 @@ async function run(
       dpr: 1,
       selection: benchmark.selection,
     };
+    const gpuFrameMs: number[] | null = backend.timestampProfilingAvailable
+      ? []
+      : null;
     for (let index = 0; index < request.warmup; index += 1) {
       frame.frameId += 1;
       backend.render(frame);
     }
     await backend.finish?.();
+    backend.enableTimestampProfiling?.(true);
+    if (gpuFrameMs) {
+      await backend.drainGpuTimings?.();
+    }
     const cpuFrameMs: number[] = [];
     const cpuStages = {
       collectMs: [] as number[],
@@ -108,24 +119,37 @@ async function run(
       cpuStages.submitMs.push(profile.submitMs);
       if ((index + 1) % 30 === 0) {
         await backend.finish?.();
+        if (gpuFrameMs) {
+          gpuFrameMs.push(...(await backend.drainGpuTimings?.() ?? []));
+        }
       }
     }
     await backend.finish?.();
+    if (gpuFrameMs) {
+      gpuFrameMs.push(...(await backend.drainGpuTimings?.() ?? []));
+    }
     const pickMs: number[] = [];
     for (let index = 0; index < benchmark.pickCount; index += 1) {
       const pickStartedAt = performance.now();
       await backend.pick?.(frame, { x: WIDTH / 2, y: HEIGHT / 2 });
       pickMs.push(performance.now() - pickStartedAt);
     }
+    const gpuFrameTimeUnavailableReason = gpuFrameMs === null
+      ? 'timestamp-query unavailable'
+      : gpuFrameMs.length === 0
+        ? backend.timestampProfilingUnavailableReason
+          ?? 'timestamp samples unavailable'
+        : undefined;
     return {
       backend: request.backend,
       scenario: request.scenario,
       initializationMs,
       cpuFrameMs,
       cpuStages,
-      gpuFrameMs: null,
-      gpuFrameTimeUnavailableReason:
-        'ICE3 Renderer API does not expose portable GPU timestamps',
+      gpuFrameMs,
+      ...(gpuFrameTimeUnavailableReason
+        ? { gpuFrameTimeUnavailableReason }
+        : {}),
       pickMs,
       stats: backend.stats ?? emptyStats(),
     };
@@ -140,7 +164,9 @@ async function createBackend(
   backend: 'webgl2' | 'webgpu',
 ): Promise<ICEBenchmarkProfileBackend> {
   if (backend === 'webgl2') return new WebGL2RendererBackend();
-  const probe = await probeWebGPU();
+  const probe = await probeWebGPU({
+    optionalFeatures: ['timestamp-query'],
+  });
   if (!probe.supported) {
     throw new Error(`WEBGPU_UNSUPPORTED: ${probe.reason}`);
   }

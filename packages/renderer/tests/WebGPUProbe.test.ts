@@ -131,3 +131,39 @@ it('invalidates a cached probe when its consumer releases it', async () => {
   });
   expect(fake.adapterRequestCount()).toBe(2);
 });
+
+it('requests only optional features advertised by the adapter', async () => {
+  const fake = fakeWebGPUEnvironment({
+    adapterFeatures: ['timestamp-query'],
+  });
+  const result = await probeWebGPU({
+    gpu: fake.gpu,
+    createCanvas: () => fake.canvas,
+    optionalFeatures: ['timestamp-query', 'depth-clip-control'],
+  });
+
+  expect(fake.deviceRequests[0]).toMatchObject({
+    requiredFeatures: ['timestamp-query'],
+  });
+  expect(result.supported ? result.enabledFeatures.has('timestamp-query') : false)
+    .toBe(true);
+});
+
+it('does not reuse a probe created without optional features', async () => {
+  const fake = fakeWebGPUEnvironment({
+    adapterFeatures: ['timestamp-query'],
+  });
+  await probeWebGPU({
+    gpu: fake.gpu,
+    createCanvas: () => fake.canvas,
+  });
+  const result = await probeWebGPU({
+    gpu: fake.gpu,
+    createCanvas: () => fake.canvas,
+    optionalFeatures: ['timestamp-query'],
+  });
+
+  expect(fake.adapterRequestCount()).toBe(2);
+  expect(result.supported ? result.enabledFeatures.has('timestamp-query') : false)
+    .toBe(true);
+});

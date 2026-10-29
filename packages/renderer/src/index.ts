@@ -48,6 +48,7 @@ export type {
 export {
   RendererProfiler,
 } from './RendererProfiler.js';
+export { WebGPUTimestampProfiler } from './WebGPUTimestampProfiler.js';
 export type {
   ICEBatchGenerationHandle,
   ICEBatchUploadBuffer,

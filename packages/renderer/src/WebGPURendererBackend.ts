@@ -39,6 +39,7 @@ import {
   RendererProfiler,
   type ICEFrameStageProfile,
 } from './RendererProfiler.js';
+import { WebGPUTimestampProfiler } from './WebGPUTimestampProfiler.js';
 import {
   collectWebGPUPickIds,
   WebGPUPicker,
@@ -87,6 +88,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
   private geometryCache: WebGPUGeometryCache | null = null;
   private instanceCache: WebGPUInstanceCache | null = null;
   private picker: WebGPUPicker | null = null;
+  private timestampProfiler: WebGPUTimestampProfiler | null = null;
+  private timestampProfilingEnabled = false;
   private identityInstances: GPUBuffer | null = null;
   private zeroSemantics: GPUBuffer | null = null;
   private uniformBuffer: GPUBuffer | null = null;
@@ -173,6 +176,9 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.geometryCache = new WebGPUGeometryCache({ device: this.device });
     this.instanceCache = new WebGPUInstanceCache(this.device);
     this.picker = new WebGPUPicker(this.device, this.format);
+    this.timestampProfiler = this.device.features.has('timestamp-query')
+      ? new WebGPUTimestampProfiler(this.device)
+      : null;
     this.capabilities = {
       backend: 'webgpu',
       maxTextureSize: this.device.limits.maxTextureDimension2D,
@@ -474,6 +480,10 @@ export class WebGPURendererBackend implements ICERendererBackend {
     });
     const targetTexture = context.getCurrentTexture();
     const encoder = this.device.createCommandEncoder();
+    const timestampProfiler = this.captureRequest || !this.timestampProfilingEnabled
+      ? null
+      : this.timestampProfiler;
+    const timestampQuerySet = timestampProfiler?.querySetFor(frame.frameId);
     const pass = encoder.beginRenderPass({
       colorAttachments: [{
         view: targetTexture.createView(),
@@ -492,6 +502,15 @@ export class WebGPURendererBackend implements ICERendererBackend {
         depthLoadOp: 'clear',
         depthStoreOp: 'store',
       },
+      ...(timestampQuerySet
+        ? {
+            timestampWrites: {
+              querySet: timestampQuerySet,
+              beginningOfPassWriteIndex: 0,
+              endOfPassWriteIndex: 1,
+            },
+          }
+        : {}),
     });
     for (let index = 0; index < drawList.length; index += 1) {
       const draw = drawList[index]!;
@@ -513,6 +532,9 @@ export class WebGPURendererBackend implements ICERendererBackend {
       this.frameStats.drawCalls += 1;
     }
     pass.end();
+    if (timestampProfiler) {
+      timestampProfiler.resolveFrame(encoder, frame.frameId);
+    }
     if (this.captureRequest) {
       encoder.copyTextureToBuffer(
         { texture: targetTexture },
@@ -585,6 +607,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.disposing = true;
     this.geometryCache?.dispose();
     this.picker?.dispose();
+    this.timestampProfiler?.dispose();
     this.instanceCache?.dispose();
     this.identityInstances?.destroy();
     this.zeroSemantics?.destroy();
@@ -593,6 +616,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.context?.unconfigure();
     this.geometryCache = null;
     this.picker = null;
+    this.timestampProfiler = null;
     this.instanceCache = null;
     this.identityInstances = null;
     this.zeroSemantics = null;
@@ -659,6 +683,24 @@ export class WebGPURendererBackend implements ICERendererBackend {
 
   async finish(): Promise<void> {
     await this.device.queue.onSubmittedWorkDone?.();
+  }
+
+  async drainGpuTimings(): Promise<readonly number[]> {
+    return this.timestampProfiler?.drain() ?? [];
+  }
+
+  enableTimestampProfiling(enabled: boolean): void {
+    this.timestampProfilingEnabled = enabled && this.timestampProfiler !== null;
+  }
+
+  get timestampProfilingAvailable(): boolean {
+    return this.timestampProfiler !== null;
+  }
+
+  get timestampProfilingUnavailableReason(): string | undefined {
+    return this.timestampProfiler
+      ? this.timestampProfiler.unavailableReason
+      : 'timestamp-query unavailable';
   }
 
   private pushEdgeDraws(
@@ -734,6 +776,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.geometryCache?.dispose();
     this.instanceCache?.dispose();
     this.picker?.dispose();
+    this.timestampProfiler?.dispose();
     this.identityInstances?.destroy();
     this.zeroSemantics?.destroy();
     this.uniformBuffer?.destroy();
@@ -741,13 +784,21 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.geometryCache = null;
     this.instanceCache = null;
     this.picker = null;
+    this.timestampProfiler = null;
     this.identityInstances = null;
     this.zeroSemantics = null;
     this.uniformBuffer = null;
     this.depthTexture = null;
     this.uniformCapacity = 0;
     try {
-      const device = await this.adapter.requestDevice();
+      const features: GPUFeatureName[] = this.device.features.has(
+        'timestamp-query',
+      )
+        ? ['timestamp-query']
+        : [];
+      const device = await this.adapter.requestDevice({
+        ...(features.length > 0 ? { requiredFeatures: features } : {}),
+      });
       const pipeline = await WebGPURenderPipeline.create(device, this.format);
       if (this.disposing) {
         device.destroy();

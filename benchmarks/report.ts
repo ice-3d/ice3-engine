@@ -51,7 +51,7 @@ export type ICEBenchmarkReport = Readonly<{
   }>[];
   improvements: readonly Readonly<{
     scenario: string;
-    cpuMedianPercent: number;
+    cpuMedianPercent: number | null;
     gpuMedianPercent: number | null;
     pickMedianPercent: number | null;
   }>[];
@@ -80,6 +80,7 @@ export function createBenchmarkReport(input: {
         submitMs: summarizeSamples(run.samples.cpuStages.submitMs),
       },
       gpuFrameMs: run.samples.gpuFrameMs
+        && run.samples.gpuFrameMs.length > 0
         ? summarizeSamples(run.samples.gpuFrameMs)
         : null,
       pickMs: run.samples.pickMs.length > 0
@@ -104,7 +105,7 @@ export function createBenchmarkReport(input: {
     if (!webgl2 || !webgpu) continue;
     improvements.push({
       scenario,
-      cpuMedianPercent: improvementPercent(
+      cpuMedianPercent: safeImprovementPercent(
         webgl2.metrics.cpuFrameMs.median,
         webgpu.metrics.cpuFrameMs.median,
       ),
@@ -167,7 +168,9 @@ export function reportToMarkdown(report: ICEBenchmarkReport): string {
       String(run.stats?.drawCalls ?? 'n/a'),
       String(run.stats?.gpuBytes ?? 'n/a'),
       run.backend === 'webgpu' && improvement
-        ? `${formatNumber(improvement.cpuMedianPercent)}%`
+        ? improvement.cpuMedianPercent === null
+          ? 'n/a'
+          : `${formatNumber(improvement.cpuMedianPercent)}%`
         : 'baseline',
     ].join(' | ').replace(/^/, '| ').replace(/$/, ' |'));
   }
@@ -182,4 +185,11 @@ export function reportToMarkdown(report: ICEBenchmarkReport): string {
 
 function formatNumber(value: number): string {
   return value.toFixed(3);
+}
+
+function safeImprovementPercent(
+  baseline: number,
+  candidate: number,
+): number | null {
+  return baseline > 0 ? improvementPercent(baseline, candidate) : null;
 }

@@ -1,5 +1,6 @@
 export function fakeWebGPUEnvironment(options: {
   readonly adapterLimits?: Partial<Record<keyof GPUSupportedLimits, number>>;
+  readonly adapterFeatures?: readonly GPUFeatureName[];
   readonly adapter?: GPUAdapter | null;
   readonly pipelineFails?: boolean;
   readonly deviceRequestFails?: boolean;
@@ -7,6 +8,9 @@ export function fakeWebGPUEnvironment(options: {
   readonly deviceLost?: boolean;
 } = {}) {
   let destroyed = 0;
+  const deviceRequests: GPUDeviceDescriptor[] = [];
+  const features = new Set<GPUFeatureName>(options.adapterFeatures ?? []);
+  const enabledFeatures = new Set<GPUFeatureName>();
   const limits = {
     maxTextureDimension2D: 8192,
     maxBufferSize: 1 << 30,
@@ -15,6 +19,7 @@ export function fakeWebGPUEnvironment(options: {
     ...options.adapterLimits,
   };
   const device = {
+    features: enabledFeatures,
     destroy() {
       destroyed += 1;
     },
@@ -59,8 +64,13 @@ export function fakeWebGPUEnvironment(options: {
   const adapter = options.adapter === undefined
     ? {
         limits,
-        features: new Set(),
-        requestDevice: async () => {
+        features,
+        requestDevice: async (descriptor?: GPUDeviceDescriptor) => {
+          if (descriptor) deviceRequests.push(descriptor);
+          enabledFeatures.clear();
+          for (const feature of descriptor?.requiredFeatures ?? []) {
+            enabledFeatures.add(feature);
+          }
           if (options.deviceRequestFails) {
             throw new Error('device failed');
           }
@@ -78,6 +88,7 @@ export function fakeWebGPUEnvironment(options: {
   return {
     adapter,
     device,
+    deviceRequests,
     gpu,
     canvas,
     adapterRequestCount: () => adapterRequests,
@@ -104,6 +115,9 @@ export function fakeWebGPUDevice(options: {
   readonly pickPixel?: Uint8Array;
   readonly capturePixel?: readonly number[];
   readonly replacementFails?: boolean;
+  readonly features?: readonly GPUFeatureName[];
+  readonly timestampValues?: readonly number[];
+  readonly timestampMapFails?: boolean;
 } = {}) {
   const buffers: FakeBuffer[] = [];
   const writes: Array<{
@@ -119,8 +133,17 @@ export function fakeWebGPUDevice(options: {
   const selectionDraws: any[] = [];
   const contexts: any[] = [];
   const copyCalls: any[] = [];
+  const deviceRequests: GPUDeviceDescriptor[] = [];
+  const querySets: Array<{
+    readonly type: GPUQueryType;
+    readonly count: number;
+    destroyed: boolean;
+    destroy(): void;
+  }> = [];
   let pickPixel = new Uint8Array(options.pickPixel ?? [0, 0, 0, 255]);
   let capturePixel = new Uint8Array(options.capturePixel ?? [0, 0, 0, 255]);
+  let timestampValues = [...(options.timestampValues
+    ?? [1_000_000_000, 1_002_000_000])];
   let captureCopies = 0;
   let mappedBytes = new Uint8Array();
   let submittedWorkWaits = 0;
@@ -134,6 +157,7 @@ export function fakeWebGPUDevice(options: {
   });
 
   const device = {
+    features: new Set<GPUFeatureName>(options.features ?? []),
     limits: {
       maxTextureDimension2D: 8192,
     },
@@ -152,6 +176,18 @@ export function fakeWebGPUDevice(options: {
     createBindGroup() {
       return {};
     },
+    createQuerySet(description: GPUQuerySetDescriptor) {
+      const querySet = {
+        type: description.type,
+        count: description.count,
+        destroyed: false,
+        destroy() {
+          querySet.destroyed = true;
+        },
+      };
+      querySets.push(querySet);
+      return querySet as unknown as GPUQuerySet;
+    },
     createBuffer(description: GPUBufferDescriptor) {
       const buffer = {
         size: description.size,
@@ -164,10 +200,24 @@ export function fakeWebGPUDevice(options: {
         async mapAsync() {},
         getMappedRange() {
           const data = new Uint8Array(buffer.size);
-          data.set(
-            buffer.label.includes('capture') ? capturePixel : pickPixel,
-            0,
-          );
+          if (buffer.label.includes('timestamp-resolve')) {
+            if (options.timestampMapFails) {
+              throw new Error('timestamp map failed');
+            }
+            const values = new BigUint64Array(
+              timestampValues.map((value) => BigInt(value)),
+            );
+            data.set(new Uint8Array(
+              values.buffer,
+              values.byteOffset,
+              values.byteLength,
+            ));
+          } else {
+            data.set(
+              buffer.label.includes('capture') ? capturePixel : pickPixel,
+              0,
+            );
+          }
           mappedBytes = data.slice();
           return data.buffer;
         },
@@ -261,6 +311,7 @@ export function fakeWebGPUDevice(options: {
             captureCopies += 1;
           }
         },
+        resolveQuerySet() {},
         finish() {
           return {};
         },
@@ -322,7 +373,8 @@ export function fakeWebGPUDevice(options: {
       maxBufferSize: 1 << 30,
     },
     features: new Set(),
-    requestDevice: async () => {
+    requestDevice: async (descriptor?: GPUDeviceDescriptor) => {
+      if (descriptor) deviceRequests.push(descriptor);
       if (options.replacementFails) {
         throw new Error('replacement failed');
       }
@@ -344,11 +396,16 @@ export function fakeWebGPUDevice(options: {
     contexts,
     copyCalls,
     depthTextures,
+    deviceRequests,
+    querySets,
     setPickPixel(value: Uint8Array) {
       pickPixel = value;
     },
     setCapturePixel(value: Uint8Array) {
       capturePixel = value;
+    },
+    setTimestampValues(values: readonly number[]) {
+      timestampValues = [...values];
     },
     mappedPixels: () => new Uint8Array(pickPixel),
     currentCapturePixel: () => new Uint8Array(capturePixel),

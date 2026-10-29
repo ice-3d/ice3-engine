@@ -94,6 +94,9 @@ try {
         (run) => run.scenario === scenario && run.backend === backend,
       );
       if (runs.length === 0) continue;
+      const gpuRuns = runs.filter(
+        (run) => run.gpuFrameMs && run.gpuFrameMs.length > 0,
+      );
       grouped.push({
         backend,
         scenario,
@@ -110,14 +113,16 @@ try {
             encodeMs: runs.flatMap((run) => run.cpuStages.encodeMs),
             submitMs: runs.flatMap((run) => run.cpuStages.submitMs),
           },
-          gpuFrameMs: runs.every((run) => run.gpuFrameMs === null)
+          gpuFrameMs: gpuRuns.length === 0
             ? null
-            : runs[0].gpuFrameMs,
+            : gpuRuns.flatMap((run) => run.gpuFrameMs),
           pickMs: runs.flatMap((run) => run.pickMs),
         },
         stats: runs.at(-1).stats,
-        gpuFrameTimeUnavailableReason:
-          runs[0].gpuFrameTimeUnavailableReason,
+        gpuFrameTimeUnavailableReason: gpuRuns.length === 0
+          ? runs.find((run) => run.gpuFrameTimeUnavailableReason)
+            ?.gpuFrameTimeUnavailableReason
+          : undefined,
       });
     }
   }

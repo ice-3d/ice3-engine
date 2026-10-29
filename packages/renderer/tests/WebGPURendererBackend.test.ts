@@ -95,6 +95,26 @@ it('releases the cached probe when the backend is disposed', async () => {
   expect(released).toBe(true);
 });
 
+it('records and drains a timestamp around the visible pass', async () => {
+  const fake = fakeWebGPUDevice({
+    features: ['timestamp-query'],
+    timestampValues: [1_000_000_000, 1_001_500_000],
+  });
+  const backend = await WebGPURendererBackend.create(fake.context);
+  backend.initialize({ canvas: fake.canvas() });
+  backend.resize({ x: 0, y: 0, width: 320, height: 180 }, 1);
+  backend.enableTimestampProfiling(true);
+
+  backend.render({ ...meshFrame(), frameId: 1 });
+
+  expect(fake.renderPasses[0]?.description.timestampWrites)
+    .toMatchObject({
+      beginningOfPassWriteIndex: 0,
+      endOfPassWriteIndex: 1,
+    });
+  await expect(backend.drainGpuTimings()).resolves.toEqual([1.5]);
+});
+
 function emptyFrame(): ICEFrame {
   return {
     frameId: 1,
