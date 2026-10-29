@@ -140,3 +140,52 @@ describe('scene ownership', () => {
       .toEqual(['motor-4', 'motor-4']);
   });
 });
+
+describe('scene revision', () => {
+  it('changes for structure, visibility, and local transform mutations', () => {
+    const scene = new ICEScene({ id: 'scene' });
+    const node = mesh('revision-node');
+    const initial = scene.revision;
+
+    scene.addChild(node);
+    const added = scene.revision;
+    node.visible = false;
+    const hidden = scene.revision;
+    node.setLocalMatrix([
+      1, 0, 0, 0,
+      0, 1, 0, 0,
+      0, 0, 1, 0,
+      4, 0, 0, 1,
+    ]);
+    const transformed = scene.revision;
+    scene.removeChild(node);
+
+    expect(added).toBeGreaterThan(initial);
+    expect(hidden).toBeGreaterThan(added);
+    expect(transformed).toBeGreaterThan(hidden);
+    expect(scene.revision).toBeGreaterThan(transformed);
+  });
+
+  it('does not change when values are identical', () => {
+    const scene = new ICEScene({ id: 'scene' });
+    const node = mesh('stable-node');
+    scene.addChild(node);
+    const revision = scene.revision;
+    node.visible = true;
+    expect(scene.revision).toBe(revision);
+  });
+
+  it('changes the old and new roots when moving a subtree', () => {
+    const first = new ICEScene({ id: 'first' });
+    const second = new ICEScene({ id: 'second' });
+    const branch = mesh('branch');
+    first.addChild(branch);
+    const firstRevision = first.revision;
+    const secondRevision = second.revision;
+
+    second.addChild(branch);
+
+    expect(first.revision).toBeGreaterThan(firstRevision);
+    expect(second.revision).toBeGreaterThan(secondRevision);
+  });
+});
