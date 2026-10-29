@@ -142,3 +142,11 @@ selected at runtime with `geometricError`; the browser never simplifies a mesh.
 API details are in [docs/api/m0.md](docs/api/m0.md) and
 [docs/api/m1.md](docs/api/m1.md). Stable diagnostic codes are in
 [docs/diagnostics.md](docs/diagnostics.md).
+
+## AI-assisted development
+
+This project makes substantial use of AI-assisted development. 本项目在设计和实现过程中大量使用了 AI 辅助开发。
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
