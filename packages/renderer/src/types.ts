@@ -23,7 +23,7 @@ export type ICEFrame = {
 };
 
 export interface ICERendererCapabilities {
-  readonly backend: 'webgl2' | 'fake';
+  readonly backend: 'webgl2' | 'webgpu' | 'fake';
   readonly maxTextureSize: number;
   readonly picking: boolean;
 }

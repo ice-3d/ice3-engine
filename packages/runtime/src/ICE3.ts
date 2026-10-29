@@ -55,7 +55,7 @@ export type ICEEngineDiagnostics = {
   readonly fps: number;
   readonly cpuFrameTimeMs: number;
   readonly backend: Readonly<{
-    backend: 'webgl2' | 'fake';
+    backend: 'webgl2' | 'webgpu' | 'fake';
     maxTextureSize: number;
     picking: boolean;
   }>;

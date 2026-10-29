@@ -118,6 +118,22 @@ export function fakeWebGPUDevice(options: {
   let capturePixel = new Uint8Array(options.capturePixel ?? [0, 0, 0, 255]);
 
   const device = {
+    limits: {
+      maxTextureDimension2D: 8192,
+    },
+    createShaderModule() {
+      return {};
+    },
+    createBindGroupLayout() {
+      return {};
+    },
+    createPipelineLayout() {
+      return {};
+    },
+    createRenderPipelineAsync: async () => ({}),
+    createBindGroup() {
+      return {};
+    },
     createBuffer(description: GPUBufferDescriptor) {
       const buffer = {
         size: description.size,
@@ -153,8 +169,10 @@ export function fakeWebGPUDevice(options: {
     createCommandEncoder() {
       return {
         beginRenderPass(description: GPURenderPassDescriptor) {
+          const attachment = description.colorAttachments[0]!;
           const pass = {
             description,
+            clearValue: attachment.clearValue,
             draws,
             setPipeline() {},
             setBindGroup() {},
@@ -213,6 +231,9 @@ export function fakeWebGPUDevice(options: {
   } as unknown as GPUDevice;
 
   const context = {
+    adapter: undefined as GPUAdapter | undefined,
+    device,
+    format: 'bgra8unorm' as GPUTextureFormat,
     configuration: undefined as GPUCanvasConfiguration | undefined,
     configure(configuration: GPUCanvasConfiguration) {
       context.configuration = configuration;
@@ -254,3 +275,17 @@ export function fakeWebGPUDevice(options: {
     currentCapturePixel: () => new Uint8Array(capturePixel),
   };
 }
+
+export async function readyBackend(
+  fake: ReturnType<typeof fakeWebGPUDevice>,
+  callbacks: {
+    readonly onContextLost?: () => void;
+    readonly onContextRestored?: () => void;
+  } = {},
+): Promise<WebGPURendererBackend> {
+  const backend = await WebGPURendererBackend.create(fake.context);
+  backend.initialize({ canvas: fake.canvas(), ...callbacks });
+  backend.resize({ x: 0, y: 0, width: 320, height: 180 }, 1);
+  return backend;
+}
+import { WebGPURendererBackend } from '../src/WebGPURendererBackend';

@@ -3,6 +3,10 @@ export {
   WebGL2RendererBackend,
   colorToRgba,
 } from './WebGL2RendererBackend.js';
+export {
+  WebGPURendererBackend,
+  type WebGPUDeviceContext,
+} from './WebGPURendererBackend.js';
 export { probeWebGPU } from './WebGPUProbe.js';
 export type {
   ICEWebGPUProbeFailureReason,
