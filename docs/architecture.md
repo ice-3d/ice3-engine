@@ -1,4 +1,4 @@
-# ICE3 Engine Architecture
+# ICE3 Engine 架构
 
 > Document ID: ICE3-ENG-ARC-001
 >
@@ -6,10 +6,10 @@
 >
 > Owner: ICE3 Engine maintainers
 
-## System Context
+## 系统上下文
 
-`ice3-engine` consumes prepared assets and application scene intent. It does not
-parse source formats, own business rules, or depend on the Agent Console.
+`ice3-engine` 消费 Prepared Asset 和应用 Scene intent。它不解析 source format、不负责
+业务规则，也不依赖 Agent Console。
 
 ```text
 Prepared GLB / Tileset
@@ -25,15 +25,15 @@ Prepared GLB / Tileset
 consumer → ice3 public facade → internal packages
 ```
 
-## Package Responsibilities
+## Package 职责
 
-| Package | Responsibility |
+| Package | 职责 |
 |---|---|
-| `@ice3/core` | Math, scene graph, geometry, materials, camera, events, serialization, and diagnostics; no DOM or GPU dependency |
-| `@ice3/assets` | Prepared GLB and Tileset parsing, profile validation, and immutable snapshots |
-| `@ice3/renderer` | WebGL2 frame execution, geometry residency, instancing, render batches, and picking |
-| `@ice3/runtime` | Engine lifecycle, 2D layers, input routing, asset handles, Tileset scheduling, and LOD |
-| `ice3` | Public package facade used by applications |
+| `@ice3/core` | Math、Scene graph、Geometry、Material、Camera、Event、Serialization 和 Diagnostic；不依赖 DOM 或 GPU |
+| `@ice3/assets` | Prepared GLB 和 Tileset parsing、profile validation 及不可变 snapshot |
+| `@ice3/renderer` | WebGL2 frame execution、Geometry residency、instancing、render batch 和 picking |
+| `@ice3/runtime` | Engine lifecycle、2D layer、input routing、Asset handle、Tileset scheduling 和 LOD |
+| `ice3` | 供应用使用的公开 package facade |
 
 The dependency direction is:
 
@@ -43,57 +43,51 @@ The dependency direction is:
 @ice3/renderer ────────────────┘
 ```
 
-No external consumer imports another package's private source path.
+外部消费方不得导入另一个 package 的私有 source path。
 
-## Frame Lifecycle
+## 帧生命周期
 
-1. `ICE3` creates the scene and 2D layer canvases and initializes the renderer.
-2. Input is resolved from the topmost interactive layer, then routed to 2D,
-   controls, or 3D picking as appropriate.
-3. Camera and scene changes request a render frame.
-4. The renderer collects visible meshes or prepared batches and applies
-   byte-budgeted GPU upload or eviction.
-5. Pick requests render a temporary semantic identity frame when exact picking
-   is required.
-6. The visible frame is presented, diagnostics update, and idle work may begin.
+1. `ICE3` 创建 Scene、2D layer canvas，并初始化 Renderer。
+2. Input 从最上层 interactive layer 解析，再路由到 2D、control 或 3D picking。
+3. Camera 和 Scene 变化请求 render frame。
+4. Renderer 收集 visible Mesh 或 prepared batch，并执行受 byte budget 约束的 GPU
+   upload 或 eviction。
+5. 需要 exact picking 时，Pick request 渲染临时 semantic identity frame。
+6. 呈现 visible frame、更新 Diagnostic，并可开始 idle work。
 
-`start()` is idempotent and on-demand. `destroy()` releases listeners, layers,
-frame requests, scene ownership, and GPU resources.
+`start()` 幂等且按需运行。`destroy()` 释放 listener、layer、frame request、Scene
+ownership 和 GPU resource。
 
-## Asset Flow
+## Asset 流程
 
-1. `ICETilesetLoader` reads the Tileset and validates the supported local
-   Cartesian subset.
-2. The scheduler selects visible, prefetch, and retained tiles from camera
-   bounds and screen-space error.
-3. `@ice3/assets` parses each Prepared GLB and validates its profile.
-4. The scene builder instantiates semantic nodes, indexed geometry, materials,
-   and selection identities.
-5. The runtime commits complete tile chunks atomically and keeps prior coverage
-   visible until replacement content is ready.
-6. The renderer uploads resident geometry under frame and byte budgets.
+1. `ICETilesetLoader` 读取 Tileset，并校验受支持的 local Cartesian 子集。
+2. Scheduler 根据 camera Bounds 和 screen-space error 选择 visible、prefetch 和
+   retained Tile。
+3. `@ice3/assets` 解析每个 Prepared GLB 并校验 profile。
+4. Scene builder 实例化 semantic Node、indexed Geometry、Material 和 Selection identity。
+5. Runtime 原子提交完整 Tile chunk；replacement content 就绪前保持旧 coverage 可见。
+6. Renderer 在 frame 和 byte budget 下上传 resident Geometry。
 
-## 2D And 3D Composition
+## 2D 与 3D composition
 
-The runtime uses one ordered layer model. Screen-space and world-anchored 2D
-layers share pointer, wheel, focus, resize, and disposal behavior with 3D
-content. A hit layer can block or pass an event according to its declared
-policy.
+Runtime 使用一套有序 layer model。Screen-space 和 world-anchored 2D layer 与 3D
+content 共享 pointer、wheel、focus、resize 和 disposal 行为。命中的 layer 按声明
+policy 阻止或透传 event。
 
-## Failure Behavior
+## 失败行为
 
-- Unsupported assets produce stable diagnostic codes before scene publication.
-- A failed tile leaves completed partitions interactive.
-- A failed LOD transition retains the last complete representation.
-- A failed GPU upload leaves the previous generation active.
-- A lost WebGL context pauses rendering until restoration completes.
-- Disposal is idempotent and removes pending work and resources.
+- 不支持的 Asset 在 Scene publication 前产生稳定 Diagnostic code。
+- Tile 失败时已完成 partition 继续保持交互。
+- LOD transition 失败时保留最后一次完整 representation。
+- GPU upload 失败时上一个 generation 保持 active。
+- WebGL context 丢失时暂停渲染，直到 restoration 完成。
+- Disposal 幂等，并移除 pending work 和 resource。
 
-## Related Documents
+## 关联文档
 
 - `ICE3-ENG-RM-001` — [README](../README.md)
-- `ICE3-ENG-API-001` — [M0 Public API](api/m0.md)
+- `ICE3-ENG-API-001` — [M0 公开 API](api/m0.md)
 - `ICE3-ENG-API-002` — [M1 Asset API](api/m1.md)
-- `ICE3-ENG-REF-001` — [Diagnostics](diagnostics.md)
-- `ICE3-ENG-ADR-001` — [Public facade and package boundaries](decisions/0001-public-facade-and-package-boundaries.md)
-- `ICE3-DOC-ARC-001` — [ICE3 family architecture](https://github.com/ice-3d/ice3-doc/blob/main/docs/architecture.md)
+- `ICE3-ENG-REF-001` — [Diagnostic](diagnostics.md)
+- `ICE3-ENG-ADR-001` — [公开 facade 与 package 边界](decisions/0001-public-facade-and-package-boundaries.md)
+- `ICE3-DOC-ARC-001` — [ICE3 家族架构](https://github.com/ice-3d/ice3-doc/blob/main/docs/architecture.md)

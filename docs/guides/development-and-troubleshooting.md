@@ -1,4 +1,4 @@
-# ICE3 Engine Development And Troubleshooting
+# ICE3 Engine 开发与故障处理
 
 > Document ID: ICE3-ENG-GUIDE-003
 >
@@ -6,12 +6,11 @@
 >
 > Owner: ICE3 Engine maintainers
 
-## Intended Outcome
+## 目标结果
 
-Change engine behavior with the repository's architecture, test, and diagnostic
-gates intact.
+在保持仓库架构、测试和 Diagnostic 门禁完整的前提下修改 Engine 行为。
 
-## Development Workflow
+## 开发流程
 
 ```bash
 nvm use
@@ -22,31 +21,30 @@ npm run test:e2e
 npm run verify
 ```
 
-Run the complete gate before merging to `main`. Browser tests cover Chromium and
-WebKit and start their own example servers.
+合入 `main` 前运行完整门禁。Browser test 覆盖 Chromium 和 WebKit，并自行启动 example
+server。
 
-## Common Failures
+## 常见失败
 
-| Diagnostic or symptom | Resolution |
+| Diagnostic 或现象 | 处理 |
 |---|---|
-| `ICE3_ASSET_PROFILE_UNSUPPORTED` | Regenerate with the current toolchain and verify the Prepared profile |
-| `ICE3_ASSET_CONTRACT_MISSING` | Use a current asset with the collaboration contract |
-| `ICE3_TILESET_UNSUPPORTED` | Use explicit children, local Cartesian bounds, relative content, and `REPLACE` refinement |
-| `ICE3_RENDERER_UNSUPPORTED` | Use a browser and device that expose WebGL2 |
-| Repeated blank frames after context loss | Wait for context restoration and inspect renderer diagnostics |
-| Large M1 asset missing locally | Generate it with `ice3-toolchain`; source and prepared intermediates are ignored |
+| `ICE3_ASSET_PROFILE_UNSUPPORTED` | 使用当前 Toolchain 重新生成并校验 Prepared profile |
+| `ICE3_ASSET_CONTRACT_MISSING` | 使用带 collaboration contract 的当前 Asset |
+| `ICE3_TILESET_UNSUPPORTED` | 使用显式 children、local Cartesian Bounds、relative content 和 `REPLACE` refinement |
+| `ICE3_RENDERER_UNSUPPORTED` | 使用支持 WebGL2 的 browser 和 device |
+| Context loss 后反复空白帧 | 等待 context restoration，并检查 Renderer Diagnostic |
+| 本地缺少大型 M1 Asset | 使用 `ice3-toolchain` 生成；source 和 prepared intermediate 已被忽略 |
 
-## Debugging Rules
+## 调试规则
 
-- Reproduce the behavior with the public API rather than testing private source
-  imports.
-- Use stable diagnostic codes rather than message text.
-- Check GPU upload and eviction counters before changing residency budgets.
-- Preserve prior visible coverage while refining a Tileset.
-- Never introduce runtime source conversion to bypass an asset failure.
+- 使用公开 API 复现行为，不通过私有 source import 测试。
+- 使用稳定 Diagnostic code，不依赖 message text。
+- 调整 residency budget 前检查 GPU upload 和 eviction counter。
+- Refine Tileset 时保留原 visible coverage。
+- 不得引入 Runtime source conversion 来绕过 Asset failure。
 
-## Related Documents
+## 关联文档
 
-- `ICE3-ENG-REF-001` — [Diagnostics](../diagnostics.md)
-- `ICE3-ENG-ADR-001` — [Public facade and package boundaries](../decisions/0001-public-facade-and-package-boundaries.md)
+- `ICE3-ENG-REF-001` — [Diagnostic](../diagnostics.md)
+- `ICE3-ENG-ADR-001` — [公开 facade 与 package 边界](../decisions/0001-public-facade-and-package-boundaries.md)
 - `ICE3-DOC-ADR-002` — [Offline open asset pipeline](https://github.com/ice-3d/ice3-doc/blob/main/docs/decisions/0002-offline-open-asset-pipeline.md)
