@@ -251,8 +251,8 @@ pointer up without drag
 
 不修改工具链格式。模型预处理仍负责产生稳定的节点身份和名称，运行时只消费已经准备好的资产。
 
-## Related Documents
+## 关联文档
 
-- `ICE3-ENG-IDX-001` — [Documentation index](../README.md)
-- `ICE3-ENG-PLAN-003` — [Equipment selection implementation](../plans/2026-10-27-equipment-selection.md)
+- `ICE3-ENG-IDX-001` — [文档索引](../README.md)
+- `ICE3-ENG-PLAN-003` — [设备 Selection 实施计划](../plans/2026-10-27-equipment-selection.md)
 - `ICE3-ENG-API-002` — [M1 Asset API](../api/m1.md)
