@@ -4,6 +4,12 @@ export {
   colorToRgba,
 } from './WebGL2RendererBackend.js';
 export {
+  selectDefaultRendererBackend,
+  selectRendererBackend,
+  type ICERendererBackendSelection,
+  type ICERendererFactories,
+} from './RendererSelection.js';
+export {
   WebGPURendererBackend,
   type WebGPUDeviceContext,
 } from './WebGPURendererBackend.js';
@@ -54,4 +60,6 @@ export type {
   ICEFrame,
   ICEScreenPoint,
   ICEViewport,
+  ICE3RendererPreference,
+  ICE3RendererSelection,
 } from './types.js';

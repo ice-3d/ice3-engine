@@ -9,7 +9,10 @@ import {
   type ICENode,
 } from '@ice3/core';
 import {
+  selectDefaultRendererBackend,
   WebGL2RendererBackend,
+  type ICE3RendererPreference,
+  type ICE3RendererSelection,
   type ICERendererBackend,
   type ICEScreenPoint,
   type ICEViewport,
@@ -47,6 +50,7 @@ import {
 
 export type ICE3Options = {
   readonly backend?: ICERendererBackend;
+  readonly renderer?: ICE3RendererPreference;
   readonly scheduler?: ICERenderScheduler;
 };
 
@@ -59,6 +63,7 @@ export type ICEEngineDiagnostics = {
     maxTextureSize: number;
     picking: boolean;
   }>;
+  readonly rendererSelection: Readonly<ICE3RendererSelection>;
   readonly nodeCount: number;
   readonly layerCount: number;
   readonly labelCount: number;
@@ -111,7 +116,9 @@ const NAVIGATION_KEY_CODES = new Set([
 ]);
 
 export class ICE3 extends ICEEventDispatcher {
-  private readonly backend: ICERendererBackend;
+  private backend: ICERendererBackend;
+  private readonly rendererPreference: ICE3RendererPreference | undefined;
+  private rendererSelection: Readonly<ICE3RendererSelection>;
   private readonly scheduler: ICERenderScheduler;
   private readonly interaction = new ICEInteractionState();
   private readonly layers: ICE2DLayer[] = [];
@@ -157,7 +164,21 @@ export class ICE3 extends ICEEventDispatcher {
 
   constructor(options: ICE3Options = {}) {
     super();
+    if (options.backend && options.renderer) {
+      throw new ICEEngineError(
+        'ICE3_RENDERER_CONFIG_INVALID',
+        'ICE3_RENDERER_CONFIG_INVALID: backend injection cannot be combined with a renderer preference',
+      );
+    }
+    this.rendererPreference = options.renderer;
     this.backend = options.backend ?? new WebGL2RendererBackend();
+    this.rendererSelection = {
+      requested: options.backend
+        ? 'custom'
+        : options.renderer ?? 'webgl2',
+      selected: this.backend.capabilities.backend,
+      fallback: false,
+    };
     this.scheduler = options.scheduler ?? new BrowserRenderScheduler();
   }
 
@@ -168,7 +189,42 @@ export class ICE3 extends ICEEventDispatcher {
         'ICE3 engine can only be initialized once',
       );
     }
+    if (
+      this.rendererPreference === 'auto'
+      || this.rendererPreference === 'webgpu'
+    ) {
+      throw new ICEEngineError(
+        'ICE3_RENDERER_ASYNC_REQUIRED',
+        'ICE3_RENDERER_ASYNC_REQUIRED: auto and webgpu require initAsync()',
+      );
+    }
+    return this.initializeWithBackend(target);
+  }
 
+  async initAsync(target: string | HTMLElement): Promise<this> {
+    if (this.state !== 'created') {
+      throw new ICEEngineError(
+        'ICE3_ALREADY_INITIALIZED',
+        'ICE3 engine can only be initialized once',
+      );
+    }
+    if (this.rendererSelection.requested === 'custom') {
+      return this.initializeWithBackend(target);
+    }
+    const selected = await selectDefaultRendererBackend(
+      this.rendererPreference ?? 'auto',
+    );
+    this.backend = selected.backend;
+    this.rendererSelection = selected.selection;
+    try {
+      return this.initializeWithBackend(target);
+    } catch (error) {
+      selected.backend.dispose();
+      throw error;
+    }
+  }
+
+  private initializeWithBackend(target: string | HTMLElement): this {
     if (typeof target === 'string') {
       const element = document.querySelector<HTMLElement>(target);
       if (!element) {
@@ -397,6 +453,7 @@ export class ICE3 extends ICEEventDispatcher {
       fps: this.fps,
       cpuFrameTimeMs: this.cpuFrameTimeMs,
       backend: this.backend.capabilities,
+      rendererSelection: this.rendererSelection,
       nodeCount: this.scene ? countNodes(this.scene) : 0,
       layerCount: this.layers.length,
       labelCount: this.layers.reduce(

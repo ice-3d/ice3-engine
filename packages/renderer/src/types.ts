@@ -11,6 +11,16 @@ export type ICEViewport = {
   readonly height: number;
 };
 
+export type ICE3RendererPreference = 'auto' | 'webgpu' | 'webgl2';
+
+export type ICE3RendererSelection = Readonly<{
+  requested: ICE3RendererPreference | 'custom';
+  selected: 'webgl2' | 'webgpu' | 'fake';
+  fallback: boolean;
+  probeDurationMs?: number;
+  fallbackReason?: import('./WebGPUProbe.js').ICEWebGPUProbeFailureReason;
+}>;
+
 export type ICEScreenPoint = Readonly<{ x: number; y: number }>;
 
 export type ICEFrame = {
