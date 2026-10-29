@@ -60,6 +60,19 @@ it('reports a stable diagnostic when Device Lost recovery fails', async () => {
   });
 });
 
+it('does not restore a Device after the backend is disposed', async () => {
+  const fake = fakeWebGPUDevice();
+  const onRestored = fn();
+  const backend = await readyBackend(fake, { onContextRestored: onRestored });
+
+  await fake.loseDevice('unknown');
+  backend.dispose();
+  await fake.completeReplacementDevice();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  expect(onRestored).not.toHaveBeenCalled();
+});
+
 it('captures a PNG from the presented texture', async () => {
   const previous = Object.getOwnPropertyDescriptor(
     globalThis,
