@@ -1,0 +1,114 @@
+{
+  "contractVersion": "1.0",
+  "cases": [
+    {
+      "id": "gltf",
+      "title": "glTF 2.0",
+      "assetUrl": "/assets/conformance/gltf.glb",
+      "expectedNames": [
+        "prepared-cube"
+      ],
+      "expectedSemantics": [
+        "native source reader"
+      ],
+      "adapter": "gltf",
+      "warnings": []
+    },
+    {
+      "id": "step",
+      "title": "STEP AP242",
+      "assetUrl": "/assets/conformance/step.glb",
+      "expectedNames": [
+        "PrimaryTank",
+        "TransferPump"
+      ],
+      "expectedSemantics": [
+        "assembly hierarchy",
+        "display color",
+        "meter conversion"
+      ],
+      "adapter": "step",
+      "warnings": []
+    },
+    {
+      "id": "ifc",
+      "title": "IFC 4.3",
+      "assetUrl": "/assets/conformance/ifc.glb",
+      "expectedNames": [
+        "Primary Pump",
+        "Buffer Tank"
+      ],
+      "expectedSemantics": [
+        "spatial hierarchy",
+        "property sets",
+        "systems"
+      ],
+      "adapter": "ifc",
+      "warnings": []
+    },
+    {
+      "id": "fbx",
+      "title": "FBX",
+      "assetUrl": "/assets/conformance/fbx.glb",
+      "expectedNames": [
+        "Primary Pump",
+        "Buffer Tank"
+      ],
+      "expectedSemantics": [
+        "shared instances",
+        "custom properties"
+      ],
+      "adapter": "fbx",
+      "warnings": []
+    },
+    {
+      "id": "usd",
+      "title": "USD",
+      "assetUrl": "/assets/conformance/usd.glb",
+      "expectedNames": [
+        "PrimaryPump",
+        "BufferTank"
+      ],
+      "expectedSemantics": [
+        "prim path",
+        "shared instances",
+        "custom properties"
+      ],
+      "adapter": "usd",
+      "warnings": []
+    },
+    {
+      "id": "obj",
+      "title": "OBJ",
+      "assetUrl": "/assets/conformance/obj.glb",
+      "expectedNames": [
+        "PrimaryPump",
+        "BufferTank"
+      ],
+      "expectedSemantics": [
+        "safe MTL sidecar",
+        "meter assumption warning"
+      ],
+      "adapter": "obj",
+      "warnings": [
+        "ICE3_TOOL_OBJ_UNIT_ASSUMED_METERS"
+      ]
+    },
+    {
+      "id": "jt",
+      "title": "JT",
+      "assetUrl": "/assets/conformance/jt.glb",
+      "expectedNames": [
+        "PrimaryPump",
+        "BufferTank"
+      ],
+      "expectedSemantics": [
+        "external converter contract",
+        "converter metadata"
+      ],
+      "adapter": "jt",
+      "warnings": [],
+      "notes": "Synthetic converter-contract fixture; real JT parsing requires ICE3_JT_CONVERTER."
+    }
+  ]
+}

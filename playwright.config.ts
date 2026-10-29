@@ -21,6 +21,12 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 120_000,
     },
+    {
+      command: 'npm run dev:example:m2 -- --host 127.0.0.1 --port 8115',
+      url: 'http://127.0.0.1:8115',
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
   ],
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

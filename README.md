@@ -46,6 +46,9 @@ npm run dev:example:m1
 `http://127.0.0.1:8103/` 查看最小 M0 Scene，使用
 `http://127.0.0.1:8104/?demo=adaptive` 查看空闲时 Worker batching。
 
+运行 `npm run dev:example:m2` 后访问 `http://127.0.0.1:8115/`，可切换七种 synthetic
+source format 对应的 Prepared GLB，并查看 Profile、语义 Node 和 GPU 画面验证结果。
+
 ## npm package
 
 公开 Engine package 为 `ice3`：
@@ -140,6 +143,7 @@ WebKit 浏览器测试。
 - [快速开始](docs/guides/getting-started.md)
 - [Asset 加载](docs/guides/asset-loading.md)
 - [开发与故障处理](docs/guides/development-and-troubleshooting.md)
+- [跨格式 Conformance 示例](docs/guides/conformance-example.md)
 - [M0 API](docs/api/m0.md)
 - [M1 Asset API](docs/api/m1.md)
 - [Diagnostic](docs/diagnostics.md)
