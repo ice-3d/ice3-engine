@@ -58,7 +58,7 @@ export class FakeRendererBackend implements ICERendererBackend {
     this.frames.push(frame);
   }
 
-  pick(): string | undefined {
+  async pick(): Promise<string | undefined> {
     if (this.pickError) {
       throw this.pickError;
     }

@@ -149,6 +149,7 @@ export class ICE3 extends ICEEventDispatcher {
   private readonly pointerGestures = new Map<number, PointerGesture>();
   private lastDiagnostic: ICEDiagnostic | undefined;
   private instancingFallbackReported = false;
+  private pickGeneration = 0;
   private readonly removeInputListeners: Array<() => void> = [];
   private readonly handleWindowResize = (): void => {
     this.resize();
@@ -376,13 +377,15 @@ export class ICE3 extends ICEEventDispatcher {
     return this;
   }
 
-  pick(point: ICEScreenPoint): ICENode | undefined {
-    const result = this.samplePick(point);
+  async pick(point: ICEScreenPoint): Promise<ICENode | undefined> {
+    const result = await this.samplePick(point);
     return result.kind === 'hit' ? result.node : undefined;
   }
 
-  pickItem(point: ICEScreenPoint): { readonly item?: ICESceneItem } {
-    const node = this.pick(point);
+  async pickItem(
+    point: ICEScreenPoint,
+  ): Promise<{ readonly item?: ICESceneItem }> {
+    const node = await this.pick(point);
     if (!node) return Object.freeze({});
     const item = this.queryScene({ ids: [node.id], limit: 1 })[0];
     return Object.freeze(item ? { item } : {});
@@ -638,7 +641,7 @@ export class ICE3 extends ICEEventDispatcher {
       }
       this.inputRouter.pointerMove(point, event.pointerId);
     });
-    listen('pointerup', (event) => {
+    listen('pointerup', async (event) => {
       const point = pointOf(event);
       const gesture = this.pointerGestures.get(event.pointerId);
       this.inputRouter.pointerUp(point, event.pointerId);
@@ -649,7 +652,14 @@ export class ICE3 extends ICEEventDispatcher {
         && !gesture.dragged
         && isSelectionClick(gesture.start, point)
       ) {
-        const result = this.samplePick(point);
+        const generation = ++this.pickGeneration;
+        const result = await this.samplePick(point);
+        if (
+          generation !== this.pickGeneration
+          || this.state === 'destroyed'
+        ) {
+          return;
+        }
         const outcome: ICEPickOutcome = result.kind === 'hit'
           ? {
               kind: 'hit',
@@ -725,7 +735,7 @@ export class ICE3 extends ICEEventDispatcher {
     this.trigger(eventName, { target, event });
   }
 
-  private samplePick(point: ICEScreenPoint): ICEPickResult {
+  private async samplePick(point: ICEScreenPoint): Promise<ICEPickResult> {
     this.assertActive();
     if (!this.scene || !this.camera) {
       return { kind: 'empty' };
@@ -733,7 +743,7 @@ export class ICE3 extends ICEEventDispatcher {
     if (this.backend.capabilities.picking && this.backend.pick) {
       const startedAt = performance.now();
       try {
-        const selectionId = this.backend.pick({
+        const selectionId = await this.backend.pick({
           frameId: this.frameId,
           scene: this.scene,
           camera: this.camera,

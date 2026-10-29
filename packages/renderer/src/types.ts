@@ -50,7 +50,10 @@ export interface ICERendererBackend {
   setBackgroundColor?(color: string): void;
   prepareBatchGeometry?(geometry: ICEGeometry): void;
   releaseBatchGeometry?(geometry: ICEGeometry): void;
-  pick?(frame: ICEFrame, point: ICEScreenPoint): string | undefined;
+  pick?(
+    frame: ICEFrame,
+    point: ICEScreenPoint,
+  ): Promise<string | undefined>;
   render(frame: ICEFrame): void;
   capture?(): Promise<Blob>;
   dispose(): void;

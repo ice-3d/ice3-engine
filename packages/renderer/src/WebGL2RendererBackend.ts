@@ -530,7 +530,10 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       + this.instanceCache!.totalBytes;
   }
 
-  pick(frame: ICEFrame, point: ICEScreenPoint): string | undefined {
+  async pick(
+    frame: ICEFrame,
+    point: ICEScreenPoint,
+  ): Promise<string | undefined> {
     if (!this.picker || !this.geometryCache) {
       throw new ICEEngineError(
         'ICE3_PICK_UNAVAILABLE',
