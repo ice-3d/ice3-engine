@@ -2435,7 +2435,19 @@
                     "uri": "coarse/group-root-0-1-1/part-001/part-001/part-001/part-000.glb"
                   },
                   {
-                    "uri": "coarse/group-root-0-1-1/part-001/part-001/part-001/part-001.glb"
+                    "uri": "coarse/group-root-0-1-1/part-001/part-001/part-001/part-001/part-000.glb"
+                  },
+                  {
+                    "uri": "coarse/group-root-0-1-1/part-001/part-001/part-001/part-001/part-001/part-000/part-000/part-000.glb"
+                  },
+                  {
+                    "uri": "coarse/group-root-0-1-1/part-001/part-001/part-001/part-001/part-001/part-000/part-000/part-001.glb"
+                  },
+                  {
+                    "uri": "coarse/group-root-0-1-1/part-001/part-001/part-001/part-001/part-001/part-000/part-001.glb"
+                  },
+                  {
+                    "uri": "coarse/group-root-0-1-1/part-001/part-001/part-001/part-001/part-001/part-001.glb"
                   }
                 ],
                 "children": [
@@ -3013,11 +3025,26 @@
                         0
                       ]
                     },
-                    "geometricError": 0.12239393259928733,
+                    "geometricError": 0.07659980415055756,
                     "refine": "REPLACE",
                     "contents": [
                       {
-                        "uri": "coarse/group-root-0-1-1-1/part-000.glb"
+                        "uri": "coarse/group-root-0-1-1-1/part-000/part-000/part-000/part-000/part-000/part-000.glb"
+                      },
+                      {
+                        "uri": "coarse/group-root-0-1-1-1/part-000/part-000/part-000/part-000/part-000/part-001.glb"
+                      },
+                      {
+                        "uri": "coarse/group-root-0-1-1-1/part-000/part-000/part-000/part-000/part-001.glb"
+                      },
+                      {
+                        "uri": "coarse/group-root-0-1-1-1/part-000/part-000/part-000/part-001.glb"
+                      },
+                      {
+                        "uri": "coarse/group-root-0-1-1-1/part-000/part-000/part-001.glb"
+                      },
+                      {
+                        "uri": "coarse/group-root-0-1-1-1/part-000/part-001.glb"
                       },
                       {
                         "uri": "coarse/group-root-0-1-1-1/part-001/part-000/part-000.glb"
@@ -3047,11 +3074,23 @@
                             0
                           ]
                         },
-                        "geometricError": 0.12239393259928733,
+                        "geometricError": 0.07659980415055756,
                         "refine": "REPLACE",
                         "contents": [
                           {
-                            "uri": "coarse/group-root-0-1-1-1-0/part-000.glb"
+                            "uri": "coarse/group-root-0-1-1-1-0/part-000/part-000/part-000/part-000/part-000.glb"
+                          },
+                          {
+                            "uri": "coarse/group-root-0-1-1-1-0/part-000/part-000/part-000/part-000/part-001.glb"
+                          },
+                          {
+                            "uri": "coarse/group-root-0-1-1-1-0/part-000/part-000/part-000/part-001.glb"
+                          },
+                          {
+                            "uri": "coarse/group-root-0-1-1-1-0/part-000/part-000/part-001.glb"
+                          },
+                          {
+                            "uri": "coarse/group-root-0-1-1-1-0/part-000/part-001.glb"
                           },
                           {
                             "uri": "coarse/group-root-0-1-1-1-0/part-001/part-000.glb"
@@ -3094,7 +3133,16 @@
                                 "uri": "coarse/group-root-0-1-1-1-0-0/part-001/part-000.glb"
                               },
                               {
-                                "uri": "coarse/group-root-0-1-1-1-0-0/part-001/part-001.glb"
+                                "uri": "coarse/group-root-0-1-1-1-0-0/part-001/part-001/part-000/part-000.glb"
+                              },
+                              {
+                                "uri": "coarse/group-root-0-1-1-1-0-0/part-001/part-001/part-000/part-001/part-000.glb"
+                              },
+                              {
+                                "uri": "coarse/group-root-0-1-1-1-0-0/part-001/part-001/part-000/part-001/part-001.glb"
+                              },
+                              {
+                                "uri": "coarse/group-root-0-1-1-1-0-0/part-001/part-001/part-001.glb"
                               }
                             ],
                             "children": [

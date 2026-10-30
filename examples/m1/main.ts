@@ -41,7 +41,7 @@ const renderer = rendererQuery === 'auto'
   ? rendererQuery
   : 'webgl2';
 const engine = await new ICE3({ renderer }).initAsync(stage);
-engine.setBackgroundColor('#000000');
+engine.setBackgroundColor('#1B2529');
 const camera = new ICEPerspectiveCamera({
   id: 'camera-main',
   fov: 45,
@@ -465,7 +465,7 @@ async function start(): Promise<void> {
         max[2] - min[2],
       ) / 2,
     );
-    const distance = radius / Math.sin((camera.fov * Math.PI) / 360) * 1.15;
+    const distance = radius / Math.sin((camera.fov * Math.PI) / 360) * 0.55;
     const directionLength = Math.hypot(1, 0.7, 1.2);
     camera.setTarget(assetCenter);
     camera.setPosition([
