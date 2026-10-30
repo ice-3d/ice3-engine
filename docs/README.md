@@ -49,7 +49,7 @@
 | `ICE3-ENG-SPEC-001` | [M0 设计](specs/2026-10-27-engine-m0-design.md) | Implemented | Engine baseline 和生命周期设计 |
 | `ICE3-ENG-SPEC-002` | [M1 Asset 设计](specs/2026-10-27-engine-m1-asset-design.md) | Implemented | Prepared GLB 和空间 Runtime 设计 |
 | `ICE3-ENG-SPEC-003` | [设备 Selection](specs/2026-10-27-equipment-selection-design.md) | Implemented | 稳定设备 picking 和 highlight 设计 |
-| `ICE3-ENG-SPEC-004` | [WebGPU Renderer 设计](specs/2026-10-29-webgpu-renderer-design.md) | Implemented | WebGPU backend、自动选择、fallback 和性能基准设计 |
+| `ICE3-ENG-SPEC-004` | [WebGPU Renderer 设计](specs/2026-10-29-webgpu-renderer-design.md) | Implemented | WebGPU backend、fallback、显式 opt-in 和性能基准设计 |
 | `ICE3-ENG-SPEC-005` | [WebGPU 性能优化设计](specs/2026-10-29-webgpu-performance-design.md) | Implemented | GPU 计时、Selection Mask、Storage、Bundle 和 Compute 可见性设计 |
 
 ## 实施计划

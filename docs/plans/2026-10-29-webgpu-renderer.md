@@ -16,6 +16,9 @@
 
 **Spec:** [`docs/specs/2026-10-29-webgpu-renderer-design.md`](../specs/2026-10-29-webgpu-renderer-design.md)
 
+> Default-selection policy amended by `ICE3-ENG-ADR-004`: WebGL2 is the production
+> default; WebGPU is an explicit experimental opt-in.
+
 ## Global Constraints
 
 - 所有命令使用 Node.js `24.22.1` LTS 和 npm 11 或更高版本。
