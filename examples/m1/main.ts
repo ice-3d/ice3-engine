@@ -46,7 +46,7 @@ const camera = new ICEPerspectiveCamera({
   id: 'camera-main',
   fov: 45,
   near: 0.1,
-  far: 1000,
+  far: 5000,
   position: [3.2, 2.4, 4.5],
   target: [0, 0, 0],
 });

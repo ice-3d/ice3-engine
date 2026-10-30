@@ -28,6 +28,8 @@ test('loads the virtual wastewater plant from the root URL', async ({ page }) =>
   await page.goto('http://127.0.0.1:8104/');
   await expect(page.locator('[data-role="status"]'))
     .toHaveText('当前视角已就绪');
+  await expect(page.locator('[data-role="loading"]'))
+    .toHaveAttribute('data-state', 'ready');
   await page.evaluate(
     () => window.__ice3M1.setCameraPose([285, 150, 220], [135, 0, 40]),
   );
