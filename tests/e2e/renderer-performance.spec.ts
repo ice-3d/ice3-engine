@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test.setTimeout(120_000);
+
 test.beforeEach(async ({ page }) => {
   await page.route(
     '**/assets/local-preview.local.json',

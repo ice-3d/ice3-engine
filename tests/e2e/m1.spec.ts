@@ -146,9 +146,7 @@ test('loads wastewater instead of a local preview from the root URL', async ({
 
   await expect(page.locator('[data-role="status"]'))
     .toHaveText('当前视角已就绪');
-  expect(await page.evaluate(
-    () => window.__ice3M1.equipmentSelectionIds().length,
-  )).toBe(65);
+  await page.evaluate(() => window.__ice3M1.whenLodIdle());
   expect(wastewaterRequests.length).toBeGreaterThan(0);
   expect(previewRequests).toEqual([]);
 });

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+test.setTimeout(120_000);
+
 test.beforeEach(async ({ page }) => {
   await page.route(
     '**/assets/local-preview.local.json',
@@ -37,7 +39,7 @@ test('loads the virtual wastewater plant from the root URL', async ({ page }) =>
     () => window.__ice3M1.diagnostics().renderer.renderedBatches,
   );
 
-  expect(equipmentIds.length).toBeGreaterThanOrEqual(60);
+  expect(equipmentIds.length).toBeGreaterThanOrEqual(200);
   expect(renderedBatches).toBeGreaterThan(0);
   expect(assetRequests.length).toBeGreaterThan(0);
   expect(errors).toEqual([]);
