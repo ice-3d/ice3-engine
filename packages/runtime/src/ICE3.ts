@@ -178,6 +178,7 @@ export class ICE3 extends ICEEventDispatcher {
         : options.renderer ?? 'webgl2',
       selected: this.backend.capabilities.backend,
       fallback: false,
+      experimental: this.backend.capabilities.backend === 'webgpu',
     };
     this.scheduler = options.scheduler ?? new BrowserRenderScheduler();
   }
@@ -190,12 +191,11 @@ export class ICE3 extends ICEEventDispatcher {
       );
     }
     if (
-      this.rendererPreference === 'auto'
-      || this.rendererPreference === 'webgpu'
+      this.rendererPreference === 'webgpu'
     ) {
       throw new ICEEngineError(
         'ICE3_RENDERER_ASYNC_REQUIRED',
-        'ICE3_RENDERER_ASYNC_REQUIRED: auto and webgpu require initAsync()',
+        'ICE3_RENDERER_ASYNC_REQUIRED: webgpu requires initAsync()',
       );
     }
     return this.initializeWithBackend(target);
@@ -212,7 +212,7 @@ export class ICE3 extends ICEEventDispatcher {
       return this.initializeWithBackend(target);
     }
     const selected = await selectDefaultRendererBackend(
-      this.rendererPreference ?? 'auto',
+      this.rendererPreference ?? 'webgl2',
     );
     this.backend = selected.backend;
     this.rendererSelection = selected.selection;

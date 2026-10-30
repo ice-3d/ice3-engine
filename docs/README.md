@@ -40,6 +40,7 @@
 | `ICE3-ENG-ADR-001` | [公开 Facade 与 package 边界](decisions/0001-public-facade-and-package-boundaries.md) | Active | 让消费方只依赖公开 API |
 | `ICE3-ENG-ADR-002` | [Geometry 优先的工业渲染](decisions/0002-geometry-first-industrial-rendering.md) | Active | 优先处理 Geometry 和空间行为 |
 | `ICE3-ENG-ADR-003` | [相机驱动的 Tileset 与 LOD](decisions/0003-camera-driven-tileset-and-lod.md) | Active | 流式加载时保持完整覆盖 |
+| `ICE3-ENG-ADR-004` | [WebGPU 实验性 Opt-in](decisions/0004-webgpu-experimental-opt-in.md) | Active | 默认 WebGL2，WebGPU 仅显式启用 |
 
 ## Spec
 

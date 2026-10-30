@@ -6,28 +6,13 @@ import {
   type ICERendererBackend,
 } from '../src/index';
 
-it('uses WebGPU for auto when the WebGPU factory succeeds', async () => {
-  const webgpu = backendWithKind('webgpu');
+it('resolves auto to WebGL2 without probing WebGPU', async () => {
   const webgl2 = backendWithKind('webgl2');
-  const selected = await selectRendererBackend('auto', {
-    createWebGPU: async () => webgpu,
-    createWebGL2: () => webgl2,
-  });
-  expect(selected.backend).toBe(webgpu);
-  expect(selected.selection).toMatchObject({
-    requested: 'auto',
-    selected: 'webgpu',
-    fallback: false,
-  });
-});
-
-it('falls back to WebGL2 when auto WebGPU initialization rejects', async () => {
-  const webgl2 = backendWithKind('webgl2');
+  let webgpuCalls = 0;
   const selected = await selectRendererBackend('auto', {
     createWebGPU: async () => {
-      throw Object.assign(new Error('adapter unavailable'), {
-        details: { reason: 'adapter-unavailable' },
-      });
+      webgpuCalls += 1;
+      return backendWithKind('webgpu');
     },
     createWebGL2: () => webgl2,
   });
@@ -35,9 +20,10 @@ it('falls back to WebGL2 when auto WebGPU initialization rejects', async () => {
   expect(selected.selection).toMatchObject({
     requested: 'auto',
     selected: 'webgl2',
-    fallback: true,
-    fallbackReason: 'adapter-unavailable',
+    fallback: false,
+    experimental: false,
   });
+  expect(webgpuCalls).toBe(0);
 });
 
 it('does not fall back when WebGPU is explicitly requested', async () => {
@@ -49,6 +35,21 @@ it('does not fall back when WebGPU is explicitly requested', async () => {
     },
     createWebGL2: () => backendWithKind('webgl2'),
   })).rejects.toThrowError(/ICE3_WEBGPU_UNAVAILABLE/);
+});
+
+it('marks an explicitly requested WebGPU backend as experimental', async () => {
+  const webgpu = backendWithKind('webgpu');
+  const selected = await selectRendererBackend('webgpu', {
+    createWebGPU: async () => webgpu,
+    createWebGL2: () => backendWithKind('webgl2'),
+  });
+
+  expect(selected.selection).toMatchObject({
+    requested: 'webgpu',
+    selected: 'webgpu',
+    fallback: false,
+    experimental: true,
+  });
 });
 
 it('uses WebGL2 without constructing WebGPU', async () => {

@@ -35,9 +35,11 @@ const selectionStatus = required<HTMLElement>('[data-role="selection-status"]');
 const selectionType = required<HTMLElement>('[data-role="selection-type"]');
 const selectionArea = required<HTMLElement>('[data-role="selection-area"]');
 const rendererQuery = new URLSearchParams(window.location.search).get('renderer');
-const renderer = rendererQuery === 'webgl2' || rendererQuery === 'webgpu'
+const renderer = rendererQuery === 'auto'
+  || rendererQuery === 'webgl2'
+  || rendererQuery === 'webgpu'
   ? rendererQuery
-  : 'auto';
+  : 'webgl2';
 const engine = await new ICE3({ renderer }).initAsync(stage);
 engine.setBackgroundColor('#000000');
 const camera = new ICEPerspectiveCamera({

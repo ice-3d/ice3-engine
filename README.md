@@ -32,7 +32,7 @@ import path。
 
 - Node.js 24.22.1 LTS
 - npm 11 或更高版本
-- 支持 WebGL2 的浏览器；满足能力的浏览器自动使用 WebGPU
+- 支持 WebGL2 的浏览器；WebGPU 为显式启用的实验性后端
 
 ```bash
 git clone https://github.com/ice-3d/ice3-engine.git
@@ -76,7 +76,7 @@ import {
 const host = document.querySelector<HTMLElement>('#stage');
 if (!host) throw new Error('stage element is required');
 
-const engine = await new ICE3({ renderer: 'auto' }).initAsync(host);
+const engine = new ICE3().init(host);
 const scene = new ICEScene({ id: 'main' });
 const camera = new ICEPerspectiveCamera({
   id: 'camera',
@@ -96,8 +96,9 @@ engine.setScene(scene).setCamera(camera).start();
 engine.destroy();
 ```
 
-`initAsync()` 默认优先 WebGPU；探测失败时使用 WebGL2。需要固定后端时使用
-`renderer: 'webgpu' | 'webgl2'`。显式 WebGPU 不可用会报错，不会静默回退。
+默认使用 WebGL2。WebGPU 目前是实验性能力，必须显式设置
+`renderer: 'webgpu'` 并使用 `await initAsync()`；初始化失败会报错，不会静默回退。
+`auto` 保留为兼容别名，同样选择 WebGL2。
 
 精确拾取是异步 API：
 
@@ -150,8 +151,8 @@ npm run verify
 npm run benchmark:renderers
 ```
 
-`verify` 依次运行文档门禁、架构检查、类型检查、单元测试、构建，以及 Chromium 和
-WebKit 浏览器测试。
+`verify` 依次运行文档门禁、架构检查、类型检查、单元测试、构建，以及两套浏览器
+项目测试。
 
 `benchmark:renderers` 在相同 Scene 上强制运行 WebGL2 和 WebGPU，重复测量 CPU
 阶段、Pick、Draw 和 GPU byte 数据，并将 JSON/Markdown 输出到

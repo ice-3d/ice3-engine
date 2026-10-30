@@ -6,11 +6,14 @@
 >
 > Owner: ICE3 Engine maintainers
 
+> Amended by `ICE3-ENG-ADR-004`: WebGL2 is the production default. WebGPU is
+> experimental and must be explicitly selected with `renderer: 'webgpu'`; `auto`
+> remains a compatibility alias for WebGL2.
+
 ## 1. 目标
 
 ICE3 Engine 增加一套生产级 WebGPU Renderer，并在运行时选择可用且满足 ICE3 最低能力
-要求的图形后端。现代浏览器支持 WebGPU 时优先使用 WebGPU；探测失败时自动使用现有
-WebGL2 Renderer。
+要求的图形后端。WebGPU 当前是实验性显式选项；默认使用现有 WebGL2 Renderer。
 
 后端选择不能只看浏览器品牌、版本或 `navigator.gpu` 是否存在。探测必须验证 Adapter、
 Device、Canvas Context、能力限制和最小 Pipeline 均可用。显式指定 WebGPU 时失败必须
@@ -64,7 +67,8 @@ export type ICE3Options = {
 initAsync(target: string | HTMLElement): Promise<this>;
 ```
 
-`initAsync()` 在所有未注入 `backend` 且未显式选择 Renderer 时默认使用 `auto`。
+`initAsync()` 在所有未注入 `backend` 且未显式选择 Renderer 时默认使用 `webgl2`。
+`auto` 是向后兼容的 WebGL2 别名。
 
 行为矩阵：
 
@@ -72,11 +76,10 @@ initAsync(target: string | HTMLElement): Promise<this>;
 |---|---|---|---|
 | `init()` | 有 | 未设置 | 使用注入后端 |
 | `init()` | 无 | 未设置 | 使用 WebGL2 |
-| `init()` | 无 | `webgl2` | 使用 WebGL2 |
-| `init()` | 无 | `auto` | 抛 `ICE3_RENDERER_ASYNC_REQUIRED` |
+| `init()` | 无 | `auto` 或 `webgl2` | 使用 WebGL2 |
 | `init()` | 无 | `webgpu` | 抛 `ICE3_RENDERER_ASYNC_REQUIRED` |
 | `initAsync()` | 有 | 未设置 | 使用注入后端 |
-| `initAsync()` | 无 | 未设置或 `auto` | 探测 WebGPU，失败回退 WebGL2 |
+| `initAsync()` | 无 | 未设置或 `auto` | 使用 WebGL2 |
 | `initAsync()` | 无 | `webgpu` | 探测失败时抛 `ICE3_WEBGPU_UNAVAILABLE` |
 | `initAsync()` | 无 | `webgl2` | 使用 WebGL2 |
 
@@ -164,8 +167,8 @@ Scene Canvas 在探测完成前不得取得任何图形 Context。
 Device。失败探测释放已经创建的 Device 和 Canvas 资源。成功的探测结果在当前页面生命周期
 内缓存；超时或临时失败不永久缓存，以便后续显式重试。
 
-`auto` 模式将任何探测失败转换为 WebGL2 选择，并把选择和失败原因写入 Diagnostic。
-显式 `webgpu` 模式将同一失败转换为 `ICE3_WEBGPU_UNAVAILABLE`。
+显式 `webgpu` 模式将探测失败转换为 `ICE3_WEBGPU_UNAVAILABLE`。`auto` 不探测
+WebGPU，并保持稳定的 WebGL2 选择。
 
 ## 5. Backend 架构
 
@@ -240,7 +243,7 @@ WebGPU backend 监听 `device.lost`：
 | Code | 触发条件 | 调用方处理 |
 |---|---|---|
 | `ICE3_RENDERER_CONFIG_INVALID` | 同时注入 backend 并指定 renderer preference | 只使用一种配置方式 |
-| `ICE3_RENDERER_ASYNC_REQUIRED` | `auto` 或 WebGPU 偏好传给同步 `init()` | 改用 `initAsync()` |
+| `ICE3_RENDERER_ASYNC_REQUIRED` | 实验性 WebGPU 偏好传给同步 `init()` | 改用 `initAsync()` |
 | `ICE3_WEBGPU_UNAVAILABLE` | 显式选择 WebGPU 但探测失败 | 检查 details 中的 probe reason |
 | `ICE3_WEBGPU_DEVICE_LOST` | 运行中 Device Lost 且恢复失败 | 重建 Engine 或刷新页面 |
 | `ICE3_WEBGPU_PIPELINE_FAILED` | WebGPU Pipeline 创建失败 | 检查浏览器、Shader 和 GPU Diagnostic |
@@ -335,7 +338,7 @@ GPU 的数据写成成功结果。
 
 - Renderer preference 矩阵和非法组合。
 - Probe 的每个失败 branch、超时、成功缓存和 Device 清理。
-- `auto` fallback 的 selected backend、fallback reason 和 Diagnostic。
+- `auto` 作为 WebGL2 兼容别名的 selected backend 和 Diagnostic。
 - 显式 WebGPU 失败不 fallback。
 - WebGL2 与 WebGPU 的统一异步 pick 契约。
 - Pointer click 在 Promise 完成前被新点击取代时不提交旧 Selection。
@@ -351,8 +354,8 @@ GPU 的数据写成成功结果。
 - Resize 和 DPR 改变后没有空白帧。
 - WebGPU 测试同时覆盖 Device Lost 模拟；若浏览器不支持可靠的测试钩子，则使用注入的
   Device boundary 验证状态机，并保留真实 Adapter 的 smoke test。
-- `new ICE3({ renderer: 'auto' }).initAsync(host)` 在 WebGPU 不可用时绘制 WebGL2 帧并
-  报告 fallback。
+- `new ICE3({ renderer: 'auto' }).initAsync(host)` 绘制 WebGL2 帧并报告
+  `experimental: false`。
 - 显式 WebGPU 不可用时，不创建或绘制 WebGL2 帧。
 
 性能测试不依赖像素相同；视觉一致性由独立功能测试验证，性能测试只比较相同工作负载的
@@ -381,8 +384,8 @@ Console 不直接访问 WebGPU 对象。
 
 - `npm run verify` 在 Node.js 24.22.1 下通过。
 - `npm run build`、`npm run test:e2e` 和 release package checks 通过。
-- 支持 WebGPU 的 Chromium 实际运行 `auto` 并报告 `webgpu`。
-- 禁用或伪造 WebGPU 不可用时实际运行 `auto` 并绘制 WebGL2。
+- 支持 WebGPU 的浏览器实际显式运行 `renderer: 'webgpu'` 并报告实验性后端。
+- `auto` 和默认配置即使 WebGPU 可用也绘制 WebGL2。
 - 显式 WebGPU 不可用时返回稳定错误，不静默 fallback。
 - WebGL2 和 WebGPU 的功能测试覆盖本章列出的全部用户可见能力。
 - 基准命令生成 JSON 和 Markdown 结果，且能展示各 Scenario 的量化 improvementPercent。

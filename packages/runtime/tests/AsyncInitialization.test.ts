@@ -16,9 +16,25 @@ it('initAsync initializes an injected backend', async () => {
   });
 });
 
-it('requires initAsync for auto and webgpu preferences', () => {
-  expect(() => new ICE3({ renderer: 'auto' }).init(createHost()))
-    .toThrowError(/ICE3_RENDERER_ASYNC_REQUIRED/);
+it('uses WebGL2 for the default and auto preference without WebGPU probing', async () => {
+  const defaultEngine = new ICE3();
+  const autoEngine = new ICE3({ renderer: 'auto' });
+
+  expect(defaultEngine.getDiagnostics().rendererSelection).toMatchObject({
+    requested: 'webgl2',
+    selected: 'webgl2',
+    fallback: false,
+    experimental: false,
+  });
+  expect(autoEngine.getDiagnostics().rendererSelection).toMatchObject({
+    requested: 'auto',
+    selected: 'webgl2',
+    fallback: false,
+    experimental: false,
+  });
+});
+
+it('requires initAsync only when WebGPU is explicitly requested', () => {
   expect(() => new ICE3({ renderer: 'webgpu' }).init(createHost()))
     .toThrowError(/ICE3_RENDERER_ASYNC_REQUIRED/);
 });

@@ -30,7 +30,7 @@ import {
 const host = document.querySelector<HTMLElement>('#stage');
 if (!host) throw new Error('stage element is required');
 
-const engine = await new ICE3({ renderer: 'auto' }).initAsync(host);
+const engine = new ICE3().init(host);
 const scene = new ICEScene({ id: 'main' });
 const camera = new ICEPerspectiveCamera({
   id: 'camera',
@@ -47,9 +47,9 @@ scene.addChild(new ICEMesh({
 engine.setScene(scene).setCamera(camera).start();
 ```
 
-`initAsync()` 优先选择通过探测的 WebGPU，无法稳定初始化时回退 WebGL2。可用
-`renderer: 'webgpu'` 或 `renderer: 'webgl2'` 固定后端。拾取使用
-`await engine.pick(point)`。
+默认使用 WebGL2。WebGPU 是实验性能力，必须显式使用
+`await new ICE3({ renderer: 'webgpu' }).initAsync(host)` 才会启用；`auto` 保留为
+WebGL2 兼容别名。拾取使用 `await engine.pick(point)`。
 
 完整文档和相关工具见
 [Engine 文档](https://github.com/ice-3d/ice3-engine/blob/main/README.md)。

@@ -32,7 +32,7 @@ server。
 | `ICE3_ASSET_CONTRACT_MISSING` | 使用带 collaboration contract 的当前 Asset |
 | `ICE3_TILESET_UNSUPPORTED` | 使用显式 children、local Cartesian Bounds、relative content 和 `REPLACE` refinement |
 | `ICE3_RENDERER_UNSUPPORTED` | 使用支持 WebGL2 的 browser 和 device |
-| `ICE3_WEBGPU_UNAVAILABLE` | 检查 `rendererSelection.fallbackReason`；`auto` 会使用 WebGL2，显式 WebGPU 会失败 |
+| `ICE3_WEBGPU_UNAVAILABLE` | 仅显式 WebGPU 会触发；检查 Device 或 Pipeline 初始化条件 |
 | `ICE3_RENDERER_ASYNC_REQUIRED` | 将同步 `init()` 改为 `await initAsync()` |
 | `ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE` | 可选 Storage、Bundle 或 Compute 层已降级；功能仍可用，按性能目标检查 warning details |
 | Context loss 后反复空白帧 | 等待 context restoration，并检查 Renderer Diagnostic |

@@ -18,7 +18,7 @@ Diagnostic 使用稳定 code。调用方应根据 `code` 分支，不依赖 mess
 | `ICE3_CONTEXT_LOST` | 浏览器丢失 GPU context | 保持应用可见，等待 restoration 并检查 event |
 | `ICE3_CONTEXT_RESTORED` | 浏览器恢复 GPU context，Engine 能再次绘制 | 恢复正常运行并验证新 frame |
 | `ICE3_RENDERER_CONFIG_INVALID` | 同时注入 backend 并指定 renderer preference | 只使用一种配置方式 |
-| `ICE3_RENDERER_ASYNC_REQUIRED` | `auto` 或 `webgpu` 传给同步 `init()` | 改用 `initAsync()` |
+| `ICE3_RENDERER_ASYNC_REQUIRED` | 显式 `webgpu` 传给同步 `init()` | 改用 `initAsync()` |
 | `ICE3_WEBGPU_UNAVAILABLE` | 显式 WebGPU 探测、Device 或 Pipeline 初始化失败 | 检查 `rendererSelection.fallbackReason` |
 | `ICE3_WEBGPU_DEVICE_LOST` | 运行中 WebGPU Device Lost 且恢复失败 | 重建 Engine 或刷新页面 |
 | `ICE3_WEBGPU_PICK_UNAVAILABLE` | WebGPU Pick target、copy 或 map 失败 | 重试 Pick；持续失败时使用 WebGL2 |

@@ -14,7 +14,7 @@
 
 - Node.js 24.22.1 LTS
 - npm 11 或更高版本
-- 支持 WebGL2 的 Chromium 或 WebKit；现代桌面浏览器可自动使用 WebGPU
+- 支持 WebGL2 的现代浏览器；WebGPU 为实验性显式选项
 
 ## 操作步骤
 
@@ -36,8 +36,8 @@ npm run dev:example:m1
 
 Open `http://127.0.0.1:8104/`.
 
-追加 `?renderer=webgpu` 或 `?renderer=webgl2` 可强制图形后端。默认 `auto` 只在
-Adapter、Device、Context 和最小 Pipeline 探测通过时选择 WebGPU。
+默认使用 WebGL2。追加 `?renderer=webgpu` 可手动启用实验性 WebGPU；追加
+`?renderer=webgl2` 或 `?renderer=auto` 使用稳定 WebGL2 路径。
 
 ## 预期结果
 
@@ -52,7 +52,7 @@ Adapter、Device、Context 和最小 Pipeline 探测通过时选择 WebGPU。
 | 现象 | 检查 |
 |---|---|
 | WebGL2 不可用 | 启用硬件加速并使用当前浏览器 |
-| WebGPU 可用但选择了 WebGL2 | 在 `getDiagnostics().rendererSelection.fallbackReason` 查看探测失败原因 |
+| 手动 WebGPU 初始化失败 | 检查 `getDiagnostics().rendererSelection` 和 `ICE3_WEBGPU_UNAVAILABLE` |
 | M1 Scene 空白 | 检查 `docs/diagnostics.md` 以及浏览器 network panel 中的 Tileset/GLB failure |
 | Asset 显示为 placeholder | 确认版本库中的 `tiled/` tree 存在 |
 | Connection refused | 确认 command 仍在文档指定端口运行 |

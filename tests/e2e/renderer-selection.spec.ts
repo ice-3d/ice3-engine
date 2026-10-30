@@ -1,18 +1,32 @@
 import { expect, test } from '@playwright/test';
 
-test('auto selects the strongest available renderer', async ({ page }) => {
+test('auto resolves to the stable WebGL2 renderer', async ({ page }) => {
   await page.goto('http://127.0.0.1:8104/?renderer=auto');
   await expect(page.locator('[data-role="status"]'))
     .toHaveText('当前视角已就绪');
   const selection = await page.evaluate(
     () => window.__ice3M1.diagnostics().rendererSelection,
   );
-  expect(['webgpu', 'webgl2']).toContain(selection.selected);
-  if (selection.selected === 'webgl2') {
-    expect(selection.fallback).toBe(true);
-    expect(selection.fallbackReason).toBeTruthy();
-  }
-  expect(selection.requested).toBe('auto');
+  expect(selection).toMatchObject({
+    requested: 'auto',
+    selected: 'webgl2',
+    fallback: false,
+    experimental: false,
+  });
+});
+
+test('default initialization uses WebGL2', async ({ page }) => {
+  await page.goto('http://127.0.0.1:8104/');
+  await expect(page.locator('[data-role="status"]'))
+    .toHaveText('当前视角已就绪');
+  expect(await page.evaluate(
+    () => window.__ice3M1.diagnostics().rendererSelection,
+  )).toMatchObject({
+    requested: 'webgl2',
+    selected: 'webgl2',
+    fallback: false,
+    experimental: false,
+  });
 });
 
 test('forced WebGL2 remains functional', async ({ page }) => {
@@ -24,11 +38,11 @@ test('forced WebGL2 remains functional', async ({ page }) => {
   )).toBe('webgl2');
 });
 
-test('auto falls back when navigator.gpu is unavailable', async ({ page }) => {
+test('auto stays on WebGL2 even when WebGPU is available', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'gpu', {
       configurable: true,
-      value: undefined,
+      value: { requestAdapter: async () => ({}) },
     });
   });
   await page.goto('http://127.0.0.1:8104/?renderer=auto');
@@ -37,9 +51,35 @@ test('auto falls back when navigator.gpu is unavailable', async ({ page }) => {
   expect(await page.evaluate(
     () => window.__ice3M1.diagnostics().rendererSelection,
   )).toMatchObject({
+    requested: 'auto',
     selected: 'webgl2',
-    fallback: true,
-    fallbackReason: 'api-unavailable',
+    fallback: false,
+    experimental: false,
+  });
+});
+
+test('explicit WebGPU is reported as experimental', async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== 'chromium', 'WebGPU smoke runs in Chromium');
+  await page.goto('http://127.0.0.1:8104/');
+  const supported = await page.evaluate(async () => {
+    if (!navigator.gpu) return false;
+    return Boolean(await navigator.gpu.requestAdapter());
+  });
+  test.skip(!supported, 'WebGPU adapter is unavailable');
+
+  await page.goto('http://127.0.0.1:8104/?renderer=webgpu');
+  await expect(page.locator('[data-role="status"]'))
+    .toHaveText('当前视角已就绪');
+  expect(await page.evaluate(
+    () => window.__ice3M1.diagnostics().rendererSelection,
+  )).toMatchObject({
+    requested: 'webgpu',
+    selected: 'webgpu',
+    fallback: false,
+    experimental: true,
   });
 });
 

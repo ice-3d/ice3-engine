@@ -23,7 +23,7 @@ export async function selectRendererBackend(
   factories: ICERendererFactories,
 ): Promise<ICERendererBackendSelection> {
   const startedAt = performance.now();
-  if (preference === 'webgl2') {
+  if (preference === 'auto' || preference === 'webgl2') {
     const backend = factories.createWebGL2();
     return {
       backend,
@@ -31,6 +31,7 @@ export async function selectRendererBackend(
         requested: preference,
         selected: backend.capabilities.backend,
         fallback: false,
+        experimental: false,
         probeDurationMs: performance.now() - startedAt,
       },
     };
@@ -44,6 +45,7 @@ export async function selectRendererBackend(
         requested: preference,
         selected: backend.capabilities.backend,
         fallback: false,
+        experimental: true,
         probeDurationMs: performance.now() - startedAt,
       },
     };
@@ -71,6 +73,7 @@ export async function selectRendererBackend(
         requested: preference,
         selected: backend.capabilities.backend,
         fallback: true,
+        experimental: false,
         probeDurationMs: performance.now() - startedAt,
         ...(reason ? { fallbackReason: reason } : {}),
       },

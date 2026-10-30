@@ -444,7 +444,7 @@ WebGL2 热切换；启动探测的 WebGL2 fallback 行为保持不变。
 - Render Bundle、Storage 和 Compute 各自失败时仍产生可见帧。
 - Device Lost 后 Bundle、Storage、Selection Mask 和 timestamp 资源全部重建。
 - resize、DPR、Capture 和重复 dispose 后无空白帧或失效资源。
-- `auto` 在 WebGPU 不可用时继续选择 WebGL2；显式 `webgpu` 不静默切换。
+- `auto` 始终选择 WebGL2；显式 `webgpu` 不静默切换。
 
 视觉比较允许抗锯齿、线宽和少量像素颜色差异，不允许场景节点缺失、遮挡错误、背景错误、
 Selection 身份错误或黑屏。

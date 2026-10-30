@@ -25,6 +25,7 @@ export type ICE3RendererSelection = Readonly<{
   requested: ICE3RendererPreference | 'custom';
   selected: 'webgl2' | 'webgpu' | 'fake';
   fallback: boolean;
+  experimental: boolean;
   probeDurationMs?: number;
   fallbackReason?: import('./WebGPUProbe.js').ICEWebGPUProbeFailureReason;
 }>;
