@@ -45,12 +45,13 @@ export class ICENode extends ICEEventDispatcher {
   readonly position: ICEVector3;
   readonly rotation: ICEVector3;
   readonly scale: ICEVector3;
-  visible = true;
 
   private _parent: ICENode | null = null;
   private readonly _children: ICENode[] = [];
   private readonly worldMatrix = new ICEMatrix4();
   private localMatrixOverride: Float32Array | null = null;
+  private _visible = true;
+  private _revision = 0;
 
   constructor(options: ICENodeOptions) {
     super();
@@ -74,6 +75,20 @@ export class ICENode extends ICEEventDispatcher {
 
   get typeId(): string {
     return 'ice3:Node';
+  }
+
+  get visible(): boolean {
+    return this._visible;
+  }
+
+  set visible(value: boolean) {
+    if (value === this._visible) return;
+    this._visible = value;
+    this.markSceneChanged();
+  }
+
+  get revision(): number {
+    return this.getRoot()._revision;
   }
 
   get parent(): ICENode | null {
@@ -106,6 +121,7 @@ export class ICENode extends ICEEventDispatcher {
     }
     node._parent = this;
     this._children.push(node);
+    this.markSceneChanged();
     return this;
   }
 
@@ -116,6 +132,7 @@ export class ICENode extends ICEEventDispatcher {
     }
     this._children.splice(index, 1);
     node._parent = null;
+    this.markSceneChanged();
     if (options?.dispose) {
       node.dispose();
     }
@@ -156,11 +173,14 @@ export class ICENode extends ICEEventDispatcher {
       throw new TypeError('ICE local matrix must contain 16 finite values');
     }
     this.localMatrixOverride = new Float32Array(matrix);
+    this.markSceneChanged();
     return this;
   }
 
   clearLocalMatrix(): this {
+    if (this.localMatrixOverride === null) return this;
     this.localMatrixOverride = null;
+    this.markSceneChanged();
     return this;
   }
 
@@ -195,6 +215,10 @@ export class ICENode extends ICEEventDispatcher {
       current = current._parent;
     }
     return current;
+  }
+
+  private markSceneChanged(): void {
+    this.getRoot()._revision += 1;
   }
 
   private isAncestorOf(node: ICENode): boolean {

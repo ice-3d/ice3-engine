@@ -86,4 +86,11 @@ test('selects a virtual wastewater device from the default scene', async ({
   await expect(page.locator('[data-role="selection-type"]'))
     .toHaveText('二沉与污泥回流');
   await expect(page.locator('[data-role="selection-area"]')).toHaveText('二沉与回流区');
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.yellowPixelCount()),
+  ).toBeGreaterThan(0);
+  expect(await page.evaluate(
+    (point) => window.__ice3M1.pickSelectionId(point),
+    center,
+  )).toBe('ice3-virtual-wwtp/equipment/SC-101');
 });

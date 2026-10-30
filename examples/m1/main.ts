@@ -34,7 +34,13 @@ const selectionCode = required<HTMLElement>('[data-role="selection-code"]');
 const selectionStatus = required<HTMLElement>('[data-role="selection-status"]');
 const selectionType = required<HTMLElement>('[data-role="selection-type"]');
 const selectionArea = required<HTMLElement>('[data-role="selection-area"]');
-const engine = new ICE3().init(stage);
+const rendererQuery = new URLSearchParams(window.location.search).get('renderer');
+const renderer = rendererQuery === 'auto'
+  || rendererQuery === 'webgl2'
+  || rendererQuery === 'webgpu'
+  ? rendererQuery
+  : 'webgl2';
+const engine = await new ICE3({ renderer }).initAsync(stage);
 engine.setBackgroundColor('#000000');
 const camera = new ICEPerspectiveCamera({
   id: 'camera-main',
@@ -266,9 +272,10 @@ function selectedScenePoint(): readonly [number, number, number] {
 
 function findStableMesh(node: ICENode): ICEMesh | undefined {
   const meshes: ICEMesh[] = [];
-  const visit = (current: ICENode): void => {
-    if (current instanceof ICEMesh) meshes.push(current);
-    for (const child of current.children) visit(child);
+  const visit = (current: ICENode, parentVisible = true): void => {
+    const visible = parentVisible && current.visible;
+    if (visible && current instanceof ICEMesh) meshes.push(current);
+    for (const child of current.children) visit(child, visible);
   };
   visit(node);
   meshes.sort((left, right) => left.id.localeCompare(right.id, 'en'));
@@ -363,25 +370,65 @@ function equipmentBusinessMetadata(
     : undefined;
 }
 
-function scenePixelAtProjection(): readonly [number, number, number, number] {
-  const point = engine.project(selectedScenePoint());
-  const canvas = document.querySelector<HTMLCanvasElement>(
-    'canvas[data-layer="scene"]',
-  );
-  const gl = canvas?.getContext('webgl2');
-  if (!canvas || !gl) throw new Error('WebGL2 canvas missing');
-  const pixel = new Uint8Array(4);
+async function capturedSceneContext(): Promise<{
+  readonly context: CanvasRenderingContext2D;
+  readonly width: number;
+  readonly height: number;
+}> {
+  const bitmap = await createImageBitmap(await engine.capture());
+  const sample = document.createElement('canvas');
+  sample.width = bitmap.width;
+  sample.height = bitmap.height;
+  const context = sample.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('2D canvas missing');
+  context.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return { context, width: sample.width, height: sample.height };
+}
+
+async function scenePixelAt(
+  x: number,
+  y: number,
+): Promise<readonly [number, number, number, number]> {
+  const { context } = await capturedSceneContext();
   const diagnostics = engine.getDiagnostics();
-  gl.readPixels(
-    Math.max(0, Math.floor(point.x * diagnostics.dpr)),
-    Math.max(0, Math.floor((diagnostics.viewport.height - point.y) * diagnostics.dpr)),
+  const pixel = context.getImageData(
+    Math.max(0, Math.floor(x * diagnostics.dpr)),
+    Math.max(0, Math.floor(y * diagnostics.dpr)),
     1,
     1,
-    gl.RGBA,
-    gl.UNSIGNED_BYTE,
-    pixel,
-  );
+  ).data;
   return [pixel[0]!, pixel[1]!, pixel[2]!, pixel[3]!];
+}
+
+async function scenePixelAtProjection(): Promise<
+  readonly [number, number, number, number]
+> {
+  const point = engine.project(selectedScenePoint());
+  return scenePixelAt(point.x, point.y);
+}
+
+async function yellowPixelCount(): Promise<number> {
+  const { context, width, height } = await capturedSceneContext();
+  const pixels = context.getImageData(0, 0, width, height).data;
+  let count = 0;
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    if (
+      pixels[offset]! > 180
+      && pixels[offset + 1]! > 140
+      && pixels[offset + 2]! < 120
+    ) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+async function pickSelectionId(
+  point: { readonly x: number; readonly y: number },
+): Promise<string | undefined> {
+  const node = await engine.pick(point);
+  return node?.selectionId ?? node?.id;
 }
 
 function disposeAsset(): void {
@@ -600,6 +647,9 @@ window.__ice3M1 = {
     return count;
   },
   scenePixelAtProjection,
+  scenePixelAt,
+  yellowPixelCount,
+  pickSelectionId,
   selectedIds: () => engine.getSelection(),
   disposeAsset,
   assetStats: sceneStats,

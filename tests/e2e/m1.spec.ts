@@ -526,16 +526,9 @@ test('disposes the asset exactly once', async ({ page }) => {
 test('uses a black background with material contrast', async ({ page }) => {
   await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
-  const background = await page.evaluate(() => {
-    const canvas = document.querySelector<HTMLCanvasElement>(
-      'canvas[data-layer="scene"]',
-    );
-    const gl = canvas?.getContext('webgl2');
-    if (!canvas || !gl) throw new Error('WebGL2 canvas missing');
-    const pixel = new Uint8Array(4);
-    gl.readPixels(5, 5, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-    return [...pixel];
-  });
+  const background = await page.evaluate(
+    () => window.__ice3M1.scenePixelAt(5, 5),
+  );
 
   expect(background[0]).toBeLessThanOrEqual(5);
   expect(background[1]).toBeLessThanOrEqual(5);
@@ -618,33 +611,9 @@ test('selects one equipment unit with a yellow highlight and info panel', async 
       (label) => label.id === 'selection-label',
     )
   ))).toBe(false);
-  await expect.poll(() => page.evaluate(() => {
-    const canvas = document.querySelector<HTMLCanvasElement>(
-      'canvas[data-layer="scene"]',
-    )!;
-    const gl = canvas.getContext('webgl2')!;
-    const pixels = new Uint8Array(canvas.width * canvas.height * 4);
-    gl.readPixels(
-      0,
-      0,
-      canvas.width,
-      canvas.height,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      pixels,
-    );
-    let count = 0;
-    for (let offset = 0; offset < pixels.length; offset += 4) {
-      if (
-        pixels[offset]! > 180
-        && pixels[offset + 1]! > 140
-        && pixels[offset + 2]! < 120
-      ) {
-        count += 1;
-      }
-    }
-    return count;
-  })).toBeGreaterThan(20);
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.yellowPixelCount()),
+  ).toBeGreaterThan(20);
   const selectedPixel = await page.evaluate(
     () => window.__ice3M1.scenePixelAtProjection(),
   );
@@ -656,7 +625,7 @@ test('selects one equipment unit with a yellow highlight and info panel', async 
 });
 
 test('clears selection on empty click and does not select while dragging', async ({ page }) => {
-  await page.goto(HIERARCHICAL_ASSET_URL);
+  await page.goto(`${HIERARCHICAL_ASSET_URL}&renderer=webgl2`);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   const center = await page.evaluate(() => window.__ice3M1.assetCenter());
   const stage = await page.locator('[data-role="stage"]').boundingBox();
@@ -695,6 +664,8 @@ test('clears selection on empty click and does not select while dragging', async
     () => page.evaluate(() => window.__ice3M1.selectedIds().length),
   ).toBe(0);
   await expect(page.locator('[data-role="selection-info"]')).toBeHidden();
+  // Release the context-loss extension before Playwright closes the context.
+  await page.goto('about:blank');
 });
 
 test('does not select during a two-pointer pinch gesture', async ({ page }) => {

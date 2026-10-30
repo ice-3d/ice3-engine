@@ -21,6 +21,11 @@ import { WebGL2GeometryCache } from './WebGL2GeometryCache.js';
 import { WebGL2Picker } from './WebGL2Picker.js';
 import { WebGL2Program } from './WebGL2Program.js';
 import { WebGL2SemanticProgram } from './WebGL2SemanticProgram.js';
+import { colorToRgba } from './Color.js';
+import {
+  RendererProfiler,
+  type ICEFrameStageProfile,
+} from './RendererProfiler.js';
 import type {
   ICERendererBackend,
   ICERendererCapabilities,
@@ -39,38 +44,7 @@ const EDGE_PIXEL_OFFSETS = [
 
 const SELECTION_RGBA = [255 / 255, 208 / 255, 0] as const;
 const SELECTION_TINT_ALPHA = 0.65;
-const COLOR_CACHE_LIMIT = 128;
-const COLOR_CACHE = new Map<
-  string,
-  readonly [number, number, number, number]
->();
-
-export function colorToRgba(
-  color: string,
-): readonly [number, number, number, number] {
-  const normalized = color.startsWith('#') ? color.slice(1) : color;
-  const expanded = normalized.length === 3
-    ? normalized.split('').map((part) => part + part).join('')
-    : normalized;
-  if (!/^[0-9a-fA-F]{6}$/.test(expanded)) {
-    throw new Error(`Unsupported ICE basic material color: ${color}`);
-  }
-  const key = expanded.toLowerCase();
-  const cached = COLOR_CACHE.get(key);
-  if (cached) return cached;
-  const rgba = Object.freeze([
-    Number.parseInt(expanded.slice(0, 2), 16) / 255,
-    Number.parseInt(expanded.slice(2, 4), 16) / 255,
-    Number.parseInt(expanded.slice(4, 6), 16) / 255,
-    1,
-  ]) as readonly [number, number, number, number];
-  if (COLOR_CACHE.size >= COLOR_CACHE_LIMIT) {
-    const oldest = COLOR_CACHE.keys().next().value as string | undefined;
-    if (oldest !== undefined) COLOR_CACHE.delete(oldest);
-  }
-  COLOR_CACHE.set(key, rgba);
-  return rgba;
-}
+export { colorToRgba } from './Color.js';
 
 export class WebGL2RendererBackend implements ICERendererBackend {
   capabilities: Readonly<ICERendererCapabilities> = {
@@ -96,6 +70,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private readonly batchesScratch: ICERenderBatchDraw[] = [];
   private readonly instancesScratch: ICEInstanceBatch[] = [];
   private readonly instancedMeshIds = new Set<string>();
+  private readonly profiler = new RendererProfiler();
+  private lastFrameProfile: ICEFrameStageProfile | null = null;
   private backgroundRgba: readonly [number, number, number, number] = [
     0.035,
     0.055,
@@ -216,6 +192,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     ) {
       throw new ICEEngineError('ICE3_ENGINE_NOT_READY', 'Renderer is not initialized');
     }
+    this.profiler.begin();
+    this.lastFrameProfile = null;
     const gl = this.gl;
     gl.clearColor(...this.backgroundRgba);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -249,7 +227,10 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       renderables,
       this.instancesScratch,
     );
+    const batches = collectRenderBatches(frame.scene, this.batchesScratch);
+    this.profiler.mark('collect');
     this.program.setInstancing(true);
+    this.profiler.mark('prepareAndUpload');
     for (const batch of instances) {
       const instance = this.instanceCache!.retain(
         gl,
@@ -298,7 +279,6 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     }
     this.program.setInstancing(false);
     this.program.setClipOffset(0, 0);
-    const batches = collectRenderBatches(frame.scene, this.batchesScratch);
     for (const draw of batches) {
       this.program.setClipOffset(0, 0);
       mvp.elements.set(viewProjection.elements);
@@ -528,9 +508,24 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.frameStats.gpuEvictions = this.geometryCache.evictionCount;
     this.frameStats.gpuBytes = this.geometryCache.totalBytes
       + this.instanceCache!.totalBytes;
+    this.profiler.mark('encode');
+    this.profiler.mark('submit');
+    this.lastFrameProfile = this.profiler.end();
   }
 
-  pick(frame: ICEFrame, point: ICEScreenPoint): string | undefined {
+  enableProfiling(enabled: boolean): void {
+    this.profiler.enable(enabled);
+    this.lastFrameProfile = null;
+  }
+
+  get frameProfile(): ICEFrameStageProfile | null {
+    return this.lastFrameProfile;
+  }
+
+  async pick(
+    frame: ICEFrame,
+    point: ICEScreenPoint,
+  ): Promise<string | undefined> {
     if (!this.picker || !this.geometryCache) {
       throw new ICEEngineError(
         'ICE3_PICK_UNAVAILABLE',
@@ -552,6 +547,25 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       ),
       this.instanceCache!,
     );
+  }
+
+  async capture(): Promise<Blob> {
+    if (!this.canvas) {
+      throw new ICEEngineError(
+        'ICE3_ENGINE_NOT_READY',
+        'Renderer is not initialized',
+      );
+    }
+    return new Promise<Blob>((resolve, reject) => {
+      this.canvas!.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('ICE3_CAPTURE_UNAVAILABLE: PNG encoding failed'));
+      }, 'image/png');
+    });
+  }
+
+  async finish(): Promise<void> {
+    this.gl?.finish();
   }
 
   dispose(): void {

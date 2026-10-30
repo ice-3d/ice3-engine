@@ -9,7 +9,10 @@ import {
   type ICENode,
 } from '@ice3/core';
 import {
+  selectDefaultRendererBackend,
   WebGL2RendererBackend,
+  type ICE3RendererPreference,
+  type ICE3RendererSelection,
   type ICERendererBackend,
   type ICEScreenPoint,
   type ICEViewport,
@@ -47,6 +50,7 @@ import {
 
 export type ICE3Options = {
   readonly backend?: ICERendererBackend;
+  readonly renderer?: ICE3RendererPreference;
   readonly scheduler?: ICERenderScheduler;
 };
 
@@ -55,10 +59,11 @@ export type ICEEngineDiagnostics = {
   readonly fps: number;
   readonly cpuFrameTimeMs: number;
   readonly backend: Readonly<{
-    backend: 'webgl2' | 'fake';
+    backend: 'webgl2' | 'webgpu' | 'fake';
     maxTextureSize: number;
     picking: boolean;
   }>;
+  readonly rendererSelection: Readonly<ICE3RendererSelection>;
   readonly nodeCount: number;
   readonly layerCount: number;
   readonly labelCount: number;
@@ -111,7 +116,9 @@ const NAVIGATION_KEY_CODES = new Set([
 ]);
 
 export class ICE3 extends ICEEventDispatcher {
-  private readonly backend: ICERendererBackend;
+  private backend: ICERendererBackend;
+  private readonly rendererPreference: ICE3RendererPreference | undefined;
+  private rendererSelection: Readonly<ICE3RendererSelection>;
   private readonly scheduler: ICERenderScheduler;
   private readonly interaction = new ICEInteractionState();
   private readonly layers: ICE2DLayer[] = [];
@@ -149,6 +156,7 @@ export class ICE3 extends ICEEventDispatcher {
   private readonly pointerGestures = new Map<number, PointerGesture>();
   private lastDiagnostic: ICEDiagnostic | undefined;
   private instancingFallbackReported = false;
+  private pickGeneration = 0;
   private readonly removeInputListeners: Array<() => void> = [];
   private readonly handleWindowResize = (): void => {
     this.resize();
@@ -156,7 +164,22 @@ export class ICE3 extends ICEEventDispatcher {
 
   constructor(options: ICE3Options = {}) {
     super();
+    if (options.backend && options.renderer) {
+      throw new ICEEngineError(
+        'ICE3_RENDERER_CONFIG_INVALID',
+        'ICE3_RENDERER_CONFIG_INVALID: backend injection cannot be combined with a renderer preference',
+      );
+    }
+    this.rendererPreference = options.renderer;
     this.backend = options.backend ?? new WebGL2RendererBackend();
+    this.rendererSelection = {
+      requested: options.backend
+        ? 'custom'
+        : options.renderer ?? 'webgl2',
+      selected: this.backend.capabilities.backend,
+      fallback: false,
+      experimental: this.backend.capabilities.backend === 'webgpu',
+    };
     this.scheduler = options.scheduler ?? new BrowserRenderScheduler();
   }
 
@@ -167,7 +190,41 @@ export class ICE3 extends ICEEventDispatcher {
         'ICE3 engine can only be initialized once',
       );
     }
+    if (
+      this.rendererPreference === 'webgpu'
+    ) {
+      throw new ICEEngineError(
+        'ICE3_RENDERER_ASYNC_REQUIRED',
+        'ICE3_RENDERER_ASYNC_REQUIRED: webgpu requires initAsync()',
+      );
+    }
+    return this.initializeWithBackend(target);
+  }
 
+  async initAsync(target: string | HTMLElement): Promise<this> {
+    if (this.state !== 'created') {
+      throw new ICEEngineError(
+        'ICE3_ALREADY_INITIALIZED',
+        'ICE3 engine can only be initialized once',
+      );
+    }
+    if (this.rendererSelection.requested === 'custom') {
+      return this.initializeWithBackend(target);
+    }
+    const selected = await selectDefaultRendererBackend(
+      this.rendererPreference ?? 'webgl2',
+    );
+    this.backend = selected.backend;
+    this.rendererSelection = selected.selection;
+    try {
+      return this.initializeWithBackend(target);
+    } catch (error) {
+      selected.backend.dispose();
+      throw error;
+    }
+  }
+
+  private initializeWithBackend(target: string | HTMLElement): this {
     if (typeof target === 'string') {
       const element = document.querySelector<HTMLElement>(target);
       if (!element) {
@@ -210,6 +267,14 @@ export class ICE3 extends ICEEventDispatcher {
           );
           this.trigger('CONTEXT_RESTORED');
           this.requestRender('context-restored');
+        },
+        onError: (error) => {
+          if (this.state === 'destroyed') return;
+          this.recordDiagnostic(
+            error.code,
+            error.message,
+            'error',
+          );
         },
       });
       window.addEventListener('resize', this.handleWindowResize);
@@ -376,16 +441,32 @@ export class ICE3 extends ICEEventDispatcher {
     return this;
   }
 
-  pick(point: ICEScreenPoint): ICENode | undefined {
-    const result = this.samplePick(point);
+  async pick(point: ICEScreenPoint): Promise<ICENode | undefined> {
+    const result = await this.samplePick(point);
     return result.kind === 'hit' ? result.node : undefined;
   }
 
-  pickItem(point: ICEScreenPoint): { readonly item?: ICESceneItem } {
-    const node = this.pick(point);
+  async pickItem(
+    point: ICEScreenPoint,
+  ): Promise<{ readonly item?: ICESceneItem }> {
+    const node = await this.pick(point);
     if (!node) return Object.freeze({});
-    const item = this.queryScene({ ids: [node.id], limit: 1 })[0];
+    const item = this.queryScene({
+      selectionIds: [node.selectionId ?? node.id],
+      limit: 1,
+    })[0];
     return Object.freeze(item ? { item } : {});
+  }
+
+  async capture(): Promise<Blob> {
+    this.assertActive();
+    if (!this.backend.capture) {
+      throw new ICEEngineError(
+        'ICE3_CAPTURE_UNAVAILABLE',
+        'ICE3_CAPTURE_UNAVAILABLE: the active renderer cannot capture pixels',
+      );
+    }
+    return this.backend.capture();
   }
 
   getDiagnostics(): Readonly<ICEEngineDiagnostics> {
@@ -394,6 +475,7 @@ export class ICE3 extends ICEEventDispatcher {
       fps: this.fps,
       cpuFrameTimeMs: this.cpuFrameTimeMs,
       backend: this.backend.capabilities,
+      rendererSelection: this.rendererSelection,
       nodeCount: this.scene ? countNodes(this.scene) : 0,
       layerCount: this.layers.length,
       labelCount: this.layers.reduce(
@@ -638,18 +720,26 @@ export class ICE3 extends ICEEventDispatcher {
       }
       this.inputRouter.pointerMove(point, event.pointerId);
     });
-    listen('pointerup', (event) => {
+    listen('pointerup', async (event) => {
       const point = pointOf(event);
       const gesture = this.pointerGestures.get(event.pointerId);
       this.inputRouter.pointerUp(point, event.pointerId);
       this.pointerGestures.delete(event.pointerId);
+      overlay.releasePointerCapture?.(event.pointerId);
       if (
         gesture
         && gesture.target.kind === 'scene'
         && !gesture.dragged
         && isSelectionClick(gesture.start, point)
       ) {
-        const result = this.samplePick(point);
+        const generation = ++this.pickGeneration;
+        const result = await this.samplePick(point);
+        if (
+          generation !== this.pickGeneration
+          || this.state === 'destroyed'
+        ) {
+          return;
+        }
         const outcome: ICEPickOutcome = result.kind === 'hit'
           ? {
               kind: 'hit',
@@ -661,7 +751,6 @@ export class ICE3 extends ICEEventDispatcher {
           this.setSelection(nextSelection);
         }
       }
-      overlay.releasePointerCapture?.(event.pointerId);
     });
     listen('pointercancel', (event) => {
       this.inputRouter.pointerCancel(event.pointerId);
@@ -725,7 +814,7 @@ export class ICE3 extends ICEEventDispatcher {
     this.trigger(eventName, { target, event });
   }
 
-  private samplePick(point: ICEScreenPoint): ICEPickResult {
+  private async samplePick(point: ICEScreenPoint): Promise<ICEPickResult> {
     this.assertActive();
     if (!this.scene || !this.camera) {
       return { kind: 'empty' };
@@ -733,7 +822,7 @@ export class ICE3 extends ICEEventDispatcher {
     if (this.backend.capabilities.picking && this.backend.pick) {
       const startedAt = performance.now();
       try {
-        const selectionId = this.backend.pick({
+        const selectionId = await this.backend.pick({
           frameId: this.frameId,
           scene: this.scene,
           camera: this.camera,

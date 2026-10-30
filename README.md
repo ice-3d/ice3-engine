@@ -14,7 +14,7 @@ ICE3 Engine 是面向工业应用的可编程 3D Runtime。它优先处理 Geome
 | 领域 | 当前能力 |
 |---|---|
 | Scene | 类型化场景树、Node 所有权、变换、序列化和释放 |
-| 渲染 | 原生 WebGL2 Geometry、平光 Material 和可选 Geometry 边线 |
+| 渲染 | WebGL2/WebGPU Geometry、自动后端选择、Selection Mask、Render Bundle 和可选 GPU 优化层 |
 | 组合 | 覆盖在 3D 内容之上或与其并排的有序 Canvas2D layers |
 | 输入 | 共享 pointer/keyboard 路由、orbit、pan、zoom 和 picking |
 | Asset | ICE3 Prepared GLB Profile reader 和 Scene builder |
@@ -32,7 +32,7 @@ import path。
 
 - Node.js 24.22.1 LTS
 - npm 11 或更高版本
-- 支持 WebGL2 的浏览器
+- 支持 WebGL2 的浏览器；WebGPU 为显式启用的实验性后端
 
 ```bash
 git clone https://github.com/ice-3d/ice3-engine.git
@@ -42,7 +42,8 @@ npm install
 npm run dev:example:m1
 ```
 
-打开 `http://127.0.0.1:8104/`。默认示例会增量加载虚构污水处理厂。使用
+打开 `http://127.0.0.1:8104/`。默认示例会增量加载虚构污水处理厂，并优先使用通过
+能力探测的 WebGPU。使用
 `http://127.0.0.1:8103/` 查看最小 M0 Scene，使用
 `http://127.0.0.1:8104/?demo=adaptive` 查看空闲时 Worker batching。
 
@@ -95,6 +96,19 @@ engine.setScene(scene).setCamera(camera).start();
 engine.destroy();
 ```
 
+默认使用 WebGL2。WebGPU 目前是实验性能力，必须显式设置
+`renderer: 'webgpu'` 并使用 `await initAsync()`；初始化失败会报错，不会静默回退。
+`auto` 保留为兼容别名，同样选择 WebGL2。
+
+精确拾取是异步 API：
+
+```ts
+const node = await engine.pick({ x: 120, y: 80 });
+const { item } = await engine.pickItem({ x: 120, y: 80 });
+void node;
+void item;
+```
+
 ## Asset 工作流
 
 Runtime 只接受 ICE3 Prepared GLB Profile v1 Asset。通用 source parsing、conversion、
@@ -134,10 +148,23 @@ npm run typecheck:example
 npm test
 npm run test:e2e
 npm run verify
+npm run benchmark:renderers
 ```
 
-`verify` 依次运行文档门禁、架构检查、类型检查、单元测试、构建，以及 Chromium 和
-WebKit 浏览器测试。
+`verify` 依次运行文档门禁、架构检查、类型检查、单元测试、构建，以及两套浏览器
+项目测试。
+
+`benchmark:renderers` 在相同 Scene 上强制运行 WebGL2 和 WebGPU，重复测量 CPU
+阶段、Pick、Draw 和 GPU byte 数据，并将 JSON/Markdown 输出到
+`output/benchmarks/`。GPU timestamp 不可用时报告 `n/a` 和原因，不伪造零值。
+
+WebGPU 优化按 `baseline`、`storage` 和 `gpu-driven` 分级启用。当前固定硬件测量未使
+Storage 或 Compute/Indirect 达到默认启用门槛，因此它们保留为可测试路径，不替代稳定
+baseline。规模化复测可使用：
+
+```bash
+npm run benchmark:renderers -- --scenarios culling-20k,instanced-50k --repetitions 5
+```
 
 ## 边界
 

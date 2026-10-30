@@ -17,6 +17,12 @@ Diagnostic 使用稳定 code。调用方应根据 `code` 分支，不依赖 mess
 | `ICE3_ENGINE_DESTROYED` | disposal 后继续执行 backend 或 Engine operation | 停止使用该 instance 并创建 replacement |
 | `ICE3_CONTEXT_LOST` | 浏览器丢失 GPU context | 保持应用可见，等待 restoration 并检查 event |
 | `ICE3_CONTEXT_RESTORED` | 浏览器恢复 GPU context，Engine 能再次绘制 | 恢复正常运行并验证新 frame |
+| `ICE3_RENDERER_CONFIG_INVALID` | 同时注入 backend 并指定 renderer preference | 只使用一种配置方式 |
+| `ICE3_RENDERER_ASYNC_REQUIRED` | 显式 `webgpu` 传给同步 `init()` | 改用 `initAsync()` |
+| `ICE3_WEBGPU_UNAVAILABLE` | 显式 WebGPU 探测、Device 或 Pipeline 初始化失败 | 检查 `rendererSelection.fallbackReason` |
+| `ICE3_WEBGPU_DEVICE_LOST` | 运行中 WebGPU Device Lost 且恢复失败 | 重建 Engine 或刷新页面 |
+| `ICE3_WEBGPU_PICK_UNAVAILABLE` | WebGPU Pick target、copy 或 map 失败 | 重试 Pick；持续失败时使用 WebGL2 |
+| `ICE3_CAPTURE_UNAVAILABLE` | active backend 不提供像素 capture | 升级实现或使用支持 capture 的 backend |
 
 ## Scene 与 layer
 
@@ -78,6 +84,7 @@ Diagnostic 使用稳定 code。调用方应根据 `code` 分支，不依赖 mess
 | `ICE3_RENDER_BATCH_ADAPTIVE_CANCELLED` | Camera motion、disposal 或 lifecycle change 取消 generation | 上一个 active generation 继续可用 |
 | `ICE3_RENDER_BATCH_ADAPTIVE_FAILED` | Worker preparation 或 frame budget upload 失败 | 保留 active generation 并检查原因 |
 | `ICE3_RENDER_BATCH_MEMORY_REJECTED` | Candidate 超过配置的 extra GPU byte budget | 提高可选 budget 或减少 visible source set |
+| `ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE` | Renderer 可选优化层自检或运行失败并降级 | 正常使用；需要性能排查时检查 warning details |
 
 ## Diagnostic 结构
 

@@ -10,7 +10,7 @@ import {
   ICEScene,
 } from '../src/index';
 
-it('maps a batched semantic selection back to its render batch', () => {
+it('maps a batched semantic selection back to its render batch', async () => {
   const backend = new FakeRendererBackend({ picking: true });
   backend.pickResult = 'equipment/pump-1';
   const host = document.createElement('div');
@@ -57,7 +57,7 @@ it('maps a batched semantic selection back to its render batch', () => {
     target: [0, 0, 0],
   }));
 
-  expect(engine.pick({ x: 320, y: 180 })).toBe(batch);
+  expect(await engine.pick({ x: 320, y: 180 })).toBe(batch);
   expect(engine.getDiagnostics().lastPickId).toBe('equipment/pump-1');
   engine.destroy();
 });

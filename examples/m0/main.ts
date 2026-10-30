@@ -35,7 +35,7 @@ function mount(rebuilt: boolean): void {
   engine?.destroy();
   stage.replaceChildren();
 
-  engine = new ICE3().init(stage);
+  engine = new ICE3({ renderer: 'webgl2' }).init(stage);
   loseContextExtension = document
     .querySelector<HTMLCanvasElement>('canvas[data-layer="scene"]')
     ?.getContext('webgl2')

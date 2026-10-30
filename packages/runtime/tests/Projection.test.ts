@@ -70,7 +70,7 @@ it('projects the camera target to the viewport center', () => {
   engine.destroy();
 });
 
-it('picks the visible box through the public semantic API', () => {
+it('picks the visible box through the public semantic API', async () => {
   const scheduler: ICERenderScheduler = {
     request: () => 1,
     cancelAll: () => {},
@@ -114,12 +114,12 @@ it('picks the visible box through the public semantic API', () => {
     }),
   );
 
-  expect(engine.pick({ x: 320, y: 180 })?.id).toBe('block');
-  expect(engine.pick({ x: 1, y: 1 })).toBeUndefined();
+  expect((await engine.pick({ x: 320, y: 180 }))?.id).toBe('block');
+  expect(await engine.pick({ x: 1, y: 1 })).toBeUndefined();
   engine.destroy();
 });
 
-it('uses node scale when calculating the pick volume', () => {
+it('uses node scale when calculating the pick volume', async () => {
   const host = document.createElement('div');
   Object.defineProperty(host, 'clientWidth', { value: 640 });
   Object.defineProperty(host, 'clientHeight', { value: 360 });
@@ -168,12 +168,12 @@ it('uses node scale when calculating the pick volume', () => {
 
   const center = engine.project([0, 0, 0]);
   const outside = engine.project([0.8, 0, 0]);
-  expect(engine.pick({ x: center.x, y: center.y })?.id).toBe('small-block');
-  expect(engine.pick({ x: outside.x, y: outside.y })).toBeUndefined();
+  expect((await engine.pick({ x: center.x, y: center.y }))?.id).toBe('small-block');
+  expect(await engine.pick({ x: outside.x, y: outside.y })).toBeUndefined();
   engine.destroy();
 });
 
-it('picks the nearest object across differently scaled nodes', () => {
+it('picks the nearest object across differently scaled nodes', async () => {
   const host = document.createElement('div');
   Object.defineProperty(host, 'clientWidth', { value: 640 });
   Object.defineProperty(host, 'clientHeight', { value: 360 });
@@ -231,7 +231,7 @@ it('picks the nearest object across differently scaled nodes', () => {
     }),
   );
 
-  expect(engine.pick({ x: 320, y: 180 })?.id).toBe('near-small');
+  expect((await engine.pick({ x: 320, y: 180 }))?.id).toBe('near-small');
   engine.destroy();
 });
 

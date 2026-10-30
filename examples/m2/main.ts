@@ -46,7 +46,7 @@ const selection = required<HTMLElement>('[data-role="selection"]');
 const selectionName = required<HTMLElement>('[data-role="selection-name"]');
 const buttons = [...document.querySelectorAll<HTMLButtonElement>('[data-format]')];
 
-const engine = new ICE3().init(stage);
+const engine = new ICE3({ renderer: 'webgl2' }).init(stage);
 engine.setBackgroundColor('#03070a');
 const camera = new ICEPerspectiveCamera({
   id: 'conformance-camera',

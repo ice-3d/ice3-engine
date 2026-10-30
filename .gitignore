@@ -3,6 +3,7 @@ dist/
 dist-example/
 dist-example-m1/
 dist-example-m2/
+dist-benchmark/
 examples/m1/assets/*.local.glb
 examples/m1/assets/*.local.json
 examples/m1/assets/wastewater-plant/source/

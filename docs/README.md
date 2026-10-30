@@ -40,6 +40,7 @@
 | `ICE3-ENG-ADR-001` | [公开 Facade 与 package 边界](decisions/0001-public-facade-and-package-boundaries.md) | Active | 让消费方只依赖公开 API |
 | `ICE3-ENG-ADR-002` | [Geometry 优先的工业渲染](decisions/0002-geometry-first-industrial-rendering.md) | Active | 优先处理 Geometry 和空间行为 |
 | `ICE3-ENG-ADR-003` | [相机驱动的 Tileset 与 LOD](decisions/0003-camera-driven-tileset-and-lod.md) | Active | 流式加载时保持完整覆盖 |
+| `ICE3-ENG-ADR-004` | [WebGPU 实验性 Opt-in](decisions/0004-webgpu-experimental-opt-in.md) | Active | 默认 WebGL2，WebGPU 仅显式启用 |
 
 ## Spec
 
@@ -48,6 +49,8 @@
 | `ICE3-ENG-SPEC-001` | [M0 设计](specs/2026-10-27-engine-m0-design.md) | Implemented | Engine baseline 和生命周期设计 |
 | `ICE3-ENG-SPEC-002` | [M1 Asset 设计](specs/2026-10-27-engine-m1-asset-design.md) | Implemented | Prepared GLB 和空间 Runtime 设计 |
 | `ICE3-ENG-SPEC-003` | [设备 Selection](specs/2026-10-27-equipment-selection-design.md) | Implemented | 稳定设备 picking 和 highlight 设计 |
+| `ICE3-ENG-SPEC-004` | [WebGPU Renderer 设计](specs/2026-10-29-webgpu-renderer-design.md) | Implemented | WebGPU backend、fallback、显式 opt-in 和性能基准设计 |
+| `ICE3-ENG-SPEC-005` | [WebGPU 性能优化设计](specs/2026-10-29-webgpu-performance-design.md) | Implemented | GPU 计时、Selection Mask、Storage、Bundle 和 Compute 可见性设计 |
 
 ## 实施计划
 
@@ -56,3 +59,5 @@
 | `ICE3-ENG-PLAN-001` | [Engine M0](plans/2026-10-27-engine-m0.md) | Implemented | baseline Engine 实施记录 |
 | `ICE3-ENG-PLAN-002` | [Asset Runtime](plans/2026-10-27-engine-m1-asset-runtime.md) | Implemented | Prepared Asset Runtime 实施记录 |
 | `ICE3-ENG-PLAN-003` | [设备 Selection](plans/2026-10-27-equipment-selection.md) | Implemented | 设备 Selection 实施记录 |
+| `ICE3-ENG-PLAN-004` | [WebGPU Renderer](plans/2026-10-29-webgpu-renderer.md) | Implemented | WebGPU backend、自动选择、fallback 和性能基准实施计划 |
+| `ICE3-ENG-PLAN-005` | [WebGPU 性能优化](plans/2026-10-29-webgpu-performance.md) | Implemented | WebGPU 测量、Selection、Storage、Bundle 和 Compute 实施计划 |
