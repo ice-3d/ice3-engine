@@ -13,6 +13,23 @@ export type {
   ICEPreparedNode,
   ICEPreparedStats,
 } from './ICEPreparedGLB.js';
+export {
+  applyPreviewGeometryDelta,
+  parsePreviewGeometryPacket,
+} from './ICEPreviewGeometryPacket.js';
+export type {
+  ICEPreviewGeometry,
+  ICEPreviewGeometryBackend,
+  ICEPreviewGeometryDelta,
+  ICEPreviewGeometryManifest,
+  ICEPreviewGeometryMaterial,
+  ICEPreviewGeometryNode,
+  ICEPreviewGeometryPacket,
+  ICEPreviewGeometryRange,
+  ICEPreviewGeometryRangeUsage,
+  ICEPreviewGeometryRecord,
+  ICEPreviewGeometryResidencyMode,
+} from './ICEPreviewGeometryPacket.js';
 export { readTileset } from './ICETilesetReader.js';
 export type {
   ICETilesetSnapshot,

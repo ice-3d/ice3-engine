@@ -1,4 +1,8 @@
-import type { ICEGeometry, ICEGeometryBounds } from './ICEGeometry.js';
+import type {
+  ICEGeometry,
+  ICEGeometryBounds,
+  ICEGeometryIdentity,
+} from './ICEGeometry.js';
 
 export interface ICEIndexedGeometryOptions {
   readonly id: string;
@@ -7,6 +11,7 @@ export interface ICEIndexedGeometryOptions {
   readonly edgeIndices?: Uint16Array | Uint32Array;
   readonly colors?: Float32Array;
   readonly semanticIndices?: Uint32Array;
+  readonly identity?: ICEGeometryIdentity;
 }
 
 export class ICEIndexedGeometry implements ICEGeometry {
@@ -17,6 +22,7 @@ export class ICEIndexedGeometry implements ICEGeometry {
   readonly edgeIndices?: Uint16Array | Uint32Array;
   readonly colors?: Float32Array;
   readonly semanticIndices?: Uint32Array;
+  readonly identity: ICEGeometryIdentity;
 
   constructor(options: ICEIndexedGeometryOptions) {
     if (!options.id.trim()) {
@@ -61,6 +67,11 @@ export class ICEIndexedGeometry implements ICEGeometry {
       );
     }
     this.id = options.id;
+    this.identity = Object.freeze({
+      geometryId: options.identity?.geometryId ?? options.id,
+      topologyDigest: options.identity?.topologyDigest ?? '',
+      attributeDigest: options.identity?.attributeDigest ?? '',
+    });
     this.positions = options.positions;
     this.indices = options.indices;
     if (options.edgeIndices) {
@@ -97,6 +108,9 @@ export class ICEIndexedGeometry implements ICEGeometry {
       colorCount: this.colors ? this.positions.length / 3 : 0,
       ...(this.semanticIndices
         ? { semanticIndexCount: this.semanticIndices.length }
+        : {}),
+      ...(this.identity.topologyDigest || this.identity.attributeDigest
+        ? { identity: this.identity }
         : {}),
       bounds: this.getBounds(),
     };

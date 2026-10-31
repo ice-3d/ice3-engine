@@ -7,7 +7,13 @@ export { ICEBoxGeometry } from './geometry/ICEBoxGeometry.js';
 export type { ICEBoxGeometryOptions } from './geometry/ICEBoxGeometry.js';
 export { ICEIndexedGeometry } from './geometry/ICEIndexedGeometry.js';
 export type { ICEIndexedGeometryOptions } from './geometry/ICEIndexedGeometry.js';
-export type { ICEGeometry, ICEGeometryBounds } from './geometry/ICEGeometry.js';
+export type {
+  ICEGeometry,
+  ICEGeometryBounds,
+  ICEGeometryBufferUpdate,
+  ICEGeometryByteRange,
+  ICEGeometryIdentity,
+} from './geometry/ICEGeometry.js';
 export { ICEBasicMaterial } from './material/ICEBasicMaterial.js';
 export type { ICEBasicMaterialOptions } from './material/ICEBasicMaterial.js';
 export { ICEPerspectiveCamera } from './camera/ICEPerspectiveCamera.js';
