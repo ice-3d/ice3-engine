@@ -341,6 +341,25 @@ export class ICE3 extends ICEEventDispatcher {
     return this;
   }
 
+  prepareGeometry(
+    geometry: ICEGeometry,
+    update?: import('@ice3/core').ICEGeometryBufferUpdate,
+  ): this {
+    if (!this.backend.prepareGeometry) {
+      throw new ICEEngineError(
+        'ICE3_RENDER_GEOMETRY_UNAVAILABLE',
+        'The active renderer cannot stage geometry updates',
+      );
+    }
+    this.backend.prepareGeometry(geometry, update);
+    return this;
+  }
+
+  releaseGeometry(geometry: ICEGeometry): this {
+    this.backend.releaseGeometry?.(geometry);
+    return this;
+  }
+
   addLayer(layer: ICE2DLayer): this {
     this.assertActive();
     if (this.layers.some((item) => item.id === layer.id)) {

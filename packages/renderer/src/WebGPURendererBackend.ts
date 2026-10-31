@@ -416,6 +416,17 @@ export class WebGPURendererBackend implements ICERendererBackend {
     this.requireGeometryCache().pin(geometry);
   }
 
+  prepareGeometry(
+    geometry: ICEGeometry,
+    update?: import('@ice3/core').ICEGeometryBufferUpdate,
+  ): void {
+    this.requireGeometryCache().pin(geometry, update);
+  }
+
+  releaseGeometry(geometry: ICEGeometry): void {
+    this.geometryCache?.unpin(geometry);
+  }
+
   releaseBatchGeometry(geometry: ICEGeometry): void {
     this.geometryCache?.unpin(geometry);
   }

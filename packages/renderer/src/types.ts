@@ -1,5 +1,6 @@
 import type {
   ICEGeometry,
+  ICEGeometryBufferUpdate,
   ICEEngineError,
   ICEPerspectiveCamera,
   ICEScene,
@@ -70,6 +71,11 @@ export interface ICERendererBackend {
   setBackgroundColor?(color: string): void;
   prepareBatchGeometry?(geometry: ICEGeometry): void;
   releaseBatchGeometry?(geometry: ICEGeometry): void;
+  prepareGeometry?(
+    geometry: ICEGeometry,
+    update?: ICEGeometryBufferUpdate,
+  ): void;
+  releaseGeometry?(geometry: ICEGeometry): void;
   pick?(
     frame: ICEFrame,
     point: ICEScreenPoint,

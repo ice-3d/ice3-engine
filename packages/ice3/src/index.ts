@@ -10,12 +10,14 @@ export {
   ICEMesh,
   ICENode,
   ICEOrbitController,
+  ICEPreviewPacketLoader,
   ICEPerspectiveCamera,
   ICEScene,
   ICEScreenLayer,
   ICETypeRegistry,
   ICEWorldLayer,
   ICE3,
+  collectSceneItems,
   deserializeScene,
   serializeScene,
 } from '@ice3/runtime';
@@ -49,4 +51,8 @@ export type {
   ICEIndexedGeometryOptions,
   ICEMatrix4Tuple,
   ICEPickOutcome,
+  ICEPreviewPacketFallbackReason,
+  ICEPreviewPacketLoadResult,
+  ICEPreviewPacketLoaderOptions,
+  ICEPreviewGeometryPacket,
 } from '@ice3/runtime';

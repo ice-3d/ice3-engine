@@ -58,6 +58,12 @@ export {
   type ICETilesetWorkSetInput,
 } from './asset/ICETilesetScheduler.js';
 export {
+  ICEPreviewPacketLoader,
+  type ICEPreviewPacketFallbackReason,
+  type ICEPreviewPacketLoadResult,
+  type ICEPreviewPacketLoaderOptions,
+} from './asset/ICEPreviewPacketLoader.js';
+export {
   ICELodSelector,
   type ICELodSelection,
   type ICELodSelectionInput,
@@ -73,6 +79,7 @@ export {
 export type {
   ICEPreparedContract,
   ICEPreparedStats,
+  ICEPreviewGeometryPacket,
 } from '@ice3/assets';
 export {
   ICEAdaptiveRenderBatchController,

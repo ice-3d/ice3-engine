@@ -180,6 +180,23 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.geometryCache.pin(this.gl, geometry);
   }
 
+  prepareGeometry(
+    geometry: ICEGeometry,
+    update?: import('@ice3/core').ICEGeometryBufferUpdate,
+  ): void {
+    if (!this.gl || !this.geometryCache) {
+      throw new ICEEngineError(
+        'ICE3_ENGINE_NOT_READY',
+        'Renderer is not initialized',
+      );
+    }
+    this.geometryCache.pin(this.gl, geometry, update);
+  }
+
+  releaseGeometry(geometry: ICEGeometry): void {
+    this.geometryCache?.unpin(geometry);
+  }
+
   releaseBatchGeometry(geometry: ICEGeometry): void {
     this.geometryCache?.unpin(geometry);
   }
