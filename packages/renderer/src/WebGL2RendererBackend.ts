@@ -447,6 +447,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       if (this.semanticProgram) {
         this.semanticProgram.use();
         this.semanticProgram.setInstancing(false);
+        gl.polygonOffset(-1, -4);
         for (const draw of batches) {
           for (
             let semanticIndex = 0;
@@ -483,6 +484,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
           }
         }
         this.semanticProgram.setInstancing(true);
+        gl.polygonOffset(-1, -4);
         mvp.elements.set(viewProjection.elements);
         this.semanticProgram.setMatrix(mvp);
         for (const batch of instances) {
