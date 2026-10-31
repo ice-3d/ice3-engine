@@ -63,10 +63,7 @@ export class WebGL2GeometryCache {
     this.active.add(key);
     const existing = this.entries.get(key);
     if (existing) {
-      if (
-        this.canReuse(existing, geometry)
-        || (!existing.geometry.identity && !geometry.identity)
-      ) {
+      if (this.canReuse(existing, geometry)) {
         existing.lastUsedFrame = this.frameId;
         return existing;
       }
@@ -339,9 +336,22 @@ export class WebGL2GeometryCache {
     const existingDigest = existing.attributeDigest;
     const nextDigest = geometry.identity?.attributeDigest ?? '';
     return (
-      existing.geometry.positions === geometry.positions
-      && existing.geometry.colors === geometry.colors
-      && existing.geometry.semanticIndices === geometry.semanticIndices
+      (
+        existing.geometry.positions === geometry.positions
+        || equalNumberArrays(existing.geometry.positions, geometry.positions)
+      )
+      && equalOptionalNumberArrays(
+        existing.geometry.colors,
+        geometry.colors,
+      )
+      && equalOptionalNumberArrays(
+        existing.geometry.semanticIndices,
+        geometry.semanticIndices,
+      )
+      && equalOptionalNumberArrays(
+        existing.geometry.edgeIndices,
+        geometry.edgeIndices,
+      )
     ) || (existingDigest !== '' && existingDigest === nextDigest);
   }
 
@@ -398,6 +408,25 @@ function equalTypedArrays(
   left: Uint16Array | Uint32Array,
   right: Uint16Array | Uint32Array,
 ): boolean {
+  return left.length === right.length
+    && left.every((value, index) => value === right[index]);
+}
+
+function equalNumberArrays(
+  left: Float32Array,
+  right: Float32Array,
+): boolean {
+  return left.length === right.length
+    && left.every((value, index) => value === right[index]);
+}
+
+function equalOptionalNumberArrays<T extends Uint16Array | Uint32Array | Float32Array>(
+  left: T | undefined,
+  right: T | undefined,
+): boolean {
+  if (left === undefined || right === undefined) {
+    return left === right;
+  }
   return left.length === right.length
     && left.every((value, index) => value === right[index]);
 }

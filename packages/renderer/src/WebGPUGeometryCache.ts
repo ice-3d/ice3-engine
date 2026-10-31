@@ -66,10 +66,7 @@ export class WebGPUGeometryCache {
     this.active.add(key);
     const existing = this.entries.get(key);
     if (existing) {
-      if (
-        this.canReuse(existing, geometry)
-        || (!existing.geometry.identity && !geometry.identity)
-      ) {
+      if (this.canReuse(existing, geometry)) {
         existing.lastUsedFrame = this.frameId;
         return existing;
       }
@@ -342,9 +339,22 @@ export class WebGPUGeometryCache {
       return false;
     }
     return (
-      existing.geometry.positions === geometry.positions
-      && existing.geometry.colors === geometry.colors
-      && existing.geometry.semanticIndices === geometry.semanticIndices
+      (
+        existing.geometry.positions === geometry.positions
+        || equalNumberArrays(existing.geometry.positions, geometry.positions)
+      )
+      && equalOptionalNumberArrays(
+        existing.geometry.colors,
+        geometry.colors,
+      )
+      && equalOptionalNumberArrays(
+        existing.geometry.semanticIndices,
+        geometry.semanticIndices,
+      )
+      && equalOptionalNumberArrays(
+        existing.geometry.edgeIndices,
+        geometry.edgeIndices,
+      )
     ) || (
       existing.attributeDigest !== ''
       && existing.attributeDigest === geometry.identity?.attributeDigest
@@ -417,4 +427,23 @@ function contentFingerprint(
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
   return hash;
+}
+
+function equalNumberArrays(
+  left: Float32Array,
+  right: Float32Array,
+): boolean {
+  return left.length === right.length
+    && left.every((value, index) => value === right[index]);
+}
+
+function equalOptionalNumberArrays<T extends Uint16Array | Uint32Array | Float32Array>(
+  left: T | undefined,
+  right: T | undefined,
+): boolean {
+  if (left === undefined || right === undefined) {
+    return left === right;
+  }
+  return left.length === right.length
+    && left.every((value, index) => value === right[index]);
 }
