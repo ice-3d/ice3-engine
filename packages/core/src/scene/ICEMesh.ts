@@ -39,6 +39,11 @@ export class ICEMesh extends ICENode {
   static fromJSON(value: ICESerializedNode): ICEMesh {
     const geometry = value.geometry as Record<string, unknown>;
     const material = value.material as Record<string, unknown>;
+    const shading = material.shading === 'directional'
+      || material.shading === 'flat'
+      || material.shading === 'water'
+      ? material.shading
+      : undefined;
     return new ICEMesh({
       id: value.id,
       displayName: typeof value.displayName === 'string'
@@ -62,9 +67,7 @@ export class ICEMesh extends ICENode {
         ...(typeof material.edgeColor === 'string'
           ? { edgeColor: material.edgeColor }
           : {}),
-        ...(material.shading === 'directional'
-          ? { shading: 'directional' as const }
-          : {}),
+        ...(shading ? { shading } : {}),
       }),
     });
   }

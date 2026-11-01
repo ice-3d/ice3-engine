@@ -141,6 +141,20 @@ it('reads renderer-side directional shading metadata', () => {
   expect(snapshot.materials[0]!.shading).toBe('directional');
 });
 
+it('reads renderer-side water surface shading metadata', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB({
+    materialShading: 'water',
+  }));
+  expect(snapshot.materials[0]!.shading).toBe('water');
+});
+
+it('preserves material opacity in the prepared display color', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB({
+    materialOpacity: 0.5,
+  }));
+  expect(snapshot.materials[0]!.baseColor).toBe('#3380e680');
+});
+
 it('reads validated render batch metadata', () => {
   const snapshot = readPreparedGLB(createBatchedPreparedGLB());
 

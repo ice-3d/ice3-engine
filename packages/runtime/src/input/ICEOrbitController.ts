@@ -26,8 +26,11 @@ const MAX_FRAME_DELTA_MS = 64;
 const SETTLE_EPSILON = 1e-5;
 const WHEEL_LINE_HEIGHT_PX = 16;
 const MAX_WHEEL_STEP_PX = 240;
-const MOVE_SPEED_PER_DISTANCE = 0.75;
+const ZOOM_DISTANCE_PER_HOME_PIXEL = 0.001;
+const PAN_SPEED_PER_HOME_DISTANCE = 0.75;
 const MIN_KEY_TAP_MS = 16;
+const MIN_ZOOM_FRACTION = 0.005;
+const ABSOLUTE_MIN_ZOOM_DISTANCE = 0.2;
 
 const NAVIGATION_KEYS = new Set([
   'KeyW',
@@ -45,6 +48,8 @@ export class ICEOrbitController {
   private yaw: number;
   private pitch: number;
   private distance: number;
+  private readonly minDistance: number;
+  private readonly maxDistance: number;
   private targetYaw: number;
   private targetPitch: number;
   private targetDistance: number;
@@ -209,7 +214,15 @@ export class ICEOrbitController {
     const offsetY = eye.y - target.y;
     const offsetZ = eye.z - target.z;
     this.target = target.toArray();
-    this.distance = Math.max(0.2, Math.hypot(offsetX, offsetY, offsetZ));
+    this.distance = Math.max(
+      ABSOLUTE_MIN_ZOOM_DISTANCE,
+      Math.hypot(offsetX, offsetY, offsetZ),
+    );
+    this.maxDistance = this.distance;
+    this.minDistance = Math.min(
+      this.maxDistance,
+      Math.max(ABSOLUTE_MIN_ZOOM_DISTANCE, this.maxDistance * MIN_ZOOM_FRACTION),
+    );
     this.yaw = Math.atan2(offsetX, offsetZ);
     this.pitch = Math.asin(clamp(offsetY / this.distance, -1, 1));
     this.targetYaw = this.yaw;
@@ -240,7 +253,11 @@ export class ICEOrbitController {
       ) / 2,
     );
     this.target = center;
-    this.targetDistance = radius / Math.sin(this.camera.fov * Math.PI / 360) * padding;
+    this.targetDistance = clamp(
+      radius / Math.sin(this.camera.fov * Math.PI / 360) * padding,
+      this.minDistance,
+      this.maxDistance,
+    );
     if (options.animate === false) {
       this.distance = this.targetDistance;
       this.applyPosition();
@@ -266,9 +283,9 @@ export class ICEOrbitController {
     this.assertActive();
     this.prepareMotion();
     this.targetDistance = clamp(
-      this.targetDistance * Math.exp(delta * 0.001),
-      0.2,
-      100,
+      this.targetDistance + delta * this.maxDistance * ZOOM_DISTANCE_PER_HOME_PIXEL,
+      this.minDistance,
+      this.maxDistance,
     );
     this.engine.requestRender('camera-zoom');
     return this;
@@ -344,7 +361,7 @@ export class ICEOrbitController {
     if (magnitude === 0) {
       return;
     }
-    const distance = this.distance * MOVE_SPEED_PER_DISTANCE
+    const distance = this.maxDistance * PAN_SPEED_PER_HOME_DISTANCE
       * (deltaMs / 1000)
       / magnitude;
     const sinYaw = Math.sin(this.yaw);

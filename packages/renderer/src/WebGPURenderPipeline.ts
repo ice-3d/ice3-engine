@@ -161,8 +161,14 @@ fn fragmentMain(input: VertexOutput) -> @location(0) vec4<f32> {
       dpdy(input.worldPosition.xyz)
     ));
     let lightDirection = normalize(vec3<f32>(-0.35, 0.85, 0.4));
-    let diffuse = abs(dot(normal, lightDirection));
-    let shade = mix(0.72, 1.06, clamp(diffuse, 0.0, 1.0));
+    let diffuse = dot(normal, lightDirection);
+    let key = max(diffuse, 0.0) + 0.35 * max(-diffuse, 0.0);
+    let sky = 0.5 + 0.5 * normal.y;
+    let shade = clamp(
+      0.72 + 0.72 * key + 0.18 * sky,
+      0.92,
+      1.42
+    );
     outputColor = vec4<f32>(outputColor.rgb * shade, outputColor.a);
   }
   return outputColor;
