@@ -46,3 +46,19 @@ test('handles flat and point bounds deterministically', () => {
     max: [0, 0, 7],
   })).toBe(false);
 });
+
+test('updates clip planes without replacing the camera', () => {
+  const camera = new ICEPerspectiveCamera({
+    id: 'camera',
+    fov: 60,
+    near: 0.5,
+    far: 10000,
+    position: [0, 0, 5],
+    target: [0, 0, 0],
+  });
+  expect(camera.setClipPlanes(0.1, 500)).toBe(camera);
+  expect(camera.near).toBe(0.1);
+  expect(camera.far).toBe(500);
+  expect(() => camera.setClipPlanes(0, 500)).toThrow();
+  expect(() => camera.setClipPlanes(10, 5)).toThrow();
+});

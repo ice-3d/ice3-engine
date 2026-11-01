@@ -13,8 +13,8 @@ export interface ICEPerspectiveCameraOptions {
 export class ICEPerspectiveCamera {
   readonly id: string;
   readonly fov: number;
-  readonly near: number;
-  readonly far: number;
+  near: number;
+  far: number;
 
   private eye: ICEVector3;
   private lookTarget: ICEVector3;
@@ -38,6 +38,15 @@ export class ICEPerspectiveCamera {
 
   setTarget(target: ICEVector3Tuple): this {
     this.lookTarget = new ICEVector3(...target);
+    return this;
+  }
+
+  setClipPlanes(near: number, far: number): this {
+    if (!Number.isFinite(near) || !Number.isFinite(far) || near <= 0 || far <= near) {
+      throw new RangeError('Camera near/far values are invalid');
+    }
+    this.near = near;
+    this.far = far;
     return this;
   }
 
