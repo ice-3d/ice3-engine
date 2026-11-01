@@ -65,7 +65,9 @@ const createManualScheduler = (): ICERenderScheduler => {
   };
 };
 
-const createInteractiveController = () => {
+const createInteractiveController = (
+  initialPosition: readonly [number, number, number] = [0, 0, 5],
+) => {
   const scheduler = createManualScheduler();
   const engine = new ICE3({
     backend: new FakeRendererBackend(),
@@ -76,7 +78,7 @@ const createInteractiveController = () => {
     fov: 45,
     near: 0.1,
     far: 100,
-    position: [0, 0, 5],
+    position: initialPosition,
     target: [0, 0, 0],
   });
   const controller = new ICEOrbitController(engine, camera).start();
@@ -85,10 +87,12 @@ const createInteractiveController = () => {
   return { engine, camera, controller, scheduler };
 };
 
-const createMotionScenario = () => {
+const createMotionScenario = (
+  initialPosition: readonly [number, number, number] = [0, 0, 5],
+) => {
   let currentTime = 1_000;
   const now = mockApi.spyOn(performance, 'now').mockReturnValue(currentTime);
-  const resources = createInteractiveController();
+  const resources = createInteractiveController(initialPosition);
   const advanceFrame = (deltaMs = 20): void => {
     currentTime += deltaMs;
     now.mockReturnValue(currentTime);
@@ -132,6 +136,69 @@ it('clamps camera pitch and zoom distance', () => {
   settle();
   expect(Math.hypot(...camera.getPosition().toArray())).toBeGreaterThanOrEqual(0.2);
   dispose();
+});
+
+it('returns to the initial framing distance when zoomed fully out', () => {
+  const scenario = createMotionScenario([0, 0, 500]);
+  const initialDistance = Math.hypot(...scenario.camera.getPosition().toArray());
+
+  scenario.controller.zoomBy(-100_000);
+  scenario.settle();
+  const closeDistance = Math.hypot(...scenario.camera.getPosition().toArray());
+  expect(closeDistance).toBeGreaterThan(1);
+
+  scenario.controller.zoomBy(100_000);
+  scenario.settle();
+  expect(
+    Math.hypot(...scenario.camera.getPosition().toArray()),
+  ).toBeCloseTo(initialDistance, 5);
+  scenario.dispose();
+});
+
+it('keeps panning usable after zooming in to the closest view', () => {
+  const scenario = createMotionScenario([0, 0, 500]);
+  scenario.controller.zoomBy(-100_000);
+  scenario.settle();
+  const before = scenario.camera.getTarget().toArray();
+
+  scenario.engine.trigger('KEY_DOWN', {
+    target: { kind: 'scene' },
+    event: { type: 'keydown', code: 'KeyW', key: 'w', repeat: false },
+  });
+  for (let frame = 0; frame < 10; frame += 1) scenario.advanceFrame(64);
+  scenario.engine.trigger('KEY_UP', {
+    target: { kind: 'scene' },
+    event: { type: 'keyup', code: 'KeyW', key: 'w', repeat: false },
+  });
+  const moved = Math.hypot(
+    ...scenario.camera.getTarget().toArray().map((value, axis) => value - before[axis]!),
+  );
+
+  expect(moved).toBeGreaterThan(0.5);
+  scenario.dispose();
+});
+
+it('advances zoom by the same distance for equal wheel steps at any scale', () => {
+  const scenario = createMotionScenario([0, 0, 500]);
+  const distances: number[] = [];
+  for (let step = 0; step < 2; step += 1) {
+    const before = Math.hypot(...scenario.camera.getPosition().toArray());
+    scenario.engine.trigger('WHEEL', {
+      target: { kind: 'scene' },
+      event: {
+        type: 'wheel',
+        point: { x: 10, y: 10 },
+        deltaY: -48,
+        deltaMode: 0,
+      },
+    });
+    scenario.settle();
+    const after = Math.hypot(...scenario.camera.getPosition().toArray());
+    distances.push(before - after);
+  }
+
+  expect(distances[1]).toBeCloseTo(distances[0]!, 5);
+  scenario.dispose();
 });
 
 it('is idempotent when started and stopped', () => {
@@ -371,6 +438,45 @@ it('stops camera movement when the held key is released', () => {
 
   expect(camera.getPosition().toArray()).toEqual(afterMovement);
   dispose();
+});
+
+it('pans the same distance regardless of zoom for WASD and arrow keys', () => {
+  const movementFor = (code: string, zoomedIn: boolean): number => {
+    const scenario = createMotionScenario([0, 0, 500]);
+    if (zoomedIn) {
+      scenario.controller.zoomBy(-100_000);
+      scenario.settle();
+    }
+    const before = scenario.camera.getTarget().toArray();
+    scenario.engine.trigger('KEY_DOWN', {
+      target: { kind: 'scene' },
+      event: { type: 'keydown', code, key: code, repeat: false },
+    });
+    for (let frame = 0; frame < 10; frame += 1) scenario.advanceFrame(64);
+    scenario.engine.trigger('KEY_UP', {
+      target: { kind: 'scene' },
+      event: { type: 'keyup', code, key: code, repeat: false },
+    });
+    const distance = Math.hypot(
+      ...scenario.camera.getTarget().toArray()
+        .map((value, axis) => value - before[axis]!),
+    );
+    scenario.dispose();
+    return distance;
+  };
+
+  for (const code of [
+    'KeyW',
+    'KeyA',
+    'KeyS',
+    'KeyD',
+    'ArrowUp',
+    'ArrowLeft',
+    'ArrowDown',
+    'ArrowRight',
+  ]) {
+    expect(movementFor(code, true)).toBeCloseTo(movementFor(code, false), 5);
+  }
 });
 
 it('does not move the camera when typing in an editable control', () => {

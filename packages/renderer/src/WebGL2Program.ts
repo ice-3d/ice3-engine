@@ -3,11 +3,11 @@ import type { ICEMatrix4 } from '@ice3/core';
 
 const LIGHT_DIRECTION = [-0.35, 0.85, 0.4] as const;
 const LIGHTING = Object.freeze({
-  ambient: 0.60,
-  direct: 0.66,
-  sky: 0.15,
-  minimum: 0.84,
-  maximum: 1.30,
+  ambient: 0.72,
+  direct: 0.72,
+  sky: 0.18,
+  minimum: 0.92,
+  maximum: 1.42,
 });
 
 export function directionalLightingShade(
@@ -107,7 +107,7 @@ void main() {
   float grain = fract(sin(dot(fine, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
   float stain = fract(sin(dot(coarse, vec3(39.346, 11.135, 83.155))) * 24634.6345);
   // 低频污渍负责大面积不匀，高频颗粒负责近看的手感。
-  lit *= 0.90 + 0.10 * grain + 0.09 * (stain - 0.5);
+  lit *= 0.94 + 0.06 * grain + 0.05 * (stain - 0.5);
 
   // Liquid surfaces use an analytic Fresnel reflection plus shallow ripple
   // normals. The effect is opt-in through material shading and remains
@@ -164,7 +164,7 @@ void main() {
           lit2 += projected.z - bias > depth ? 0.0 : 1.0;
         }
       }
-      lit *= mix(0.52, 1.0, lit2 / 9.0);
+      lit *= mix(0.68, 1.0, lit2 / 9.0);
 
     }
   }
