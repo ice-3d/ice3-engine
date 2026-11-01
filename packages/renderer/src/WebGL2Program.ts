@@ -3,11 +3,11 @@ import type { ICEMatrix4 } from '@ice3/core';
 
 const LIGHT_DIRECTION = [-0.35, 0.85, 0.4] as const;
 const LIGHTING = Object.freeze({
-  ambient: 0.54,
-  direct: 0.64,
-  sky: 0.14,
-  minimum: 0.80,
-  maximum: 1.24,
+  ambient: 0.60,
+  direct: 0.66,
+  sky: 0.15,
+  minimum: 0.84,
+  maximum: 1.30,
 });
 
 export function directionalLightingShade(
