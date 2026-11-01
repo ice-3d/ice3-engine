@@ -128,6 +128,28 @@ it('round-trips optional material edge color', () => {
   expect(block.material.shading).toBe('directional');
 });
 
+it('round-trips water surface shading', () => {
+  const registry = new ICETypeRegistry();
+  registry.register('ice3:Mesh', ICEMesh);
+  const scene = new ICEScene({ id: 'scene' });
+  scene.addChild(
+    new ICEMesh({
+      id: 'water',
+      geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
+      material: new ICEBasicMaterial({
+        color: '#738b84',
+        shading: 'water',
+      }),
+    }),
+  );
+
+  const snapshot = serializeScene(scene);
+  const restored = deserializeScene(snapshot, registry);
+  const water = restored.scene.findByID('water') as ICEMesh;
+
+  expect(water.material.shading).toBe('water');
+});
+
 it('round-trips semantic node metadata', () => {
   const registry = new ICETypeRegistry();
   registry.register('ice3:Mesh', ICEMesh);

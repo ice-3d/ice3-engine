@@ -69,6 +69,8 @@ precision highp float;
 uniform vec4 u_color;
 uniform float u_useVertexColor;
 uniform float u_useDirectionalShading;
+uniform float u_waterShading;
+uniform vec3 u_cameraPosition;
 uniform sampler2D u_shadowMap;
 uniform mat4 u_lightViewProjection;
 uniform float u_shadowEnabled;
@@ -106,6 +108,39 @@ void main() {
   float stain = fract(sin(dot(coarse, vec3(39.346, 11.135, 83.155))) * 24634.6345);
   // 低频污渍负责大面积不匀，高频颗粒负责近看的手感。
   lit *= 0.90 + 0.10 * grain + 0.09 * (stain - 0.5);
+
+  // Liquid surfaces use an analytic Fresnel reflection plus shallow ripple
+  // normals. The effect is opt-in through material shading and remains
+  // independent from any application-specific material naming.
+  if (u_waterShading > 0.5) {
+    float waveA = sin(v_worldPosition.x * 1.1
+      + sin(v_worldPosition.z * 0.43) * 2.0);
+    float waveB = sin(v_worldPosition.z * 1.7
+      + v_worldPosition.x * 0.31);
+    float waveC = sin((v_worldPosition.x + v_worldPosition.z) * 2.3);
+    vec3 rippleNormal = normalize(vec3(
+      waveA * 0.09 + waveC * 0.025,
+      1.0,
+      waveB * 0.09 - waveC * 0.02
+    ));
+    vec3 viewDirection = normalize(u_cameraPosition - v_worldPosition);
+    float facing = clamp(dot(rippleNormal, viewDirection), 0.0, 1.0);
+    float fresnel = pow(1.0 - facing, 2.4);
+    vec3 reflectedSky = vec3(0.22, 0.34, 0.36);
+    vec3 surfaceColor = mix(
+      color,
+      reflectedSky,
+      0.30 + 0.30 * fresnel
+    );
+    surfaceColor *= 0.92 + 0.09 * waveA + 0.05 * waveB;
+    vec3 halfDirection = normalize(lightDirection + viewDirection);
+    float sparkle = pow(
+      max(dot(rippleNormal, halfDirection), 0.0),
+      36.0
+    );
+    lit = mix(lit, surfaceColor * shade, 0.92)
+      + vec3(0.42, 0.52, 0.54) * sparkle * 0.55;
+  }
 
   // 阴影：把世界坐标投到光源空间，与深度图比较。取 3×3 采样的平均做轻微柔化。
   if (u_shadowEnabled > 0.5) {
@@ -153,6 +188,8 @@ export class WebGL2Program {
   private readonly clipOffsetLocation: WebGLUniformLocation;
   private readonly vertexColorLocation: WebGLUniformLocation;
   private readonly directionalShadingLocation: WebGLUniformLocation;
+  private readonly waterShadingLocation: WebGLUniformLocation;
+  private readonly cameraPositionLocation: WebGLUniformLocation;
   private readonly shadowMapLocation: WebGLUniformLocation | null;
   private readonly lightMatrixLocation: WebGLUniformLocation | null;
   private readonly shadowEnabledLocation: WebGLUniformLocation | null;
@@ -168,6 +205,8 @@ export class WebGL2Program {
       program,
       'u_useDirectionalShading',
     );
+    const waterShadingLocation = gl.getUniformLocation(program, 'u_waterShading');
+    const cameraPositionLocation = gl.getUniformLocation(program, 'u_cameraPosition');
     const instancingLocation = gl.getUniformLocation(program, 'u_useInstancing');
     const shadowMapLocation = gl.getUniformLocation(program, 'u_shadowMap');
     const lightMatrixLocation = gl.getUniformLocation(program, 'u_lightViewProjection');
@@ -178,6 +217,8 @@ export class WebGL2Program {
       || !clipOffsetLocation
       || !vertexColorLocation
       || !directionalShadingLocation
+      || !waterShadingLocation
+      || !cameraPositionLocation
       || !instancingLocation
     ) {
       gl.deleteProgram(program);
@@ -192,6 +233,8 @@ export class WebGL2Program {
     this.clipOffsetLocation = clipOffsetLocation;
     this.vertexColorLocation = vertexColorLocation;
     this.directionalShadingLocation = directionalShadingLocation;
+    this.waterShadingLocation = waterShadingLocation;
+    this.cameraPositionLocation = cameraPositionLocation;
     this.shadowMapLocation = shadowMapLocation;
     this.lightMatrixLocation = lightMatrixLocation;
     this.shadowEnabledLocation = shadowEnabledLocation;
@@ -244,6 +287,14 @@ export class WebGL2Program {
       this.directionalShadingLocation,
       enabled ? 1 : 0,
     );
+  }
+
+  setWaterShading(enabled: boolean): void {
+    this.gl.uniform1f(this.waterShadingLocation, enabled ? 1 : 0);
+  }
+
+  setCameraPosition(position: readonly [number, number, number]): void {
+    this.gl.uniform3f(this.cameraPositionLocation, ...position);
   }
 
   setInstancing(enabled: boolean): void {

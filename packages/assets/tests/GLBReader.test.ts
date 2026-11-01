@@ -141,6 +141,13 @@ it('reads renderer-side directional shading metadata', () => {
   expect(snapshot.materials[0]!.shading).toBe('directional');
 });
 
+it('reads renderer-side water surface shading metadata', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB({
+    materialShading: 'water',
+  }));
+  expect(snapshot.materials[0]!.shading).toBe('water');
+});
+
 it('reads validated render batch metadata', () => {
   const snapshot = readPreparedGLB(createBatchedPreparedGLB());
 

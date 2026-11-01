@@ -11,6 +11,7 @@ type FixtureOptions = {
   readonly invalidPrimitiveMode?: boolean;
   readonly floatOffset4?: boolean;
   readonly withVertexColors?: boolean;
+  readonly materialShading?: 'directional' | 'water';
   readonly selectionId?: string;
   readonly metadata?: Readonly<Record<string, unknown>>;
   readonly sharedNodeCount?: number;
@@ -149,7 +150,7 @@ export function createMinimalPreparedGLB(
         extras: {
           ice3: {
             id: 'fixture/material/0',
-            shading: 'directional',
+            shading: options.materialShading ?? 'directional',
           },
         },
       },

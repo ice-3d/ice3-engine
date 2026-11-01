@@ -237,6 +237,9 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.program.use();
     this.program.setClipOffset(0, 0);
     this.program.setDirectionalShading(false);
+    this.program.setWaterShading(false);
+    const cameraPosition = frame.camera.getPosition().toArray();
+    this.program.setCameraPosition(cameraPosition);
     this.geometryCache.beginFrame();
     this.instanceCache!.beginFrame();
     this.instancedMeshIds.clear();
@@ -302,6 +305,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.program.setDirectionalShading(
         batch.material.shading !== 'flat',
       );
+      this.program.setWaterShading(batch.material.shading === 'water');
       gl.bindVertexArray(instance.vertexArray);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, instance.triangleIndexBuffer);
       gl.drawElementsInstanced(
@@ -317,6 +321,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       if (batch.material.edgeColor && instance.edgeCount > 0) {
         this.program.setVertexColors(false);
         this.program.setDirectionalShading(false);
+        this.program.setWaterShading(false);
         this.program.setColor(colorToRgba(batch.material.edgeColor));
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, instance.edgeIndexBuffer);
         for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
@@ -351,6 +356,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.program.setDirectionalShading(
         draw.batch.material.shading !== 'flat',
       );
+      this.program.setWaterShading(draw.batch.material.shading === 'water');
       gl.bindVertexArray(geometry.vertexArray);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
       gl.drawElements(
@@ -366,6 +372,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       if (draw.batch.material.edgeColor) {
         this.program.setVertexColors(false);
         this.program.setDirectionalShading(false);
+        this.program.setWaterShading(false);
         this.program.setColor(colorToRgba(draw.batch.material.edgeColor));
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.edgeIndexBuffer);
         for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
@@ -398,6 +405,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.program.setDirectionalShading(
         renderable.mesh.material.shading !== 'flat',
       );
+      this.program.setWaterShading(renderable.mesh.material.shading === 'water');
       gl.bindVertexArray(geometry.vertexArray);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
       gl.drawElements(
@@ -412,6 +420,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       if (renderable.mesh.material.edgeColor) {
         this.program.setVertexColors(false);
         this.program.setDirectionalShading(false);
+        this.program.setWaterShading(false);
         this.program.setColor(
           colorToRgba(renderable.mesh.material.edgeColor),
         );

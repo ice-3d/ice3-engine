@@ -610,7 +610,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
             color: colorToRgba(batch.material.color),
             useVertexColor: Boolean(batch.geometry.colors),
             useInstancing: true,
-            useLighting: batch.material.shading === 'directional',
+            useLighting: batch.material.shading === 'directional'
+              || batch.material.shading === 'water',
             pipeline: pagePipeline.triangle,
             useSelectionMask: selectionMaskEnabled,
             storagePage: page,
@@ -655,7 +656,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
           color: colorToRgba(batch.material.color),
           useVertexColor: Boolean(batch.geometry.colors),
           useInstancing: true,
-          useLighting: batch.material.shading === 'directional',
+          useLighting: batch.material.shading === 'directional'
+            || batch.material.shading === 'water',
           pipeline: this.pipeline.triangle,
           useSelectionMask: selectionMaskEnabled,
         }, viewProjection.elements, batch.semanticIds);
@@ -721,7 +723,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
         color: colorToRgba(draw.batch.material.color),
         useVertexColor: Boolean(draw.batch.geometry.colors),
         useInstancing: false,
-        useLighting: draw.batch.material.shading === 'directional',
+        useLighting: draw.batch.material.shading === 'directional'
+          || draw.batch.material.shading === 'water',
         pipeline: this.pipeline.triangle,
         useSelectionMask: selectionMaskEnabled,
       }, matrix, draw.batch.semanticSelectionIds);
@@ -790,7 +793,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
         color: colorToRgba(renderable.mesh.material.color),
         useVertexColor: Boolean(renderable.mesh.geometry.colors),
         useInstancing: false,
-        useLighting: renderable.mesh.material.shading === 'directional',
+        useLighting: renderable.mesh.material.shading === 'directional'
+          || renderable.mesh.material.shading === 'water',
         pipeline: this.pipeline.triangle,
         useSelectionMask: selectionMaskEnabled,
       }, matrix, [renderable.mesh.selectionId]);
