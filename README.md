@@ -134,9 +134,9 @@ render batching 与 Tileset 生成；Engine 不在浏览器中执行这些工作
 
 ## 仓库中的 Asset
 
-可运行的污水处理厂示例使用 `examples/m1/assets/wastewater-plant/tiled/` 下带版本控制的
-Tileset hierarchy。单体 source GLB 和 full-model Prepared GLB 是本地生成中间文件，
-由 Git 忽略。版本库只提交有大小边界的 runtime slices。
+仓库不再内置旧版污水处理厂参考资产。Studio 的当前工程保存在
+`ice3-studio/projects/wastewater-plant/`，由 Studio 原生参数化组件生成；大型资产的
+来源、切片与绑定规则仍由 Asset Preparation Contract v1 定义。
 
 ## 验证
 
