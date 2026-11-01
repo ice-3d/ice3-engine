@@ -25,7 +25,7 @@ export const LIGHT_DIRECTION: readonly [number, number, number] = [-0.35, 0.85, 
 
 const SHADOW_SIZE = 2048;
 const DEPTH_BIAS = 0.0018;
-const ORTHO_EXTENT = 360;
+const ORTHO_EXTENT = 430;
 const ORTHO_NEAR = -260;
 const ORTHO_FAR = 700;
 
@@ -55,8 +55,15 @@ export class WebGL2ShadowMap {
     if (!this.framebuffer || !this.program) return false;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
     gl.viewport(0, 0, SHADOW_SIZE, SHADOW_SIZE);
+    // 阴影 pass 必须关掉多边形偏移：主 pass 为了避免共面闪烁开了 offset(2, 4)，
+    // 那是按屏幕空间深度斜率加权的，在深度 pass 里会把投影深度推后，阴影直接消失。
+    gl.disable(gl.POLYGON_OFFSET_FILL);
     gl.clear(gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
+    // 只渲染背面：深度图记下的是物体「背着光」的那一层，
+    // 受光面自己就不会和自己打架，剩下的偏移量可以给得很小。
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.FRONT);
     gl.useProgram(this.program);
     gl.uniformMatrix4fv(this.lightMatrixLocation, false, this.matrixScratch);
     return true;
@@ -66,6 +73,8 @@ export class WebGL2ShadowMap {
   end(width: number, height: number): void {
     const gl = this.gl;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.disable(gl.CULL_FACE);
+    gl.enable(gl.POLYGON_OFFSET_FILL);
     gl.viewport(0, 0, width, height);
   }
 
@@ -95,9 +104,11 @@ export class WebGL2ShadowMap {
       gl.UNSIGNED_INT,
       null,
     );
-    // 采样时用比较模式，硬件负责 PCF 的第一次比较。
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    // 深度纹理不可线性过滤：DEPTH_COMPONENT24 开 LINEAR 会让纹理不完整，
+    // 采样一律返回 0，结果就是整片场景被误判成「全在阴影里」。
+    // 这里用 NEAREST，柔化交给主着色器里的 3×3 手工取样。
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
@@ -124,7 +135,9 @@ export class WebGL2ShadowMap {
   /** 正交光源矩阵：覆盖整片场地，与主着色器的光方向一致。 */
   private updateLightMatrix(): void {
     const direction = normalize(LIGHT_DIRECTION);
-    const target: [number, number, number] = [60, 0, 10];
+    // 视锥对准场地中心：偏到一端的话，另一端会整片落在投影范围之外，
+    // 表现就是「只有一半厂区有影子，还带一条斜的硬边」。
+    const target: [number, number, number] = [300, 0, 0];
     const eye: [number, number, number] = [
       target[0]! + direction[0]! * 400,
       target[1]! + direction[1]! * 400,
@@ -205,10 +218,12 @@ function lookAt(
   const forward = normalize(subtract(eye, target) as [number, number, number]);
   const right = normalize(cross(up, forward));
   const cameraUp = cross(forward, right);
+  // 列主序：三个基向量各占一列，平移在最后一列。
+  // 写成「行主序」的样子会让整个视图变换变成转置，投影出来的坐标全是乱的。
   return [
-    right[0]!, cameraUp[0]!, forward[0]!, 0,
-    right[1]!, cameraUp[1]!, forward[1]!, 0,
-    right[2]!, cameraUp[2]!, forward[2]!, 0,
+    right[0]!, right[1]!, right[2]!, 0,
+    cameraUp[0]!, cameraUp[1]!, cameraUp[2]!, 0,
+    forward[0]!, forward[1]!, forward[2]!, 0,
     -dot(right, eye), -dot(cameraUp, eye), -dot(forward, eye), 1,
   ];
 }

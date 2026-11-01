@@ -19,7 +19,7 @@ import {
 } from './WebGL2InstanceBatch.js';
 import { WebGL2GeometryCache } from './WebGL2GeometryCache.js';
 import { WebGL2Picker } from './WebGL2Picker.js';
-import { WebGL2ShadowMap } from './WebGL2ShadowMap';
+import { WebGL2ShadowMap } from './WebGL2ShadowMap.js';
 import { WebGL2Program } from './WebGL2Program.js';
 import { WebGL2SemanticProgram } from './WebGL2SemanticProgram.js';
 import { colorToRgba } from './Color.js';
@@ -62,6 +62,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private onContextRestored: (() => void) | undefined;
   private program: WebGL2Program | null = null;
   private shadowMap: WebGL2ShadowMap | null = null;
+  // 阴影采样开关。定位掉深度偏差之前保持关闭，避免把错误的明暗关系画出来。
+  private readonly shadowEnabled = false;
   private semanticProgram: WebGL2SemanticProgram | null = null;
   private geometryCache: WebGL2GeometryCache | null = null;
   private instanceCache: WebGL2InstanceCache | null = null;
@@ -93,6 +95,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     event.preventDefault();
     this.picker = null;
     this.program = null;
+    this.shadowMap?.dispose();
+    this.shadowMap = null;
     this.geometryCache?.clear();
     this.geometryCache = null;
     this.instanceCache?.clear();
@@ -231,11 +235,6 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     };
 
     this.program.use();
-    this.program.setShadow(
-      true,
-      this.shadowMap?.texture ?? null,
-      this.shadowMap?.matrix ?? null,
-    );
     this.program.setClipOffset(0, 0);
     this.program.setDirectionalShading(false);
     this.geometryCache.beginFrame();
@@ -256,7 +255,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.profiler.mark('collect');
 
     // 阴影 pass：先用深度程序把场景渲染进贴图，主 pass 再采样。
-    if (this.shadowMap?.begin()) {
+    if (this.shadowEnabled && this.shadowMap?.begin()) {
       for (const batch of instances) {
         const instance = this.instanceCache!.retain(gl, this.geometryCache, batch);
         if (!instance) continue;
@@ -272,7 +271,18 @@ export class WebGL2RendererBackend implements ICERendererBackend {
           instance.instanceCount,
         );
       }
-      this.shadowMap.end(frame.viewport.width, frame.viewport.height);
+      // 视口要用设备像素：resize 里 canvas.width 是按 dpr 放大的，用 CSS 像素会把画面缩到左下角。
+      this.shadowMap.end(frame.viewport.width * this.dpr, frame.viewport.height * this.dpr);
+      // 阴影 pass 用的是深度程序，结束后必须切回主程序：
+      // 否则后面的 setColor/setMatrix 都在往另一个程序上写 uniform，主 pass 拿到的是空的。
+      this.program.use();
+      // 采样参数放在深度 pass 之后再设：此时贴图内容与矩阵都已就绪，
+      // 也和「先建图、后采样」的语义一致，避免任何先后顺序造成的错配。
+      this.program.setShadow(
+        this.shadowEnabled,
+        this.shadowMap.texture,
+        this.shadowMap.matrix,
+      );
     }
 
     this.program.setInstancing(true);
@@ -290,7 +300,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.program.setColor(colorToRgba(batch.material.color));
       this.program.setVertexColors(Boolean(batch.geometry.colors));
       this.program.setDirectionalShading(
-        batch.material.shading === 'directional',
+        batch.material.shading !== 'flat',
       );
       gl.bindVertexArray(instance.vertexArray);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, instance.triangleIndexBuffer);
@@ -339,7 +349,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       const geometry = this.geometryCache.retain(gl, draw.batch.geometry);
       this.program.setVertexColors(Boolean(draw.batch.geometry.colors));
       this.program.setDirectionalShading(
-        draw.batch.material.shading === 'directional',
+        draw.batch.material.shading !== 'flat',
       );
       gl.bindVertexArray(geometry.vertexArray);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
@@ -386,7 +396,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       const geometry = this.geometryCache.retain(gl, renderable.mesh.geometry);
       this.program.setVertexColors(Boolean(renderable.mesh.geometry.colors));
       this.program.setDirectionalShading(
-        renderable.mesh.material.shading === 'directional',
+        renderable.mesh.material.shading !== 'flat',
       );
       gl.bindVertexArray(geometry.vertexArray);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
@@ -679,5 +689,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.geometryCache = new WebGL2GeometryCache();
     this.instanceCache = new WebGL2InstanceCache();
     this.picker = new WebGL2Picker(gl);
+    // 阴影贴图必须在这里建：它和主程序同生命周期，上下文丢失后一起重建。
+    this.shadowMap = new WebGL2ShadowMap(gl);
   }
 }

@@ -27,7 +27,7 @@ export interface ICEPreparedMaterial {
   readonly id: string;
   readonly baseColor: string;
   readonly edgeColor?: string;
-  readonly shading?: 'directional';
+  readonly shading?: 'directional' | 'flat';
 }
 
 export interface ICEPreparedMesh {

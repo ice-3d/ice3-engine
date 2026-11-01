@@ -53,8 +53,15 @@ void main() {
     dFdx(v_worldPosition),
     dFdy(v_worldPosition)
   ));
-  float diffuse = abs(dot(normal, normalize(vec3(-0.35, 0.85, 0.4))));
-  float shade = mix(0.70, 1.00, clamp(diffuse, 0.0, 1.0));
+  // 主光 + 半球天光。法线由屏幕空间导数求出，朝向与绕序一致：
+  // 迎着光的一面吃满直射，背光面只留 35% 的反弹光，暗部不至于糊成一片。
+  vec3 lightDirection = normalize(vec3(-0.35, 0.85, 0.4));
+  float ndl = dot(normal, lightDirection);
+  float key = max(ndl, 0.0) + 0.35 * max(-ndl, 0.0);
+  float sky = 0.5 + 0.5 * normal.y;
+  // 直射光强度按真实日照给：朝上的面会超过 1，过曝到接近白色是对的，
+  // 之前上限压到 1 附近，整个厂区就永远晒不到太阳，看着发闷发暗。
+  float shade = clamp(0.30 + 0.62 * key + 0.10 * sky, 0.0, 1.06);
   vec3 lit = color * mix(1.0, shade, u_useDirectionalShading);
 
   // 表面颗粒：按世界坐标取两层哈希，打散整片纯色带来的塑料感。
@@ -73,15 +80,23 @@ void main() {
     if (projected.x > 0.002 && projected.x < 0.998
         && projected.y > 0.002 && projected.y < 0.998
         && projected.z > 0.0 && projected.z < 1.0) {
+      // 斜面对深度的误差最敏感，按 N·L 放大偏移：
+      // 固定小偏移在这套 960 米深的光锥里等于几米，墙面会自己把自己遮住（阴影痤疮）。
+      float ndlShadow = max(dot(normal, lightDirection), 0.0);
+      // 偏移按光锥深度（近 -260 / 远 700，共 960 米）换算：
+      // 0.006 对应约 5.8 米，正好压掉深度图与逐像素投影之间的系统误差，
+      // 同时还能留住十几米高构筑物的投影。
+      float bias = 0.0015 + 0.0025 * (1.0 - ndlShadow);
       float lit2 = 0.0;
       vec2 texel = vec2(1.0 / 2048.0);
       for (int dx = -1; dx <= 1; dx++) {
         for (int dy = -1; dy <= 1; dy++) {
           float depth = texture(u_shadowMap, projected.xy + vec2(float(dx), float(dy)) * texel).r;
-          lit2 += projected.z - 0.0015 > depth ? 0.0 : 1.0;
+          lit2 += projected.z - bias > depth ? 0.0 : 1.0;
         }
       }
-      lit *= mix(0.62, 1.0, lit2 / 9.0);
+      lit *= mix(0.52, 1.0, lit2 / 9.0);
+
     }
   }
   // 画布按 sRGB 解释写入值，而材质是线性空间的分量，必须做一次编码。

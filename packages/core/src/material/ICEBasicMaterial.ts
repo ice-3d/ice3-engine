@@ -1,14 +1,14 @@
 export interface ICEBasicMaterialOptions {
   readonly color: string;
   readonly edgeColor?: string;
-  readonly shading?: 'directional';
+  readonly shading?: 'directional' | 'flat';
 }
 
 export class ICEBasicMaterial {
   readonly typeId = 'ice3:BasicMaterial';
   readonly color: string;
   readonly edgeColor: string | undefined;
-  readonly shading: 'directional' | undefined;
+  readonly shading: 'directional' | 'flat' | undefined;
 
   constructor(options: ICEBasicMaterialOptions) {
     this.color = options.color;
