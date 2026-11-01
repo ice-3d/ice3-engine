@@ -459,10 +459,7 @@ test('fits loading and control hints within a narrow viewport', async ({ page })
   expect(hintBox.x).toBeGreaterThanOrEqual(0);
   expect(hintBox.x + hintBox.width).toBeLessThanOrEqual(390);
 
-  const center = await page.evaluate(() => window.__ice3M1.assetCenter());
-  const stage = await page.locator('[data-role="stage"]').boundingBox();
-  if (!stage) throw new Error('Stage bounds missing');
-  await page.mouse.click(stage.x + center.x, stage.y + center.y);
+  await page.evaluate(() => window.__ice3M1.selectOverviewDevice());
   const info = page.locator('[data-role="selection-info"]');
   await expect(info).toBeVisible();
   const infoBox = await info.boundingBox();
@@ -521,16 +518,47 @@ test('disposes the asset exactly once', async ({ page }) => {
   await expect(page.locator('[data-role="status"]')).toHaveText('资产已释放');
 });
 
-test('uses a black background with material contrast', async ({ page }) => {
+test('uses a pure black background with material contrast', async ({ page }) => {
   await page.goto(HIERARCHICAL_ASSET_URL);
   await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
   const background = await page.evaluate(
     () => window.__ice3M1.scenePixelAt(5, 5),
   );
 
-  expect(background[0]).toBeLessThanOrEqual(5);
-  expect(background[1]).toBeLessThanOrEqual(5);
-  expect(background[2]).toBeLessThanOrEqual(5);
+  expect(background.slice(0, 3)).toEqual([0, 0, 0]);
+});
+
+test('moves the camera from a quick WASD tap', async ({ page }) => {
+  await page.goto(HIERARCHICAL_ASSET_URL);
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
+  const before = await page.evaluate(() => window.__ice3M1.cameraPosition());
+
+  await page.keyboard.press('w');
+
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.cameraPosition()),
+  ).not.toEqual(before);
+});
+
+test('focuses the scene so navigation keys reach the viewer', async ({ page }) => {
+  await page.goto(HIERARCHICAL_ASSET_URL);
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
+
+  expect(await page.evaluate(() => (
+    document.activeElement?.getAttribute('data-role')
+  ))).toBe('stage');
+});
+
+test('moves the camera from a quick arrow tap', async ({ page }) => {
+  await page.goto(HIERARCHICAL_ASSET_URL);
+  await expect(page.locator('[data-role="status"]')).toHaveText('当前视角已就绪');
+  const before = await page.evaluate(() => window.__ice3M1.cameraPosition());
+
+  await page.keyboard.press('ArrowRight');
+
+  await expect.poll(
+    () => page.evaluate(() => window.__ice3M1.cameraPosition()),
+  ).not.toEqual(before);
 });
 
 test('moves the camera with WASD and arrow keys', async ({ page }) => {

@@ -95,6 +95,11 @@ body {
   background: var(--ice-color-bg);
 }
 
+#stage:focus-visible {
+  outline: 1px solid var(--ice-color-accent-soft);
+  outline-offset: -1px;
+}
+
 .toolbar button {
   min-width: 96px;
   min-height: 44px;

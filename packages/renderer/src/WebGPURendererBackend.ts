@@ -610,6 +610,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
             color: colorToRgba(batch.material.color),
             useVertexColor: Boolean(batch.geometry.colors),
             useInstancing: true,
+            useLighting: batch.material.shading === 'directional',
             pipeline: pagePipeline.triangle,
             useSelectionMask: selectionMaskEnabled,
             storagePage: page,
@@ -654,6 +655,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
           color: colorToRgba(batch.material.color),
           useVertexColor: Boolean(batch.geometry.colors),
           useInstancing: true,
+          useLighting: batch.material.shading === 'directional',
           pipeline: this.pipeline.triangle,
           useSelectionMask: selectionMaskEnabled,
         }, viewProjection.elements, batch.semanticIds);
@@ -719,6 +721,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
         color: colorToRgba(draw.batch.material.color),
         useVertexColor: Boolean(draw.batch.geometry.colors),
         useInstancing: false,
+        useLighting: draw.batch.material.shading === 'directional',
         pipeline: this.pipeline.triangle,
         useSelectionMask: selectionMaskEnabled,
       }, matrix, draw.batch.semanticSelectionIds);
@@ -787,6 +790,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
         color: colorToRgba(renderable.mesh.material.color),
         useVertexColor: Boolean(renderable.mesh.geometry.colors),
         useInstancing: false,
+        useLighting: renderable.mesh.material.shading === 'directional',
         pipeline: this.pipeline.triangle,
         useSelectionMask: selectionMaskEnabled,
       }, matrix, [renderable.mesh.selectionId]);
@@ -1545,6 +1549,7 @@ type PendingDraw = {
   readonly color: readonly [number, number, number, number];
   readonly useVertexColor: boolean;
   readonly useInstancing: boolean;
+  readonly useLighting?: boolean;
   readonly semanticHighlight?: number;
   readonly useSemantic?: boolean;
   readonly selectionIds?: readonly string[];

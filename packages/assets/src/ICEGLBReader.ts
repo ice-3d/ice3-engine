@@ -155,11 +155,13 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
       const edgeMaterial = edgePrimitive
         ? sourceMaterials[Number(edgePrimitive.material)]
         : undefined;
+      const shading = record(record(baseMaterial?.extras)?.ice3)?.shading;
       const materialIndex = materials.length;
       materials.push({
         id: `${meshId}/material/${primitiveIndex}`,
         baseColor: materialColor(baseMaterial),
         ...(edgeMaterial ? { edgeColor: materialColor(edgeMaterial) } : {}),
+        ...(shading === 'directional' ? { shading } : {}),
       });
       const bounds = boundsFromAccessor(accessors[positionIndex]);
       const geometryIndex = geometries.length;

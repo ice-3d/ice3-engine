@@ -49,7 +49,11 @@ export function collectInstanceBatches(
         semanticIds: group.map((renderable) => renderable.mesh.selectionId),
         semanticIndices,
         meshIds: group.map((renderable) => renderable.id),
-        materialKey: `${material.color}:${material.edgeColor ?? ''}`,
+        materialKey: [
+          material.color,
+          material.edgeColor ?? '',
+          material.shading ?? '',
+        ].join(':'),
       });
     }
   }

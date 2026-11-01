@@ -1,17 +1,18 @@
 import { ICEEngineError } from '@ice3/core';
 import type { ICEMatrix4 } from '@ice3/core';
 
-const VERTEX_SOURCE = `
-attribute vec3 a_position;
-attribute vec3 a_color;
-attribute vec4 a_instanceColumn0;
-attribute vec4 a_instanceColumn1;
-attribute vec4 a_instanceColumn2;
-attribute vec4 a_instanceColumn3;
+const VERTEX_SOURCE = `#version 300 es
+in vec3 a_position;
+in vec3 a_color;
+in vec4 a_instanceColumn0;
+in vec4 a_instanceColumn1;
+in vec4 a_instanceColumn2;
+in vec4 a_instanceColumn3;
 uniform mat4 u_worldViewProjection;
 uniform vec2 u_clipOffset;
 uniform float u_useInstancing;
-varying vec3 v_color;
+out vec3 v_color;
+out vec3 v_worldPosition;
 
 void main() {
   mat4 instanceMatrix = mat4(
@@ -29,18 +30,64 @@ void main() {
   gl_Position = u_worldViewProjection * position;
   gl_Position.xy += u_clipOffset * gl_Position.w;
   v_color = a_color;
+  v_worldPosition = position.xyz;
 }
 `;
 
-const FRAGMENT_SOURCE = `
+const FRAGMENT_SOURCE = `#version 300 es
 precision highp float;
 uniform vec4 u_color;
 uniform float u_useVertexColor;
-varying vec3 v_color;
+uniform float u_useDirectionalShading;
+uniform sampler2D u_shadowMap;
+uniform mat4 u_lightViewProjection;
+uniform float u_shadowEnabled;
+in vec3 v_color;
+in vec3 v_worldPosition;
+out vec4 outputColor;
 
 void main() {
-  gl_FragColor = vec4(
-    u_color.rgb * mix(vec3(1.0), v_color, step(0.5, u_useVertexColor)),
+  vec3 color = u_color.rgb
+    * mix(vec3(1.0), v_color, step(0.5, u_useVertexColor));
+  vec3 normal = normalize(cross(
+    dFdx(v_worldPosition),
+    dFdy(v_worldPosition)
+  ));
+  float diffuse = abs(dot(normal, normalize(vec3(-0.35, 0.85, 0.4))));
+  float shade = mix(0.70, 1.00, clamp(diffuse, 0.0, 1.0));
+  vec3 lit = color * mix(1.0, shade, u_useDirectionalShading);
+
+  // 表面颗粒：按世界坐标取两层哈希，打散整片纯色带来的塑料感。
+  // 幅度控制在 ±6% 内，远了看不出、近了有质感，不会喧宾夺主。
+  vec3 fine = floor(v_worldPosition * 4.5);
+  vec3 coarse = floor(v_worldPosition * 0.42);
+  float grain = fract(sin(dot(fine, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+  float stain = fract(sin(dot(coarse, vec3(39.346, 11.135, 83.155))) * 24634.6345);
+  // 低频污渍负责大面积不匀，高频颗粒负责近看的手感。
+  lit *= 0.90 + 0.10 * grain + 0.09 * (stain - 0.5);
+
+  // 阴影：把世界坐标投到光源空间，与深度图比较。取 3×3 采样的平均做轻微柔化。
+  if (u_shadowEnabled > 0.5) {
+    vec4 lightSpace = u_lightViewProjection * vec4(v_worldPosition, 1.0);
+    vec3 projected = lightSpace.xyz / max(lightSpace.w, 1e-5) * 0.5 + 0.5;
+    if (projected.x > 0.002 && projected.x < 0.998
+        && projected.y > 0.002 && projected.y < 0.998
+        && projected.z > 0.0 && projected.z < 1.0) {
+      float lit2 = 0.0;
+      vec2 texel = vec2(1.0 / 2048.0);
+      for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+          float depth = texture(u_shadowMap, projected.xy + vec2(float(dx), float(dy)) * texel).r;
+          lit2 += projected.z - 0.0015 > depth ? 0.0 : 1.0;
+        }
+      }
+      lit *= mix(0.62, 1.0, lit2 / 9.0);
+    }
+  }
+  // 画布按 sRGB 解释写入值，而材质是线性空间的分量，必须做一次编码。
+  // 不做的话线性 0.017 会当作 sRGB 0.017 显示，深色材质全部塌成黑色。
+  outputColor = vec4(
+    pow(max(lit, vec3(0.0)), vec3(1.0 / 2.2)),
     u_color.a
   );
 }
@@ -56,6 +103,10 @@ export class WebGL2Program {
   private readonly colorLocation: WebGLUniformLocation;
   private readonly clipOffsetLocation: WebGLUniformLocation;
   private readonly vertexColorLocation: WebGLUniformLocation;
+  private readonly directionalShadingLocation: WebGLUniformLocation;
+  private readonly shadowMapLocation: WebGLUniformLocation | null;
+  private readonly lightMatrixLocation: WebGLUniformLocation | null;
+  private readonly shadowEnabledLocation: WebGLUniformLocation | null;
   private readonly instancingLocation: WebGLUniformLocation;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
@@ -64,12 +115,20 @@ export class WebGL2Program {
     const colorLocation = gl.getUniformLocation(program, 'u_color');
     const clipOffsetLocation = gl.getUniformLocation(program, 'u_clipOffset');
     const vertexColorLocation = gl.getUniformLocation(program, 'u_useVertexColor');
+    const directionalShadingLocation = gl.getUniformLocation(
+      program,
+      'u_useDirectionalShading',
+    );
     const instancingLocation = gl.getUniformLocation(program, 'u_useInstancing');
+    const shadowMapLocation = gl.getUniformLocation(program, 'u_shadowMap');
+    const lightMatrixLocation = gl.getUniformLocation(program, 'u_lightViewProjection');
+    const shadowEnabledLocation = gl.getUniformLocation(program, 'u_shadowEnabled');
     if (
       !matrixLocation
       || !colorLocation
       || !clipOffsetLocation
       || !vertexColorLocation
+      || !directionalShadingLocation
       || !instancingLocation
     ) {
       gl.deleteProgram(program);
@@ -83,6 +142,13 @@ export class WebGL2Program {
     this.colorLocation = colorLocation;
     this.clipOffsetLocation = clipOffsetLocation;
     this.vertexColorLocation = vertexColorLocation;
+    this.directionalShadingLocation = directionalShadingLocation;
+    this.shadowMapLocation = shadowMapLocation;
+    this.lightMatrixLocation = lightMatrixLocation;
+    this.shadowEnabledLocation = shadowEnabledLocation;
+    this.shadowMapLocation = shadowMapLocation;
+    this.lightMatrixLocation = lightMatrixLocation;
+    this.shadowEnabledLocation = shadowEnabledLocation;
     this.instancingLocation = instancingLocation;
   }
 
@@ -104,6 +170,31 @@ export class WebGL2Program {
 
   setVertexColors(enabled: boolean): void {
     this.gl.uniform1f(this.vertexColorLocation, enabled ? 1 : 0);
+  }
+
+
+  /** 绑定阴影贴图与光源矩阵；关闭时着色器跳过采样。 */
+  setShadow(
+    enabled: boolean,
+    texture: WebGLTexture | null,
+    matrix: Float32Array | null,
+    unit = 3,
+  ): void {
+    const gl = this.gl;
+    gl.uniform1f(this.shadowEnabledLocation, enabled && texture && matrix ? 1 : 0);
+    if (!enabled || !texture || !matrix) return;
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    if (this.shadowMapLocation) gl.uniform1i(this.shadowMapLocation, unit);
+    if (this.lightMatrixLocation) gl.uniformMatrix4fv(this.lightMatrixLocation, false, matrix);
+    gl.activeTexture(gl.TEXTURE0);
+  }
+
+  setDirectionalShading(enabled: boolean): void {
+    this.gl.uniform1f(
+      this.directionalShadingLocation,
+      enabled ? 1 : 0,
+    );
   }
 
   setInstancing(enabled: boolean): void {

@@ -94,18 +94,20 @@ export function fullPacketFixture(): Uint8Array {
 }
 
 export function transformOnlyDeltaFixture(): ICEPreviewGeometryPacket {
+  return parsePreviewGeometryPacket(transformOnlyDeltaBytesFixture());
+}
+
+export function transformOnlyDeltaBytesFixture(): Uint8Array {
   const source = baseManifest();
   const matrix = [...source.nodes[0]!.matrix];
   matrix[12] = 4;
-  return parsePreviewGeometryPacket(
-    encodePacket({
-      ...source,
-      revision: 5,
-      parentRevision: 4,
-      nodes: [{ ...source.nodes[0]!, matrix }],
-      geometries: [],
-    }, new Uint8Array()),
-  );
+  return encodePacket({
+    ...source,
+    revision: 5,
+    parentRevision: 4,
+    nodes: [{ ...source.nodes[0]!, matrix }],
+    geometries: [],
+  }, new Uint8Array());
 }
 
 export function attributeDeltaFixture(): ICEPreviewGeometryPacket {

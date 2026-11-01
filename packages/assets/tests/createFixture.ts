@@ -146,7 +146,12 @@ export function createMinimalPreparedGLB(
     materials: [
       {
         pbrMetallicRoughness: { baseColorFactor: [0.2, 0.5, 0.9, 1] },
-        extras: { ice3: { id: 'fixture/material/0' } },
+        extras: {
+          ice3: {
+            id: 'fixture/material/0',
+            shading: 'directional',
+          },
+        },
       },
       {
         pbrMetallicRoughness: { baseColorFactor: [0.9, 0.95, 1, 1] },

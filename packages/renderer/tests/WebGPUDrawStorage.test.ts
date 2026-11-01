@@ -44,3 +44,19 @@ it('grows when a Tile scene exceeds the initial draw estimate', () => {
   expect(storage.drawCount).toBe(2);
   expect(storage.generation).toBe(1);
 });
+
+it('stores renderer-side directional shading per draw', () => {
+  const storage = new WebGPUDrawStorage(1);
+  storage.begin(1);
+  storage.append({
+    matrix: new Float32Array(16),
+    color: [1, 1, 1, 1],
+    useVertexColor: false,
+    useInstancing: false,
+    useLighting: true,
+    selectionBase: 0,
+    useSelectionMask: false,
+  });
+
+  expect(storage.uniformData[32]).toBe(1);
+});

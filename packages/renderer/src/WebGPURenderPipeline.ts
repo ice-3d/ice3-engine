@@ -1,7 +1,7 @@
 import { ICEEngineError } from '@ice3/core';
 
 export const WEBGPU_UNIFORM_STRIDE = 256;
-export const WEBGPU_UNIFORM_BYTES = 128;
+export const WEBGPU_UNIFORM_BYTES = 144;
 
 const SHADER_SOURCE = (
   selectionMask: boolean,
@@ -22,6 +22,7 @@ struct FrameUniforms {
   useSelectionMask: f32,
   pageBase: f32,
   useIndirect: f32,
+  useLighting: f32,
 }
 
 ${storageInstances
@@ -40,6 +41,7 @@ struct VertexOutput {
   @builtin(position) position: vec4<f32>,
   @location(0) color: vec4<f32>,
   @location(1) @interpolate(flat) semantic: u32,
+  @location(2) worldPosition: vec4<f32>,
 }
 
 @group(0) @binding(0) var<uniform> frame: FrameUniforms;
@@ -106,6 +108,7 @@ fn vertexMain(
     mix(vec3<f32>(1.0), color, frame.useVertexColor) * frame.color.rgb,
     frame.color.a
   );
+  output.worldPosition = worldPosition;
   output.semantic = select(
     vertexSemantic,
     instanceSemantic,
@@ -151,7 +154,18 @@ fn fragmentMain(input: VertexOutput) -> @location(0) vec4<f32> {
     }
   }`
     : ''}
-  return input.color;
+  var outputColor = input.color;
+  if (frame.useLighting > 0.5) {
+    let normal = normalize(cross(
+      dpdx(input.worldPosition.xyz),
+      dpdy(input.worldPosition.xyz)
+    ));
+    let lightDirection = normalize(vec3<f32>(-0.35, 0.85, 0.4));
+    let diffuse = abs(dot(normal, lightDirection));
+    let shade = mix(0.72, 1.06, clamp(diffuse, 0.0, 1.0));
+    outputColor = vec4<f32>(outputColor.rgb * shade, outputColor.a);
+  }
+  return outputColor;
 }
 `;
 
@@ -348,6 +362,15 @@ export class WebGPURenderPipeline {
           format: 'depth24plus',
           depthCompare: 'less-equal',
           depthWriteEnabled: !selection,
+          // Selected triangles are redrawn after opaque geometry. Pull that
+          // overlay slightly forward instead of competing at an equal depth.
+          ...(selection && topology === 'triangle-list'
+            ? {
+                depthBias: -1,
+                depthBiasSlopeScale: -1,
+                depthBiasClamp: 0,
+              }
+            : {}),
         },
         multisample: { count: 1 },
       });

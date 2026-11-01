@@ -27,6 +27,7 @@ const SETTLE_EPSILON = 1e-5;
 const WHEEL_LINE_HEIGHT_PX = 16;
 const MAX_WHEEL_STEP_PX = 240;
 const MOVE_SPEED_PER_DISTANCE = 0.75;
+const MIN_KEY_TAP_MS = 16;
 
 const NAVIGATION_KEYS = new Set([
   'KeyW',
@@ -154,7 +155,12 @@ export class ICEOrbitController {
       return;
     }
     this.prepareMotion();
+    const alreadyPressed = this.pressedKeys.has(input.code);
     this.pressedKeys.add(input.code);
+    if (!alreadyPressed && !input.repeat) {
+      this.applyKeyboardMovement(MIN_KEY_TAP_MS);
+      this.applyPosition();
+    }
     this.engine.requestRender('camera-keyboard-movement');
   };
   private readonly onKeyUp = (event: DispatchEvent): void => {

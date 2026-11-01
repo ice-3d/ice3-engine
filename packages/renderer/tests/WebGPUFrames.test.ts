@@ -56,6 +56,17 @@ it('draws one masked selection edge overlay per selected batch', async () => {
   ))).toBe(false);
 });
 
+it('pulls selection geometry forward to avoid depth fighting', async () => {
+  const fake = fakeWebGPUDevice();
+  await readyBackend(fake);
+
+  const selection = fake.pipelineDescriptions.find((description) => (
+    description.label === 'selection:triangle'
+  ));
+  expect(selection?.depthStencil?.depthBias).toBeLessThan(0);
+  expect(selection?.depthStencil?.depthBiasSlopeScale).toBeLessThan(0);
+});
+
 it('falls back to per-object selection when the mask layout fails', async () => {
   const fake = fakeWebGPUDevice({ selectionMaskLayoutFails: true });
   const errors: Error[] = [];

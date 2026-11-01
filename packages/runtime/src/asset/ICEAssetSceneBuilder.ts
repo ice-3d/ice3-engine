@@ -46,6 +46,7 @@ export function buildAssetScene(
     new ICEBasicMaterial({
       color: material.baseColor,
       ...(material.edgeColor ? { edgeColor: material.edgeColor } : {}),
+      ...(material.shading ? { shading: material.shading } : {}),
     })
   ));
   const meshesByNode = new Map<number, typeof snapshot.meshes[number][]>();

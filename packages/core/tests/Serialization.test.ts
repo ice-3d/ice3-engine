@@ -115,6 +115,7 @@ it('round-trips optional material edge color', () => {
       material: new ICEBasicMaterial({
         color: '#2f81f7',
         edgeColor: '#e6f2ff',
+        shading: 'directional',
       }),
     }),
   );
@@ -124,6 +125,7 @@ it('round-trips optional material edge color', () => {
   const block = restored.scene.findByID('block') as ICEMesh;
 
   expect(block.material.edgeColor).toBe('#e6f2ff');
+  expect(block.material.shading).toBe('directional');
 });
 
 it('round-trips semantic node metadata', () => {

@@ -43,6 +43,7 @@ const snapshotWithEdges: ICEPreparedAssetSnapshot = {
     id: 'fixture/material',
     baseColor: '#2f81f7',
     edgeColor: '#e6f2ff',
+    shading: 'directional',
   }],
   meshes: [{
     id: 'fixture/mesh',
@@ -73,6 +74,7 @@ it('combines triangle and edge accessors in one ICE mesh', () => {
 
   expect(mesh.geometry.edgeIndices).toHaveLength(24);
   expect(mesh.material.edgeColor).toBe('#e6f2ff');
+  expect(mesh.material.shading).toBe('directional');
 });
 
 it('preserves prepared display names and equipment identity', () => {

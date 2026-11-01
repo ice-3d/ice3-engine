@@ -7,6 +7,7 @@ export type ICEWebGPUDrawUniform = Readonly<{
   color: readonly [number, number, number, number];
   useVertexColor: boolean;
   useInstancing: boolean;
+  useLighting?: boolean;
   semanticHighlight?: number;
   useSemantic?: boolean;
   selectionBase: number;
@@ -56,6 +57,7 @@ export class WebGPUDrawStorage {
     this.uniformBuffer[offset + 29] = draw.useSelectionMask ? 1 : 0;
     this.uniformBuffer[offset + 30] = draw.pageBase ?? 0;
     this.uniformBuffer[offset + 31] = draw.useIndirect ? 1 : 0;
+    this.uniformBuffer[offset + 32] = draw.useLighting ? 1 : 0;
     this.count += 1;
     return index;
   }

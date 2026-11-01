@@ -136,6 +136,11 @@ it('reads prepared per-vertex display colors', () => {
   expect(snapshot.materials[0]!.baseColor).toBe('#ffffff');
 });
 
+it('reads renderer-side directional shading metadata', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB());
+  expect(snapshot.materials[0]!.shading).toBe('directional');
+});
+
 it('reads validated render batch metadata', () => {
   const snapshot = readPreparedGLB(createBatchedPreparedGLB());
 

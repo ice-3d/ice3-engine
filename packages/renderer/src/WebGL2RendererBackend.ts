@@ -19,6 +19,7 @@ import {
 } from './WebGL2InstanceBatch.js';
 import { WebGL2GeometryCache } from './WebGL2GeometryCache.js';
 import { WebGL2Picker } from './WebGL2Picker.js';
+import { WebGL2ShadowMap } from './WebGL2ShadowMap';
 import { WebGL2Program } from './WebGL2Program.js';
 import { WebGL2SemanticProgram } from './WebGL2SemanticProgram.js';
 import { colorToRgba } from './Color.js';
@@ -60,6 +61,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private onContextLost: (() => void) | undefined;
   private onContextRestored: (() => void) | undefined;
   private program: WebGL2Program | null = null;
+  private shadowMap: WebGL2ShadowMap | null = null;
   private semanticProgram: WebGL2SemanticProgram | null = null;
   private geometryCache: WebGL2GeometryCache | null = null;
   private instanceCache: WebGL2InstanceCache | null = null;
@@ -229,7 +231,13 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     };
 
     this.program.use();
+    this.program.setShadow(
+      true,
+      this.shadowMap?.texture ?? null,
+      this.shadowMap?.matrix ?? null,
+    );
     this.program.setClipOffset(0, 0);
+    this.program.setDirectionalShading(false);
     this.geometryCache.beginFrame();
     this.instanceCache!.beginFrame();
     this.instancedMeshIds.clear();
@@ -246,6 +254,27 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     );
     const batches = collectRenderBatches(frame.scene, this.batchesScratch);
     this.profiler.mark('collect');
+
+    // 阴影 pass：先用深度程序把场景渲染进贴图，主 pass 再采样。
+    if (this.shadowMap?.begin()) {
+      for (const batch of instances) {
+        const instance = this.instanceCache!.retain(gl, this.geometryCache, batch);
+        if (!instance) continue;
+        gl.bindVertexArray(instance.vertexArray);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, instance.triangleIndexBuffer);
+        gl.drawElementsInstanced(
+          gl.TRIANGLES,
+          instance.triangleCount,
+          batch.geometry.indices instanceof Uint16Array
+            ? gl.UNSIGNED_SHORT
+            : gl.UNSIGNED_INT,
+          0,
+          instance.instanceCount,
+        );
+      }
+      this.shadowMap.end(frame.viewport.width, frame.viewport.height);
+    }
+
     this.program.setInstancing(true);
     this.profiler.mark('prepareAndUpload');
     for (const batch of instances) {
@@ -260,6 +289,9 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.program.setMatrix(mvp);
       this.program.setColor(colorToRgba(batch.material.color));
       this.program.setVertexColors(Boolean(batch.geometry.colors));
+      this.program.setDirectionalShading(
+        batch.material.shading === 'directional',
+      );
       gl.bindVertexArray(instance.vertexArray);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, instance.triangleIndexBuffer);
       gl.drawElementsInstanced(
@@ -274,6 +306,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.frameStats.drawCalls += 1;
       if (batch.material.edgeColor && instance.edgeCount > 0) {
         this.program.setVertexColors(false);
+        this.program.setDirectionalShading(false);
         this.program.setColor(colorToRgba(batch.material.edgeColor));
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, instance.edgeIndexBuffer);
         for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
@@ -305,6 +338,9 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.program.setColor(colorToRgba(draw.batch.material.color));
       const geometry = this.geometryCache.retain(gl, draw.batch.geometry);
       this.program.setVertexColors(Boolean(draw.batch.geometry.colors));
+      this.program.setDirectionalShading(
+        draw.batch.material.shading === 'directional',
+      );
       gl.bindVertexArray(geometry.vertexArray);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
       gl.drawElements(
@@ -319,6 +355,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.frameStats.renderedBatches += 1;
       if (draw.batch.material.edgeColor) {
         this.program.setVertexColors(false);
+        this.program.setDirectionalShading(false);
         this.program.setColor(colorToRgba(draw.batch.material.edgeColor));
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.edgeIndexBuffer);
         for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
@@ -348,6 +385,9 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.program.setColor(colorToRgba(renderable.mesh.material.color));
       const geometry = this.geometryCache.retain(gl, renderable.mesh.geometry);
       this.program.setVertexColors(Boolean(renderable.mesh.geometry.colors));
+      this.program.setDirectionalShading(
+        renderable.mesh.material.shading === 'directional',
+      );
       gl.bindVertexArray(geometry.vertexArray);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
       gl.drawElements(
@@ -361,6 +401,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.frameStats.drawCalls += 1;
       if (renderable.mesh.material.edgeColor) {
         this.program.setVertexColors(false);
+        this.program.setDirectionalShading(false);
         this.program.setColor(
           colorToRgba(renderable.mesh.material.edgeColor),
         );
@@ -388,7 +429,11 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.depthMask(false);
+      // The tint is a second pass over the same triangles. Pull it forward so
+      // rotational depth precision cannot make the highlight flicker.
+      gl.polygonOffset(-1, -4);
       this.program.setVertexColors(false);
+      this.program.setDirectionalShading(false);
       this.program.setColor([
         SELECTION_RGBA[0],
         SELECTION_RGBA[1],
@@ -515,6 +560,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         }
       }
       gl.depthMask(true);
+      gl.polygonOffset(2, 4);
       gl.disable(gl.BLEND);
       this.program.use();
       this.program.setClipOffset(0, 0);

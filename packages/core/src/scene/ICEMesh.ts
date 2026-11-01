@@ -62,6 +62,9 @@ export class ICEMesh extends ICENode {
         ...(typeof material.edgeColor === 'string'
           ? { edgeColor: material.edgeColor }
           : {}),
+        ...(material.shading === 'directional'
+          ? { shading: 'directional' as const }
+          : {}),
       }),
     });
   }

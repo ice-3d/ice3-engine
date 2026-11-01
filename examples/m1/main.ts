@@ -41,12 +41,12 @@ const renderer = rendererQuery === 'auto'
   ? rendererQuery
   : 'webgl2';
 const engine = await new ICE3({ renderer }).initAsync(stage);
-engine.setBackgroundColor('#1B2529');
+engine.setBackgroundColor('#000000');
 const camera = new ICEPerspectiveCamera({
   id: 'camera-main',
   fov: 45,
-  near: 0.1,
-  far: 5000,
+  near: 1,
+  far: 3000,
   position: [3.2, 2.4, 4.5],
   target: [0, 0, 0],
 });
@@ -176,6 +176,7 @@ function revealScene(): void {
     loading.dataset.state = 'ready';
     controlsHint.dataset.state = 'visible';
     controlsHint.setAttribute('aria-hidden', 'false');
+    stage.focus({ preventScroll: true });
   });
 }
 
@@ -584,6 +585,9 @@ function sceneStats(): {
 }
 
 disposeButton.addEventListener('click', disposeAsset);
+stage.addEventListener('pointerdown', () => {
+  stage.focus({ preventScroll: true });
+});
 
 window.__ice3M1 = {
   diagnostics: (): Readonly<ICEEngineDiagnostics> => engine.getDiagnostics(),

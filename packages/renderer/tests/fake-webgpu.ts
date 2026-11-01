@@ -139,6 +139,7 @@ export function fakeWebGPUDevice(options: {
   const renderPasses: any[] = [];
   const draws: any[] = [];
   const selectionDraws: any[] = [];
+  const pipelineDescriptions: GPURenderPipelineDescriptor[] = [];
   const contexts: any[] = [];
   const copyCalls: any[] = [];
   const deviceRequests: GPUDeviceDescriptor[] = [];
@@ -192,6 +193,7 @@ export function fakeWebGPUDevice(options: {
     createRenderPipelineAsync: async (
       description: GPURenderPipelineDescriptor,
     ) => {
+      pipelineDescriptions.push(description);
       if (
         options.storagePipelineFails
         && description.label?.includes(':storage')
@@ -560,6 +562,7 @@ export function fakeWebGPUDevice(options: {
     renderPasses,
     draws,
     selectionDraws,
+    pipelineDescriptions,
     contexts,
     copyCalls,
     depthTextures,

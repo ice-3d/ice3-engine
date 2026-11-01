@@ -1,16 +1,19 @@
 export interface ICEBasicMaterialOptions {
   readonly color: string;
   readonly edgeColor?: string;
+  readonly shading?: 'directional';
 }
 
 export class ICEBasicMaterial {
   readonly typeId = 'ice3:BasicMaterial';
   readonly color: string;
   readonly edgeColor: string | undefined;
+  readonly shading: 'directional' | undefined;
 
   constructor(options: ICEBasicMaterialOptions) {
     this.color = options.color;
     this.edgeColor = options.edgeColor;
+    this.shading = options.shading;
   }
 
   toJSON(): Record<string, unknown> {
@@ -18,6 +21,7 @@ export class ICEBasicMaterial {
       typeId: this.typeId,
       color: this.color,
       ...(this.edgeColor ? { edgeColor: this.edgeColor } : {}),
+      ...(this.shading ? { shading: this.shading } : {}),
     };
   }
 }
