@@ -1,6 +1,36 @@
 import { ICEEngineError } from '@ice3/core';
 import type { ICEMatrix4 } from '@ice3/core';
 
+const LIGHT_DIRECTION = [-0.35, 0.85, 0.4] as const;
+const LIGHTING = Object.freeze({
+  ambient: 0.46,
+  direct: 0.62,
+  sky: 0.12,
+  minimum: 0.72,
+  maximum: 1.18,
+});
+
+export function directionalLightingShade(
+  normal: readonly [number, number, number],
+): number {
+  const length = Math.hypot(...normal) || 1;
+  const nx = normal[0] / length;
+  const ny = normal[1] / length;
+  const nz = normal[2] / length;
+  const diffuse = nx * LIGHT_DIRECTION[0]
+    + ny * LIGHT_DIRECTION[1]
+    + nz * LIGHT_DIRECTION[2];
+  const key = Math.max(diffuse, 0) + 0.35 * Math.max(-diffuse, 0);
+  const hemisphere = 0.5 + 0.5 * ny;
+  return Math.max(
+    LIGHTING.minimum,
+    Math.min(
+      LIGHTING.maximum,
+      LIGHTING.ambient + LIGHTING.direct * key + LIGHTING.sky * hemisphere,
+    ),
+  );
+}
+
 const VERTEX_SOURCE = `#version 300 es
 in vec3 a_position;
 in vec3 a_color;
@@ -55,13 +85,17 @@ void main() {
   ));
   // 主光 + 半球天光。法线由屏幕空间导数求出，朝向与绕序一致：
   // 迎着光的一面吃满直射，背光面只留 35% 的反弹光，暗部不至于糊成一片。
-  vec3 lightDirection = normalize(vec3(-0.35, 0.85, 0.4));
+  vec3 lightDirection = normalize(vec3(${LIGHT_DIRECTION.join(', ')}));
   float ndl = dot(normal, lightDirection);
   float key = max(ndl, 0.0) + 0.35 * max(-ndl, 0.0);
   float sky = 0.5 + 0.5 * normal.y;
   // 直射光强度按真实日照给：朝上的面会超过 1，过曝到接近白色是对的，
   // 之前上限压到 1 附近，整个厂区就永远晒不到太阳，看着发闷发暗。
-  float shade = clamp(0.30 + 0.62 * key + 0.10 * sky, 0.0, 1.06);
+  float shade = clamp(
+    ${LIGHTING.ambient} + ${LIGHTING.direct} * key + ${LIGHTING.sky} * sky,
+    ${LIGHTING.minimum},
+    ${LIGHTING.maximum}
+  );
   vec3 lit = color * mix(1.0, shade, u_useDirectionalShading);
 
   // 表面颗粒：按世界坐标取两层哈希，打散整片纯色带来的塑料感。
