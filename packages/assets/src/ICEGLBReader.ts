@@ -669,11 +669,13 @@ function materialColor(material: JSONRecord | undefined): string {
   if (!material) return '#808080';
   const color = record(material.pbrMetallicRoughness)?.baseColorFactor;
   if (!Array.isArray(color) || color.length < 3) return '#808080';
-  return `#${color.slice(0, 3).map((value) => (
+  const alpha = color.length >= 4 ? Number(color[3]) : 1;
+  const channels = color.slice(0, alpha < 1 ? 4 : 3).map((value) => (
     Math.round(Math.min(1, Math.max(0, Number(value))) * 255)
       .toString(16)
       .padStart(2, '0')
-  )).join('')}`;
+  ));
+  return `#${channels.join('')}`;
 }
 
 function integers(value: unknown): number[] {

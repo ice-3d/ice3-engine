@@ -52,6 +52,15 @@ it('caches material colors after their first conversion', () => {
   ]);
 });
 
+it('decodes alpha from eight-digit material colors', () => {
+  expect(colorToRgba('#11223380')).toEqual([
+    0x11 / 255,
+    0x22 / 255,
+    0x33 / 255,
+    0x80 / 255,
+  ]);
+});
+
 it('preserves the drawing buffer for pixel capture and recovery', () => {
   let contextOptions: WebGLContextAttributes | undefined;
   const canvas = {

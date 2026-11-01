@@ -148,6 +148,13 @@ it('reads renderer-side water surface shading metadata', () => {
   expect(snapshot.materials[0]!.shading).toBe('water');
 });
 
+it('preserves material opacity in the prepared display color', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB({
+    materialOpacity: 0.5,
+  }));
+  expect(snapshot.materials[0]!.baseColor).toBe('#3380e680');
+});
+
 it('reads validated render batch metadata', () => {
   const snapshot = readPreparedGLB(createBatchedPreparedGLB());
 

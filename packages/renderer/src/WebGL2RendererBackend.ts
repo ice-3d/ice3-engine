@@ -45,6 +45,11 @@ const EDGE_PIXEL_OFFSETS = [
 
 const SELECTION_RGBA = [255 / 255, 208 / 255, 0] as const;
 const SELECTION_TINT_ALPHA = 0.65;
+
+function isTransparentColor(color: string): boolean {
+  return colorToRgba(color)[3] < 0.999;
+}
+
 export { colorToRgba } from './Color.js';
 
 export class WebGL2RendererBackend implements ICERendererBackend {
@@ -260,6 +265,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     // 阴影 pass：先用深度程序把场景渲染进贴图，主 pass 再采样。
     if (this.shadowEnabled && this.shadowMap?.begin()) {
       for (const batch of instances) {
+        if (isTransparentColor(batch.material.color)) continue;
         const instance = this.instanceCache!.retain(gl, this.geometryCache, batch);
         if (!instance) continue;
         gl.bindVertexArray(instance.vertexArray);
@@ -288,9 +294,19 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       );
     }
 
-    this.program.setInstancing(true);
-    this.profiler.mark('prepareAndUpload');
-    for (const batch of instances) {
+    for (const transparentPass of [false, true] as const) {
+      if (transparentPass) {
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.depthMask(false);
+      } else {
+        gl.disable(gl.BLEND);
+        gl.depthMask(true);
+      }
+      this.program.setInstancing(true);
+      this.profiler.mark('prepareAndUpload');
+      for (const batch of instances) {
+        if (isTransparentColor(batch.material.color) !== transparentPass) continue;
       const instance = this.instanceCache!.retain(
         gl,
         this.geometryCache,
@@ -342,9 +358,10 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         }
       }
     }
-    this.program.setInstancing(false);
-    this.program.setClipOffset(0, 0);
-    for (const draw of batches) {
+      this.program.setInstancing(false);
+      this.program.setClipOffset(0, 0);
+      for (const draw of batches) {
+        if (isTransparentColor(draw.batch.material.color) !== transparentPass) continue;
       this.program.setClipOffset(0, 0);
       mvp.elements.set(viewProjection.elements);
       world.elements.set(draw.worldMatrix);
@@ -392,7 +409,11 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         }
       }
     }
-    for (const renderable of renderables) {
+      for (const renderable of renderables) {
+        if (
+          isTransparentColor(renderable.mesh.material.color)
+          !== transparentPass
+        ) continue;
       if (this.instancedMeshIds.has(renderable.id)) continue;
       this.program.setClipOffset(0, 0);
       mvp.elements.set(viewProjection.elements);
@@ -442,7 +463,10 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         }
       }
       this.frameStats.renderedMeshes += 1;
+      }
     }
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
     if (frame.selection.length > 0) {
       const selected = new Set(frame.selection);
       gl.enable(gl.BLEND);
