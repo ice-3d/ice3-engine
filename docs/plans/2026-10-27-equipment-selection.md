@@ -16,7 +16,7 @@
 
 **规范：** `docs/specs/2026-10-27-equipment-selection-design.md`
 
-## 全局约束
+## 1. 全局约束
 
 - 在一个功能分支上开发，并仅在合入 `main` 前确认 `npm run verify` 和 `npm pack --workspaces --dry-run` 通过。
 - 使用 `.nvmrc` 指定的 Node.js 24.22.1 LTS。
@@ -31,7 +31,7 @@
 - 所有自动化选择测试均使用合成几何或现有可分发 fixture。
 - 不得在任何位置引入竞品或厂商产品名称。
 
-## 审查重点
+## 2. 审查重点
 
 - 即使指针从设备上开始，拖动也绝不能改变 selection。
 - 重叠几何必须选择最近的可见表面，而非最近的包围盒。
@@ -39,7 +39,7 @@
 - 交互式 2D 控件必须阻止 selection；非交互式操作提示必须保持可点击穿透。
 - 拾取必须在 DPR 变化、上下文恢复、空像素和资源分配失败后仍然可用，且不破坏常规渲染。
 
-## 文件结构
+## 3. 文件结构
 
 **创建**
 
@@ -74,7 +74,7 @@
 
 ---
 
-### 任务 1：为 Core 对象添加设备元数据
+### 3.1 任务 1：为 Core 对象添加设备元数据
 
 **文件：**
 - 修改：`packages/core/src/scene/ICENode.ts`
@@ -261,7 +261,7 @@ git commit -m "feat(core): add equipment selection metadata"
 
 ---
 
-### 任务 2：传播已准备名称和设备分组
+### 3.2 任务 2：传播已准备名称和设备分组
 
 **文件：**
 - 修改：`packages/runtime/src/asset/ICEAssetSceneBuilder.ts`
@@ -361,7 +361,7 @@ git commit -m "feat(assets): group prepared primitives by equipment"
 
 ---
 
-### 任务 3：添加 Selection 帧数据和 RGBA8 身份 codec
+### 3.3 任务 3：添加 Selection 帧数据和 RGBA8 身份 codec
 
 **文件：**
 - 修改：`packages/renderer/src/types.ts`
@@ -510,7 +510,7 @@ git commit -m "feat(renderer): define pickup frame contract"
 
 ---
 
-### 任务 4：实现离屏 WebGL2 拾取
+### 3.4 任务 4：实现离屏 WebGL2 拾取
 
 **文件：**
 - 创建：`packages/renderer/src/WebGL2Picker.ts`
@@ -820,7 +820,7 @@ git commit -m "feat(renderer): add GPU equipment picking"
 
 ---
 
-### 任务 5：渲染非破坏性 Selection 高亮
+### 3.5 任务 5：渲染非破坏性 Selection 高亮
 
 **文件：**
 - 修改：`packages/renderer/src/WebGL2GeometryBatch.ts`
@@ -941,7 +941,7 @@ git commit -m "feat(renderer): highlight selected equipment"
 
 ---
 
-### 任务 6：点击选择并保留相机拖动
+### 3.6 任务 6：点击选择并保留相机拖动
 
 **文件：**
 - 创建：`packages/runtime/src/input/ICESelectionGesture.ts`
@@ -1172,7 +1172,7 @@ git commit -m "feat(runtime): select equipment on click"
 
 ---
 
-### 任务 7：为 M1 示例添加 Selection 名称标签
+### 3.7 任务 7：为 M1 示例添加 Selection 名称标签
 
 **文件：**
 - 修改：`packages/runtime/src/layer/ICELabel.ts`
@@ -1302,7 +1302,7 @@ git commit -m "feat(example): label selected equipment"
 
 ---
 
-### 任务 8：端到端验证 Selection 并记录行为
+### 3.8 任务 8：端到端验证 Selection 并记录行为
 
 **文件：**
 - 修改：`examples/m0/main.ts`
@@ -1505,7 +1505,7 @@ git merge --ff-only feature/equipment-selection
 
 然后重启 M1 开发服务器，并通过被忽略的本地引用验证本地提供的模型，不得捕获或提交该模型。
 
-## 相关文档
+## 4. 相关文档
 
 - `ICE3-ENG-IDX-001` — [文档索引](../README.md)
 - `ICE3-ENG-SPEC-003` — [设备选择设计](../specs/2026-10-27-equipment-selection-design.md)

@@ -19,7 +19,7 @@
 
 **Spec:** [`docs/specs/2026-10-29-webgpu-performance-design.md`](../specs/2026-10-29-webgpu-performance-design.md)
 
-## Global Constraints
+## 1. Global Constraints
 
 - 所有命令使用 Node.js `24.22.1` LTS 和 npm 11 或更高版本。
 - 在 `feature/webgpu-renderer` 功能分支开发；完整验证通过后才可合入 `main`。
@@ -39,7 +39,7 @@
 - 文档、代码和 fixture 不得包含客户模型、外部品牌或未脱敏数据。
 - 每个任务结束运行受影响测试并提交；最终运行 `npm run verify`、`npm run release:check` 和 `npm run benchmark:renderers`。
 
-## Review Focus
+## 2. Review Focus
 
 - Scene 节点可见性或局部矩阵改变但 revision 未增加时，会让复用 Bundle/Schedule 使用陈旧变换；Task 1 的 revision 测试和 Task 7 的失效测试必须覆盖。
 - 同一 Instance Batch 或 Render Batch 含多个 selection semantic 时，Mask 偏移或 Edge discard 错误会选中错误设备；Task 5 用一个 Batch 多选项测试覆盖。
@@ -49,7 +49,7 @@
 
 ---
 
-### Task 1: Scene Revision
+### 2.1 Task 1: Scene Revision
 
 **Files:**
 
@@ -196,7 +196,7 @@ git commit -m "feat: track scene revision"
 
 ---
 
-### Task 2: CPU Stage Profiling
+### 2.2 Task 2: CPU Stage Profiling
 
 **Files:**
 
@@ -440,7 +440,7 @@ git commit -m "feat: profile renderer frame stages"
 
 ---
 
-### Task 3: WebGPU Timestamp Profiler
+### 2.3 Task 3: WebGPU Timestamp Profiler
 
 **Files:**
 
@@ -706,7 +706,7 @@ git commit -m "feat: capture WebGPU timestamps"
 
 ---
 
-### Task 4: Scale and Visibility Scenarios
+### 2.4 Task 4: Scale and Visibility Scenarios
 
 **Files:**
 
@@ -933,7 +933,7 @@ git commit -m "feat: add scalable WebGPU benchmarks"
 
 ---
 
-### Task 5: Selection Mask
+### 2.5 Task 5: Selection Mask
 
 **Files:**
 
@@ -1122,7 +1122,7 @@ git commit -m "perf: mask WebGPU selections"
 
 ---
 
-### Task 6: Incremental Instances and Persistent Draw Storage
+### 2.6 Task 6: Incremental Instances and Persistent Draw Storage
 
 **Files:**
 
@@ -1281,7 +1281,7 @@ git commit -m "perf: reuse WebGPU frame storage"
 
 ---
 
-### Task 7: Revisioned Render Plan
+### 2.7 Task 7: Revisioned Render Plan
 
 **Files:**
 
@@ -1387,7 +1387,7 @@ git commit -m "perf: cache revisioned WebGPU render plans"
 
 ---
 
-### Task 8: Render Bundle Cache and Optional-Layer Diagnostic
+### 2.8 Task 8: Render Bundle Cache and Optional-Layer Diagnostic
 
 **Files:**
 
@@ -1556,7 +1556,7 @@ git commit -m "perf: reuse WebGPU render bundles"
 
 ---
 
-### Task 9: Instance Storage Buffer Tier
+### 2.9 Task 9: Instance Storage Buffer Tier
 
 **Files:**
 
@@ -1799,7 +1799,7 @@ git commit -m "perf: add WebGPU instance storage path"
 
 ---
 
-### Task 10: Compute Visibility and Indirect Draw
+### 2.10 Task 10: Compute Visibility and Indirect Draw
 
 **Files:**
 
@@ -2014,7 +2014,7 @@ git commit -m "perf: add GPU visibility and indirect draws"
 
 ---
 
-### Task 11: Lifecycle, Visual Matrix, and Final Performance Decision
+### 2.11 Task 11: Lifecycle, Visual Matrix, and Final Performance Decision
 
 **Files:**
 
@@ -2216,7 +2216,7 @@ git commit -m "perf: finalize measured WebGPU acceleration"
 
 ---
 
-## Completion Evidence
+## 3. Completion Evidence
 
 After implementation, the final handoff must include:
 
@@ -2232,7 +2232,7 @@ After implementation, the final handoff must include:
 The delivery is incomplete if it reports only initialization speed, only Draw
 count, or API usage without steady-state performance data.
 
-## Execution Notes
+## 4. Execution Notes
 
 Implementation outcome on the fixed development host:
 

@@ -6,7 +6,7 @@
 >
 > Owner: ICE3 Engine maintainers
 
-## 背景
+## 1. 背景
 
 ICE3 Engine 已具备 WebGL2 与 WebGPU 两套功能等价后端。固定硬件压力测试表明：
 
@@ -20,7 +20,7 @@ ICE3 Engine 已具备 WebGL2 与 WebGPU 两套功能等价后端。固定硬件�
 因此，仅凭浏览器暴露 WebGPU 就自动切换后端，会让用户承担未经验证的性能和兼容性
 风险。
 
-## 决策
+## 2. 决策
 
 1. WebGL2 是默认生产后端。
 2. `auto` 保留为兼容别名，但解析到 WebGL2，不探测或启用 WebGPU。
@@ -32,7 +32,7 @@ ICE3 Engine 已具备 WebGL2 与 WebGPU 两套功能等价后端。固定硬件�
 6. WebGPU Renderer、Selection、Storage、Bundle、Compute 和 Indirect Draw 保持实现与
    测试，以便后续重新评估，不删除已有能力。
 
-## 行为矩阵
+## 3. 行为矩阵
 
 | 初始化方式 | 选择结果 |
 | --- | --- |
@@ -47,7 +47,7 @@ ICE3 Engine 已具备 WebGL2 与 WebGPU 两套功能等价后端。固定硬件�
 `experimental` 为 `true`。默认和 `auto` 选择 WebGL2 时 `fallback` 与
 `experimental` 均为 `false`，因为这不是探测失败后的回退。
 
-## 重新评估条件
+## 4. 重新评估条件
 
 只有同时满足以下条件，才重新讨论默认启用 WebGPU：
 
@@ -57,14 +57,14 @@ ICE3 Engine 已具备 WebGL2 与 WebGPU 两套功能等价后端。固定硬件�
 - 目标浏览器与设备矩阵通过视觉、Pick、Device Lost、Capture 和 Resize 验证。
 - 可选择的小流量 rollout 未显示错误率、卡顿或功耗回退。
 
-## 后果
+## 5. 后果
 
 - 默认用户体验优先稳定性与当前最佳实测性能。
 - WebGPU 仍可通过 URL 参数、应用配置或显式 API 选择进行验证。
 - 应用升级后，依赖 `auto` 自动选择 WebGPU 的调用会改为 WebGL2；这是预期行为变化。
 - 后续提升 WebGPU 支持级别时，需要新的决策记录，不修改本 ADR 的历史结论。
 
-## 关联文档
+## 6. 关联文档
 
 - `ICE3-ENG-SPEC-004` — [WebGPU Renderer 设计](../specs/2026-10-29-webgpu-renderer-design.md)
 - `ICE3-ENG-SPEC-005` — [WebGPU 性能优化设计](../specs/2026-10-29-webgpu-performance-design.md)

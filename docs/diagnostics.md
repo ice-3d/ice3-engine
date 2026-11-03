@@ -7,7 +7,7 @@
 > Owner: ICE3 Engine maintainers
 Diagnostic 使用稳定 code。调用方应根据 `code` 分支，不依赖 message text。
 
-## Engine 与 target
+## 1. Engine 与 target
 
 | Code | 触发条件 | 调用方处理 |
 | --- | --- | --- |
@@ -24,7 +24,7 @@ Diagnostic 使用稳定 code。调用方应根据 `code` 分支，不依赖 mess
 | `ICE3_WEBGPU_PICK_UNAVAILABLE` | WebGPU Pick target、copy 或 map 失败 | 重试 Pick；持续失败时使用 WebGL2 |
 | `ICE3_CAPTURE_UNAVAILABLE` | active backend 不提供像素 capture | 升级实现或使用支持 capture 的 backend |
 
-## Scene 与 layer
+## 2. Scene 与 layer
 
 | Code | 触发条件 | 调用方处理 |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ Diagnostic 使用稳定 code。调用方应根据 `code` 分支，不依赖 mess
 | `ICE3_UNKNOWN_TYPE` | Deserialization 遇到未注册 type ID | 加载前注册 type |
 | `ICE3_INVALID_NODE_DATA` | 已注册 Node type 的数据格式错误 | 修复 snapshot 或迁移到当前 schema |
 
-## Asset
+## 3. Asset
 
 | Code | 触发条件 | 调用方处理 |
 | --- | --- | --- |
@@ -53,7 +53,7 @@ Diagnostic 使用稳定 code。调用方应根据 `code` 分支，不依赖 mess
 | `ICE3_ASSET_BATCH_INVALID` | Batch metadata、semantic array、primitive reference 或 semantic index 无效 | 使用 Studio `partition --render-batch static` 重新生成 |
 | `ICE3_TOOL_RUNTIME_CONVERSION_REQUIRED` | Asset 声明需要 Runtime conversion | 将 conversion 移到 Studio 离线 pipeline |
 
-## Tileset
+## 4. Tileset
 
 | Code | 触发条件 | 调用方处理 |
 | --- | --- | --- |
@@ -70,7 +70,7 @@ Diagnostic 使用稳定 code。调用方应根据 `code` 分支，不依赖 mess
 | `ICE3_SCENE_QUERY_INVALID` | Query limit 或 world ray 无效 | 修正 query input |
 | `ICE3_CAMERA_FOCUS_INVALID` | Focus padding 或 Bounds 无效 | 传入正数 padding 和有限 Bounds |
 
-## Rendering
+## 5. Rendering
 
 | Code | 触发条件 | 调用方处理 |
 | --- | --- | --- |
@@ -86,7 +86,7 @@ Diagnostic 使用稳定 code。调用方应根据 `code` 分支，不依赖 mess
 | `ICE3_RENDER_BATCH_MEMORY_REJECTED` | Candidate 超过配置的 extra GPU byte budget | 提高可选 budget 或减少 visible source set |
 | `ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE` | Renderer 可选优化层自检或运行失败并降级 | 正常使用；需要性能排查时检查 warning details |
 
-## Diagnostic 结构
+## 6. Diagnostic 结构
 
 ```ts
 interface ICEDiagnostic {
@@ -104,7 +104,7 @@ interface ICEDiagnostic {
 Renderer Diagnostic 还暴露累计 `gpuUploads` 和 `gpuEvictions` count。这些 counter 让
 camera、LOD 和 residency regression test 中的异常 GPU buffer churn 可见。
 
-## 关联文档
+## 7. 关联文档
 
 - `ICE3-ENG-IDX-001` — [文档索引](README.md)
 - `ICE3-ENG-API-002` — [M1 Asset API](api/m1.md)

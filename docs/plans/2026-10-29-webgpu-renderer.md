@@ -22,7 +22,7 @@
 > Default-selection policy amended by `ICE3-ENG-ADR-004`: WebGL2 is the production
 > default; WebGPU is an explicit experimental opt-in.
 
-## Global Constraints
+## 1. Global Constraints
 
 - 所有命令使用 Node.js `24.22.1` LTS 和 npm 11 或更高版本。
 - 在 `feature/webgpu-renderer` 功能分支开发；完成完整验证后才可合入 `main`。
@@ -38,7 +38,7 @@
 - 不使用客户模型、客户数据、外部品牌或本机绝对结果路径。
 - 每个任务结束时运行受影响测试；最终运行 `npm run verify`、`npm run release:check` 和 `npm run benchmark:renderers`。
 
-## Review Focus
+## 2. Review Focus
 
 - 浏览器暴露 `navigator.gpu` 但 Adapter、Device 或 Pipeline 初始化失败时，`auto` 必须成功绘制 WebGL2，显式 WebGPU 必须报错。
 - Pointer click 的 WebGPU Readback 尚未完成时发生新点击或 Engine destroy，旧 Promise 不得提交 Selection 或访问已释放资源。
@@ -48,7 +48,7 @@
 
 ---
 
-### Task 1: 统一异步拾取契约
+### 2.1 Task 1: 统一异步拾取契约
 
 **Files:**
 
@@ -279,7 +279,7 @@ git commit -m "feat: make exact picking asynchronous"
 
 ---
 
-### Task 2: 提取 Renderer 中立的 Scene Batch 输入
+### 2.2 Task 2: 提取 Renderer 中立的 Scene Batch 输入
 
 **Files:**
 
@@ -370,7 +370,7 @@ git commit -m "refactor: separate renderer batch inputs"
 
 ---
 
-### Task 3: WebGPU 能力探测
+### 2.3 Task 3: WebGPU 能力探测
 
 **Files:**
 
@@ -606,7 +606,7 @@ git commit -m "feat: add WebGPU capability probe"
 
 ---
 
-### Task 4: WebGPU Geometry 和 Instance 资源缓存
+### 2.4 Task 4: WebGPU Geometry 和 Instance 资源缓存
 
 **Files:**
 
@@ -771,7 +771,7 @@ git commit -m "feat: add WebGPU geometry residency"
 
 ---
 
-### Task 5: WebGPU 基础 Pipeline 与 Renderer
+### 2.5 Task 5: WebGPU 基础 Pipeline 与 Renderer
 
 **Files:**
 
@@ -975,7 +975,7 @@ git commit -m "feat: add WebGPU mesh renderer"
 
 ---
 
-### Task 6: 实例、静态 Batch、Adaptive Batch 与 Selection 绘制
+### 2.6 Task 6: 实例、静态 Batch、Adaptive Batch 与 Selection 绘制
 
 **Files:**
 
@@ -1148,7 +1148,7 @@ git commit -m "feat: render WebGPU batches and selection"
 
 ---
 
-### Task 7: WebGPU 精确异步拾取
+### 2.7 Task 7: WebGPU 精确异步拾取
 
 **Files:**
 
@@ -1286,7 +1286,7 @@ git commit -m "feat: add exact WebGPU picking"
 
 ---
 
-### Task 8: Capture、Resize 与 Device Lost
+### 2.8 Task 8: Capture、Resize 与 Device Lost
 
 **Files:**
 
@@ -1396,7 +1396,7 @@ git commit -m "feat: complete WebGPU lifecycle"
 
 ---
 
-### Task 9: Renderer 选择与 Runtime 异步初始化
+### 2.9 Task 9: Renderer 选择与 Runtime 异步初始化
 
 **Files:**
 
@@ -1550,7 +1550,7 @@ git commit -m "feat: select WebGPU renderer at runtime"
 
 ---
 
-### Task 10: Examples 与真实浏览器集成
+### 2.10 Task 10: Examples 与真实浏览器集成
 
 **Files:**
 
@@ -1663,7 +1663,7 @@ git commit -m "test: exercise renderer selection in browser"
 
 ---
 
-### Task 11: Benchmark 统计与固定场景
+### 2.11 Task 11: Benchmark 统计与固定场景
 
 **Files:**
 
@@ -1791,7 +1791,7 @@ git commit -m "feat: add renderer benchmark workloads"
 
 ---
 
-### Task 12: Benchmark Lab 与报告运行器
+### 2.12 Task 12: Benchmark Lab 与报告运行器
 
 **Files:**
 
@@ -1950,7 +1950,7 @@ git commit -m "feat: benchmark WebGL2 against WebGPU"
 
 ---
 
-### Task 13: 文档、版本与跨仓库集成
+### 2.13 Task 13: 文档、版本与跨仓库集成
 
 **Files:**
 
@@ -2084,7 +2084,7 @@ git -C ../ice3-agent-console commit -m "feat: use automatic WebGPU renderer"
 
 ---
 
-## Final Completion Gate
+## 3. Final Completion Gate
 
 - [ ] Engine and Console branches contain only intended changes.
 - [ ] `npm run verify` and `npm run release:check` pass in Engine.

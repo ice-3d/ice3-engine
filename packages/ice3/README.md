@@ -9,13 +9,13 @@
 ICE3 是面向工业场景的浏览器 3D Runtime。公开代码通过单向 facade 暴露 Scene、
 Geometry、Camera、Asset 和 Tileset API。
 
-## 安装
+## 1. 安装
 
 ```bash
 npm install ice3
 ```
 
-## 最小使用
+## 2. 最小使用
 
 ```ts
 import {

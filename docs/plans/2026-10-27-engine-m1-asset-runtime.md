@@ -22,7 +22,7 @@
 **当前对应交付链：** [Studio Asset Pipeline](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/asset-pipeline.md)。
 原 Toolchain 实施计划已随仓库退役，不再作为可执行入口。
 
-## 全局约束
+## 1. 全局约束
 
 - 公共消费方只从 `ice3` 导入。
 - `@ice3/core` 不依赖 DOM、Canvas、GPU、文件系统和同级包。
@@ -37,7 +37,7 @@
 - 浏览器矩阵为 Chromium 和 WebKit。Firefox 仍被排除。
 - 每项行为变化遵循 RED-GREEN-REFACTOR，并且仅在合入 `main` 前执行 `npm run verify`。
 
-## 审查重点
+## 2. 审查重点
 
 - GLB profile 具有有效头部，但某个 accessor 超出 BIN chunk：加载失败，且不发生类型化数组越界访问。
 - 已加载资产节点同时具有来自外部工具的矩阵以及四元数 position/rotation 字段：矩阵身份优先，且不进行转换。
@@ -48,7 +48,7 @@
 
 ---
 
-## 文件结构
+## 3. 文件结构
 
 ```text
 packages/
@@ -82,7 +82,7 @@ docs/api/m1.md                            public asset loading contract
 docs/diagnostics.md                       new asset diagnostics
 ```
 
-### 任务 1：在保留盒体渲染的同时泛化几何
+### 3.1 任务 1：在保留盒体渲染的同时泛化几何
 
 **文件：**
 - 创建：`packages/core/src/geometry/ICEGeometry.ts`
@@ -187,7 +187,7 @@ git add packages/core packages/renderer
 git commit -m "feat(core): add general indexed geometry"
 ```
 
-### 任务 2：添加矩阵原生的局部节点变换
+### 3.2 任务 2：添加矩阵原生的局部节点变换
 
 **文件：**
 - 修改：`packages/core/src/scene/ICENode.ts`
@@ -258,7 +258,7 @@ git add packages/core/src/scene/ICENode.ts packages/core/tests
 git commit -m "feat(core): support matrix-native scene nodes"
 ```
 
-### 任务 3：添加窄范围的 GLB profile 读取器
+### 3.3 任务 3：添加窄范围的 GLB profile 读取器
 
 **文件：**
 - 创建：`packages/assets/package.json`
@@ -390,7 +390,7 @@ git add package.json tsconfig.json tests/architecture packages/assets
 git commit -m "feat(assets): read prepared GLB profile"
 ```
 
-### 任务 4：以索引几何缓存替换仅支持盒体的 GPU 存储
+### 3.4 任务 4：以索引几何缓存替换仅支持盒体的 GPU 存储
 
 **文件：**
 - 创建：`packages/renderer/src/WebGL2GeometryBatch.ts`
@@ -478,7 +478,7 @@ git add packages/renderer
 git commit -m "feat(renderer): cache general indexed geometry"
 ```
 
-### 任务 5：从已准备快照构建场景
+### 3.5 任务 5：从已准备快照构建场景
 
 **文件：**
 - 创建：`packages/runtime/src/asset/ICEAssetSceneBuilder.ts`
@@ -545,7 +545,7 @@ git add packages/runtime/src/asset packages/runtime/src/index.ts \
 git commit -m "feat(runtime): instantiate prepared asset scenes"
 ```
 
-### 任务 6：添加异步资产加载器和生命周期
+### 3.6 任务 6：添加异步资产加载器和生命周期
 
 **文件：**
 - 创建：`packages/runtime/src/asset/ICEAssetLoader.ts`
@@ -648,7 +648,7 @@ git add packages/runtime packages/ice3 tests/architecture package-lock.json
 git commit -m "feat(runtime): load prepared GLB assets"
 ```
 
-### 任务 7：添加 M1 已加载资产示例和浏览器测试
+### 3.7 任务 7：添加 M1 已加载资产示例和浏览器测试
 
 **文件：**
 - 创建：`examples/m1/index.html`
@@ -747,7 +747,7 @@ git add examples/m1 tests/e2e/m1.spec.ts package.json playwright.config.ts
 git commit -m "feat(example): load prepared GLB asset"
 ```
 
-### 任务 8：发布 M1 API 文档并完成验证
+### 3.8 任务 8：发布 M1 API 文档并完成验证
 
 **文件：**
 - 创建：`docs/api/m1.md`
@@ -804,7 +804,7 @@ npm run verify
 
 预期：`main` 无未提交更改，且合并后验证通过。
 
-## 相关文档
+## 4. 相关文档
 
 - `ICE3-ENG-IDX-001` — [文档索引](../README.md)
 - `ICE3-ENG-SPEC-002` — [M1 资产设计](../specs/2026-10-27-engine-m1-asset-design.md)

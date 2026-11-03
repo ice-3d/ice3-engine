@@ -10,7 +10,7 @@
 Node identity 和 GPU 画面。仓库目前只保留 `gltf` case；Manifest 是 case 的权威来源，
 文档和测试不得假设其它 source format 已有 checked-in fixture。
 
-## 启动
+## 1. 启动
 
 ```bash
 nvm use
@@ -35,14 +35,14 @@ cargo run -p studio-cli -- build path/to/source.glb \
 `examples/m2/assets/conformance/manifest.json` 及 E2E 断言一致。不得从已退役
 Toolchain 文档复制旧命令或七格式假设。
 
-## 边界
+## 2. 边界
 
 - Browser 只读取 `examples/m2/assets/conformance/*.glb`。
 - Source parsing、Prepare 和 conversion 由 Studio 离线完成。
 - JT 的 host-owned converter 契约属于 Studio Source Import；Engine 只读取其结果。
 - 页面检查 Prepared contract、预期 Node 名称、Geometry 统计和实际 WebGL 像素输出。
 
-## 自动验证
+## 3. 自动验证
 
 ```bash
 npx playwright test tests/e2e/m2-conformance.spec.ts --project=chromium

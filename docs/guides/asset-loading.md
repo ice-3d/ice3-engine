@@ -6,18 +6,18 @@
 >
 > Owner: ICE3 Engine maintainers
 
-## 目标结果
+## 1. 目标结果
 
 打开带 ICE3 Prepared profile 的标准 GLB，或受支持的本地 OGC 3D Tiles 1.1 Tileset，
 并让 Scene、network 和 GPU resource 保持有界。
 
-## 前置条件
+## 2. 前置条件
 
 - 由 `ice3-studio` 生成且通过 Prepare/Profile validation 的文件。
 - 拥有当前视图的 PerspectiveCamera。
 - Example 中的 Asset 文件从同源地址提供。
 
-## 打开 Prepared GLB
+## 3. 打开 Prepared GLB
 
 ```ts
 import { ICE3, ICEAssetLoader, ICEPerspectiveCamera } from 'ice3';
@@ -37,7 +37,7 @@ const handle = await loader.open('/assets/device.glb');
 engine.setScene(handle.scene).setCamera(camera).start();
 ```
 
-## 打开 Tileset
+## 4. 打开 Tileset
 
 Studio `partition` 或 `export tileset` 的输出目录应作为一个整体发布。例如输出被复制到静态目录
 `assets/plant/` 后，需要保留 `tileset.json`、`parts/` 和 `coarse/` 的相对层级，
@@ -69,7 +69,7 @@ orbit.dispose();
 `whenIdle()` 等待当前 camera work set。Camera-driven Scene 不会同时保留所有 Tile，
 因此不定义 `whenComplete()`。
 
-## 生命周期
+## 5. 生命周期
 
 - Prepared GLB 和 Tileset 的 Scene 使用期间都必须保持对应 handle alive。
 - 不再需要时调用各自的 `handle.dispose()`；该操作是幂等的。
@@ -78,14 +78,14 @@ orbit.dispose();
 - Tileset lifecycle 由其 `ICETilesetHandle` 管理，不调用 `ICETilesetLoader.clear()`。
 - Refinement 失败不移除 last-known-complete coverage。
 
-## 预期结果
+## 6. 预期结果
 
 - 无效 profile 在部分 Scene 出现前失败。
 - 完成 partition 原子变为可见。
 - Selected equipment identity 在 LOD replacement 后继续保留。
 - Resident Tile count 和 GPU bytes 可从 Diagnostic 读取。
 
-## 关联文档
+## 7. 关联文档
 
 - `ICE3-ENG-API-002` — [M1 Asset API 参考](../api/m1.md)
 - `ICE3-ENG-REF-001` — [Diagnostic 参考](../diagnostics.md)

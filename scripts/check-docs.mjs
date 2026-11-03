@@ -79,6 +79,18 @@ export async function checkRepository(root, options = {}) {
     documents.push(parseDocument(path, source));
   }
 
+  for (const document of documents) {
+    const displayPath = relative(repositoryRoot, document.path);
+    for (const violation of findHeadingNumberingViolations(
+      document.source,
+      displayPath,
+    )) {
+      errors.push(
+        `${displayPath}:${violation.line}: ${violation.code}: ${violation.message}`,
+      );
+    }
+  }
+
   const ids = new Map();
   const titles = new Map();
   for (const document of documents) {
@@ -243,6 +255,67 @@ export async function checkRepository(root, options = {}) {
     documentCount: documents.length,
     errors,
   };
+}
+
+export function findHeadingNumberingViolations(source, relativePath = '') {
+  if (
+    relativePath === 'AGENTS.md'
+    || relativePath === 'THIRD_PARTY_NOTICES.md'
+  ) return [];
+  const violations = [];
+  const counters = Array.from({ length: 6 }, () => 0);
+  let fence = false;
+
+  for (const [index, line] of source.replace(/\r\n?/g, '\n').split('\n').entries()) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      fence = !fence;
+      continue;
+    }
+    if (fence) continue;
+    const match = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
+    if (!match) continue;
+    const level = match[1].length;
+    if (level === 1) {
+      counters.fill(0);
+      continue;
+    }
+    const title = match[2].replace(/\s+#+\s*$/, '');
+    if (
+      level > 2
+      && counters.slice(1, level - 1).some((value) => value === 0)
+    ) {
+      violations.push({
+        line: index + 1,
+        code: 'ICE3_DOC_HEADING_SEQUENCE',
+        message: `heading level ${level} requires a numbered parent heading`,
+      });
+      continue;
+    }
+    counters[level - 1] += 1;
+    counters.fill(0, level);
+    const number = counters.slice(1, level).join('.');
+    const expected = level === 2 ? `${number}.` : number;
+    const existing = /^(\d+(?:\.\d+)*)(\.?)\s+/.exec(title);
+    if (!existing) {
+      violations.push({
+        line: index + 1,
+        code: 'ICE3_DOC_UNNUMBERED_HEADING',
+        message: `content heading must start with "${expected} "`,
+      });
+      continue;
+    }
+    if (
+      existing[1] !== number
+      || (level === 2) !== (existing[2] === '.')
+    ) {
+      violations.push({
+        line: index + 1,
+        code: 'ICE3_DOC_HEADING_SEQUENCE',
+        message: `expected heading number "${expected}", found "${existing[1]}"`,
+      });
+    }
+  }
+  return violations;
 }
 
 async function markdownFiles(root) {

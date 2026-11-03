@@ -440,7 +440,7 @@ M1 完成后按顺序评估：
 
 任何新增运行时能力都必须继续遵循“源格式转换在外置工具完成”的约束。
 
-## 关联文档
+## 16. 关联文档
 
 - `ICE3-ENG-IDX-001` — [文档索引](../README.md)
 - `ICE3-ENG-PLAN-002` — [Asset Runtime 实施计划](../plans/2026-10-27-engine-m1-asset-runtime.md)

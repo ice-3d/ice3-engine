@@ -9,7 +9,7 @@
 ICE3 Engine 是面向工业应用的可编程 3D Runtime。它优先处理 Geometry、空间组织、
 确定性生命周期、稳定设备 identity 和共享 2D/3D 交互，而不是电影化光照。
 
-## 能力
+## 1. 能力
 
 | 领域 | 当前能力 |
 |---|---|
@@ -27,7 +27,7 @@ ICE3 Engine 是面向工业应用的可编程 3D Runtime。它优先处理 Geome
 消费方只从公开的 `ice3` package 导入。`@ice3/*` 下的 package 是实现边界，不是公开
 import path。
 
-## 快速开始
+## 2. 快速开始
 
 运行要求：
 
@@ -51,7 +51,7 @@ npm run dev:example:m1
 运行 `npm run dev:example:m2` 后访问 `http://127.0.0.1:8115/`，可查看 glTF Prepared
 GLB 的 Profile、语义 Node 和 GPU 画面验证结果。
 
-## npm package
+## 3. npm package
 
 公开 Engine package 为 `ice3`：
 
@@ -62,7 +62,7 @@ npm install ice3
 应用只从 `ice3` 导入。仓库内的 `@ice3/*` package 是实现边界，不单独发布；npm
 发行产物会把它们打入 `ice3`。
 
-## 最小 Scene
+## 4. 最小 Scene
 
 ```ts
 import {
@@ -110,7 +110,7 @@ void node;
 void item;
 ```
 
-## Asset 工作流
+## 5. Asset 工作流
 
 Runtime 只接受 ICE3 Prepared GLB Profile v1 Asset。通用 source parsing、conversion、
 simplification 和 partitioning 属于
@@ -118,7 +118,7 @@ simplification 和 partitioning 属于
 从 GLB 切分、粗模生成、Tileset 发布到 `ICETilesetLoader` 接入的完整步骤见
 [Studio 入门指南](https://github.com/ice-3d/ice3-studio/blob/main/docs/guides/getting-started.md)。
 
-### 配套建模工具
+### 5.1 配套建模工具
 
 如果模型还不是 ICE3 Prepared GLB，请使用配套的
 [ICE3 Studio](https://github.com/ice-3d/ice3-studio/blob/main/README.md)。
@@ -127,19 +127,19 @@ render batching 与 Tileset 生成；Engine 不在浏览器中执行这些工作
 
 - [Studio 能力清单](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/capabilities.md)
 - [Studio 大场景资产指南](https://github.com/ice-3d/ice3-studio/blob/main/docs/guides/large-industrial-fixture.md)
-- [Studio CLI 参考](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/capabilities.md#cli-命令)
+- [Studio CLI 参考](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/capabilities.md#6-cli-命令)
 
 共享格式和兼容规则由权威
 [Asset Preparation Contract v1](https://github.com/ice-3d/ice3-doc/blob/main/docs/contracts/asset-preparation-contract-v1.md)
 定义。
 
-## 仓库中的 Asset
+## 6. 仓库中的 Asset
 
 仓库不再内置旧版污水处理厂参考资产。Studio 的当前工程保存在
 `ice3-studio/projects/wastewater-plant/`，由 Studio 原生参数化组件生成；大型资产的
 来源、切片与绑定规则仍由 Asset Preparation Contract v1 定义。
 
-## 验证
+## 7. 验证
 
 ```bash
 npm run docs:check
@@ -167,7 +167,7 @@ baseline。规模化复测可使用：
 npm run benchmark:renderers -- --scenarios culling-20k,instanced-50k --repetitions 5
 ```
 
-## 边界
+## 8. 边界
 
 - 浏览器中不提供通用 source format 兼容。
 - 当前 profile 不支持 animation、skins、morph targets、textures 或复杂 Material。
@@ -176,7 +176,7 @@ npm run benchmark:renderers -- --scenarios culling-20k,instanced-50k --repetitio
 - Lighting 和 Material 保持基础能力，但支持 directional daylight、flat rendering、
   alpha blending 和声明式 water shading；复杂 PBR 和 texture 仍不在当前 profile。
 
-## 文档
+## 9. 文档
 
 - [文档索引](docs/README.md)
 - [Runtime 架构](docs/architecture.md)
@@ -189,10 +189,10 @@ npm run benchmark:renderers -- --scenarios culling-20k,instanced-50k --repetitio
 - [Diagnostic](docs/diagnostics.md)
 - [架构决策](docs/decisions/README.md)
 
-## AI 辅助开发
+## 10. AI 辅助开发
 
 本项目在设计和实现过程中大量使用了 AI 辅助开发。
 
-## 许可证
+## 11. 许可证
 
 本项目采用 [MIT License](LICENSE) 许可。

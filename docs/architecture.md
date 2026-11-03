@@ -6,7 +6,7 @@
 >
 > Owner: ICE3 Engine maintainers
 
-## 系统上下文
+## 1. 系统上下文
 
 `ice3-engine` 消费 Prepared Asset 和应用 Scene intent。它不解析 source format、不负责
 业务规则，也不依赖 Agent Console。
@@ -25,7 +25,7 @@ Prepared GLB / Tileset
 consumer → ice3 public facade → internal packages
 ```
 
-## Package 职责
+## 2. Package 职责
 
 | Package | 职责 |
 |---|---|
@@ -45,7 +45,7 @@ The dependency direction is:
 
 外部消费方不得导入另一个 package 的私有 source path。
 
-## 帧生命周期
+## 3. 帧生命周期
 
 1. `ICE3` 创建 Scene、2D layer canvas，并初始化 Renderer。
 2. Input 从最上层 interactive layer 解析，再路由到 2D、control 或 3D picking。
@@ -58,7 +58,7 @@ The dependency direction is:
 `start()` 幂等且按需运行。`destroy()` 释放 listener、layer、frame request、Scene
 ownership 和 GPU resource。
 
-## 渲染优化层
+## 4. 渲染优化层
 
 WebGPU Renderer 以设备能力逐级选择 `baseline`、`storage` 和 `gpu-driven` 路径：
 
@@ -78,7 +78,7 @@ GPU-driven 未达到默认启用门槛，因此默认路径仍是 `baseline`；�
 Benchmark 可在支持时采集 GPU timestamp；不可用、零值、倒退或 Map 失败都输出 `null`
 和原因。GPU visible list 不逐帧回读 CPU。
 
-## Asset 流程
+## 5. Asset 流程
 
 1. `ICETilesetLoader` 读取 Tileset，并校验受支持的 local Cartesian 子集。
 2. Scheduler 根据 camera Bounds 和 screen-space error 选择 visible、prefetch 和
@@ -88,13 +88,13 @@ Benchmark 可在支持时采集 GPU timestamp；不可用、零值、倒退或 M
 5. Runtime 原子提交完整 Tile chunk；replacement content 就绪前保持旧 coverage 可见。
 6. Renderer 在 frame 和 byte budget 下上传 resident Geometry。
 
-## 2D 与 3D composition
+## 6. 2D 与 3D composition
 
 Runtime 使用一套有序 layer model。Screen-space 和 world-anchored 2D layer 与 3D
 content 共享 pointer、wheel、focus、resize 和 disposal 行为。命中的 layer 按声明
 policy 阻止或透传 event。
 
-## 失败行为
+## 7. 失败行为
 
 - 不支持的 Asset 在 Scene publication 前产生稳定 Diagnostic code。
 - Tile 失败时已完成 partition 继续保持交互。
@@ -104,7 +104,7 @@ policy 阻止或透传 event。
 - WebGPU Device Lost 时停止提交，清理失效优化资源并在同一 backend 内恢复。
 - Disposal 幂等，并移除 pending work 和 resource。
 
-## 关联文档
+## 8. 关联文档
 
 - `ICE3-ENG-RM-001` — [README](../README.md)
 - `ICE3-ENG-API-001` — [M0 公开 API](api/m0.md)

@@ -6,17 +6,17 @@
 >
 > Owner: ICE3 Engine maintainers
 
-## 目标结果
+## 1. 目标结果
 
 本地运行 Engine，渲染最小 M0 box Scene 或增量加载的 M1 污水处理厂 example。
 
-## 前置条件
+## 2. 前置条件
 
 - Node.js 24.22.1 LTS
 - npm 11 或更高版本
 - 支持 WebGL2 的现代浏览器；WebGPU 为实验性显式选项
 
-## 操作步骤
+## 3. 操作步骤
 
 在仓库根目录运行：
 
@@ -39,7 +39,7 @@ npm run dev:example:m1
 默认使用 WebGL2。追加 `?renderer=webgpu` 可手动启用实验性 WebGPU；追加
 `?renderer=webgl2` 或 `?renderer=auto` 使用稳定 WebGL2 路径。
 
-## 预期结果
+## 4. 预期结果
 
 - M0 显示平光 cube，并呈现清晰 Geometry edge。
 - 鼠标拖拽旋转，wheel 缩放，WASD 或 arrow key 平移。
@@ -47,7 +47,7 @@ npm run dev:example:m1
 - M1 点击选择 equipment unit，拖拽不会选中。
 - 选中 unit 显示醒目黄色 highlight 和 information panel。
 
-## 故障诊断
+## 5. 故障诊断
 
 | 现象 | 检查 |
 |---|---|
@@ -57,7 +57,7 @@ npm run dev:example:m1
 | Asset 显示为 placeholder | 确认版本库中的 `tiled/` tree 存在 |
 | Connection refused | 确认 command 仍在文档指定端口运行 |
 
-## 关联文档
+## 6. 关联文档
 
 - `ICE3-ENG-RM-001` — [README](../../README.md)
 - `ICE3-ENG-API-001` — [M0 公开 API](../api/m0.md)

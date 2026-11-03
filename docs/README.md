@@ -6,7 +6,7 @@
 >
 > Owner: ICE3 Engine maintainers
 
-## 从这里开始
+## 1. 从这里开始
 
 | ID | 标题 | Status | 用途 |
 |---|---|---|---|
@@ -16,7 +16,7 @@
 | `ICE3-ENG-IDX-002` | [架构决策索引](decisions/README.md) | Active | Engine ADR 索引 |
 | `ICE3-ENG-POL-001` | [仓库规则](../AGENTS.md) | Active | 架构、交付和命名约束 |
 
-## 指南
+## 2. 指南
 
 | ID | 标题 | Status | 用途 |
 |---|---|---|---|
@@ -25,7 +25,7 @@
 | `ICE3-ENG-GUIDE-003` | [开发与故障处理](guides/development-and-troubleshooting.md) | Active | 验证变更并诊断失败 |
 | `ICE3-ENG-GUIDE-004` | [glTF Prepared Conformance 示例](guides/conformance-example.md) | Active | 当前 checked-in glTF Prepared GLB 的 Profile、语义和 GPU 验证 |
 
-## API 与参考
+## 3. API 与参考
 
 | ID | 标题 | Status | 用途 |
 |---|---|---|---|
@@ -33,7 +33,7 @@
 | `ICE3-ENG-API-002` | [M1 Asset API](api/m1.md) | Active | Prepared Asset 和 Tileset Runtime API |
 | `ICE3-ENG-REF-001` | [Diagnostic](diagnostics.md) | Active | 稳定 Runtime、Asset 和 Tileset Diagnostic code |
 
-## 决策
+## 4. 决策
 
 | ID | 标题 | Status | 用途 |
 |---|---|---|---|
@@ -42,7 +42,7 @@
 | `ICE3-ENG-ADR-003` | [相机驱动的 Tileset 与 LOD](decisions/0003-camera-driven-tileset-and-lod.md) | Active | 流式加载时保持完整覆盖 |
 | `ICE3-ENG-ADR-004` | [WebGPU 实验性 Opt-in](decisions/0004-webgpu-experimental-opt-in.md) | Active | 默认 WebGL2，WebGPU 仅显式启用 |
 
-## 设计规格
+## 5. 设计规格
 
 | ID | 标题 | Status | 用途 |
 |---|---|---|---|
@@ -52,7 +52,7 @@
 | `ICE3-ENG-SPEC-004` | [WebGPU Renderer 设计](specs/2026-10-29-webgpu-renderer-design.md) | Historical | 已完成 WebGPU backend、fallback 和性能设计记录 |
 | `ICE3-ENG-SPEC-005` | [WebGPU 性能优化设计](specs/2026-10-29-webgpu-performance-design.md) | Historical | 已完成测量、Selection Mask、Storage、Bundle 和 Compute 设计记录 |
 
-## 实施计划
+## 6. 实施计划
 
 | ID | 标题 | Status | 用途 |
 |---|---|---|---|
@@ -62,13 +62,13 @@
 | `ICE3-ENG-PLAN-004` | [WebGPU Renderer](plans/2026-10-29-webgpu-renderer.md) | Historical | WebGPU backend、fallback 和基准的实施记录 |
 | `ICE3-ENG-PLAN-005` | [WebGPU 性能优化](plans/2026-10-29-webgpu-performance.md) | Historical | WebGPU 测量、Selection、Storage、Bundle 和 Compute 的实施记录 |
 
-## 状态说明
+## 7. 状态说明
 
 - `Active`：当前行为、接口或约束。
 - `Implemented`：已交付的设计或实施记录。
 - `Historical`：保留已完成实施过程的审计证据，不代表当前生产依赖。
 
-## 关联文档
+## 8. 关联文档
 
 - `ICE3-DOC-ARC-001` — [ICE3 家族架构](https://github.com/ice-3d/ice3-doc/blob/main/docs/architecture.md)
 - `ICE3-DOC-CTR-001` — [Asset Preparation Contract v1](https://github.com/ice-3d/ice3-doc/blob/main/docs/contracts/asset-preparation-contract-v1.md)

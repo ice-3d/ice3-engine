@@ -6,11 +6,11 @@
 >
 > Owner: ICE3 Engine maintainers
 
-## 目标结果
+## 1. 目标结果
 
 在保持仓库架构、测试和 Diagnostic 门禁完整的前提下修改 Engine 行为。
 
-## 开发流程
+## 2. 开发流程
 
 ```bash
 nvm use
@@ -24,7 +24,7 @@ npm run verify
 合入 `main` 前运行完整门禁。Browser test 覆盖 Chromium 和 WebKit，并自行启动 example
 server。
 
-## 常见失败
+## 3. 常见失败
 
 | Diagnostic 或现象 | 处理 |
 |---|---|
@@ -38,7 +38,7 @@ server。
 | Context loss 后反复空白帧 | 等待 context restoration，并检查 Renderer Diagnostic |
 | 本地缺少大型 M1 Asset | 使用 Studio `export tileset` 或 `partition` 生成；source 和 prepared intermediate 已被忽略 |
 
-## 调试规则
+## 4. 调试规则
 
 - 使用公开 API 复现行为，不通过私有 source import 测试。
 - 使用稳定 Diagnostic code，不依赖 message text。
@@ -54,7 +54,7 @@ server。
 - Refine Tileset 时保留原 visible coverage。
 - 不得引入 Runtime source conversion 来绕过 Asset failure。
 
-## 关联文档
+## 5. 关联文档
 
 - `ICE3-ENG-REF-001` — [Diagnostic](../diagnostics.md)
 - `ICE3-ENG-ADR-001` — [公开 facade 与 package 边界](../decisions/0001-public-facade-and-package-boundaries.md)
