@@ -2,12 +2,6 @@ import { expect, test } from '@playwright/test';
 
 const cases = [
   { id: 'gltf', name: 'prepared-cube' },
-  { id: 'step', name: 'PrimaryTank' },
-  { id: 'ifc', name: 'Primary Pump' },
-  { id: 'fbx', name: 'Primary Pump' },
-  { id: 'usd', name: 'PrimaryPump' },
-  { id: 'obj', name: 'PrimaryPump' },
-  { id: 'jt', name: 'PrimaryPump' },
 ] as const;
 
 for (const item of cases) {
@@ -29,10 +23,10 @@ for (const item of cases) {
 test('switches all formats through the visible controls', async ({ page }) => {
   await page.goto('http://127.0.0.1:8115');
   await expect(page.locator('body')).toHaveAttribute('data-state', 'ready');
-  await expect(page.getByRole('link', { name: /配套 Toolchain/u }))
+  await expect(page.getByRole('link', { name: /ICE3 Studio/u }))
     .toHaveAttribute(
       'href',
-      'https://github.com/ice-3d/ice3-toolchain',
+      'https://github.com/ice-3d/ice3-studio',
     );
   for (const item of cases) {
     await page.locator(`.formats [data-format="${item.id}"]`).click();

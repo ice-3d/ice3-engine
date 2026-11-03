@@ -95,6 +95,40 @@ test('parses parent content and retains the complete hierarchy', () => {
   ]);
 });
 
+test('accepts float32-scale child bounds rounding without accepting a real escape', () => {
+  const value = JSON.parse(tileset());
+  value.root.boundingVolume.box = [
+    0, 0, 0,
+    1000, 0, 0,
+    0, 0, 1000,
+    0, 1000, 0,
+  ];
+  value.root.children = [{
+    boundingVolume: {
+      box: [
+        0.00002, 0, 0,
+        999.99999, 0, 0,
+        0, 0, 1000,
+        0, 1000, 0,
+      ],
+    },
+    geometricError: 0,
+    refine: 'REPLACE',
+    content: { uri: 'parts/part-001.glb' },
+  }];
+
+  expect(() => readTileset(
+    JSON.stringify(value),
+    'https://example.test/scene/tileset.json',
+  )).not.toThrow();
+
+  value.root.children[0].boundingVolume.box[0] = 1;
+  expect(() => readTileset(
+    JSON.stringify(value),
+    'https://example.test/scene/tileset.json',
+  )).toThrow(/child bounds escape parent/);
+});
+
 test('rejects a tile whose error is above its parent', () => {
   const value = JSON.parse(tileset());
   value.root.geometricError = 1;

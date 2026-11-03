@@ -14,7 +14,8 @@ ICE3 Engine 是面向工业应用的可编程 3D Runtime。它优先处理 Geome
 | 领域 | 当前能力 |
 |---|---|
 | Scene | 类型化场景树、Node 所有权、变换、序列化和释放 |
-| 渲染 | WebGL2/WebGPU Geometry、自动后端选择、Selection Mask、Render Bundle 和可选 GPU 优化层 |
+| 渲染 | WebGL2/WebGPU Geometry、自动后端选择、Selection Mask、Render Bundle、alpha blending 和可选 GPU 优化层 |
+| Material | 6/8 位 CSS hexadecimal color、可选 edge color、directional/flat/water shading 和 water surface effect |
 | 组合 | 覆盖在 3D 内容之上或与其并排的有序 Canvas2D layers |
 | 输入 | 共享 pointer/keyboard 路由、orbit、pan、zoom 和 picking |
 | Asset | ICE3 Prepared GLB Profile reader 和 Scene builder |
@@ -42,13 +43,13 @@ npm install
 npm run dev:example:m1
 ```
 
-打开 `http://127.0.0.1:8104/`。默认示例会增量加载虚构污水处理厂，并优先使用通过
-能力探测的 WebGPU。使用
+打开 `http://127.0.0.1:8104/`。默认示例会增量加载自带的 hierarchical Tileset fixture；
+真实污水处理厂由 Studio 导出并由 Agent Console 持有。使用
 `http://127.0.0.1:8103/` 查看最小 M0 Scene，使用
 `http://127.0.0.1:8104/?demo=adaptive` 查看空闲时 Worker batching。
 
-运行 `npm run dev:example:m2` 后访问 `http://127.0.0.1:8115/`，可切换七种 synthetic
-source format 对应的 Prepared GLB，并查看 Profile、语义 Node 和 GPU 画面验证结果。
+运行 `npm run dev:example:m2` 后访问 `http://127.0.0.1:8115/`，可查看 glTF Prepared
+GLB 的 Profile、语义 Node 和 GPU 画面验证结果。
 
 ## npm package
 
@@ -113,20 +114,20 @@ void item;
 
 Runtime 只接受 ICE3 Prepared GLB Profile v1 Asset。通用 source parsing、conversion、
 simplification 和 partitioning 属于
-[`ice3-toolchain`](https://github.com/ice-3d/ice3-toolchain/blob/main/README.md).
+[`ice3-studio`](https://github.com/ice-3d/ice3-studio/blob/main/README.md)。
 从 GLB 切分、粗模生成、Tileset 发布到 `ICETilesetLoader` 接入的完整步骤见
-[端到端接入指南](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/guides/glb-to-engine.md)。
+[Studio 入门指南](https://github.com/ice-3d/ice3-studio/blob/main/docs/guides/getting-started.md)。
 
-### 配套工具链
+### 配套建模工具
 
 如果模型还不是 ICE3 Prepared GLB，请使用配套的
-[ICE3 Toolchain](https://github.com/ice-3d/ice3-toolchain/blob/main/README.md)。
+[ICE3 Studio](https://github.com/ice-3d/ice3-studio/blob/main/README.md)。
 它负责 glTF、STEP、IFC、FBX、USD、OBJ 和 JT 的离线转换、验证、partition、LOD、
 render batching 与 Tileset 生成；Engine 不在浏览器中执行这些工作。
 
-- [Toolchain 功能指南](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/guides/capabilities.md)
-- [从 GLB 到 Engine 的完整接入](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/guides/glb-to-engine.md)
-- [Toolchain CLI 参考](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/reference/cli.md)
+- [Studio 能力清单](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/capabilities.md)
+- [Studio 大场景资产指南](https://github.com/ice-3d/ice3-studio/blob/main/docs/guides/large-industrial-fixture.md)
+- [Studio CLI 参考](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/capabilities.md#cli-命令)
 
 共享格式和兼容规则由权威
 [Asset Preparation Contract v1](https://github.com/ice-3d/ice3-doc/blob/main/docs/contracts/asset-preparation-contract-v1.md)
@@ -172,7 +173,8 @@ npm run benchmark:renderers -- --scenarios culling-20k,instanced-50k --repetitio
 - 当前 profile 不支持 animation、skins、morph targets、textures 或复杂 Material。
 - 不执行隐式 tiling、外部 Tileset 加载或 runtime Mesh simplification。
 - Engine 不包含业务规则、workflow engine 或 Agent policy。
-- Lighting 和 Material 刻意保持基础能力；Geometry 与空间行为才是产品重点。
+- Lighting 和 Material 保持基础能力，但支持 directional daylight、flat rendering、
+  alpha blending 和声明式 water shading；复杂 PBR 和 texture 仍不在当前 profile。
 
 ## 文档
 

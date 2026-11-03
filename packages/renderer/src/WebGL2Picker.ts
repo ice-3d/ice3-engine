@@ -69,6 +69,7 @@ export class WebGL2Picker {
     gl.depthFunc(gl.LEQUAL);
     gl.disable(gl.BLEND);
     this.program.use();
+    this.program.setPickMode(true);
     this.program.setClipOffset(0, 0);
     this.program.setInstancing(false);
     const aspect = frame.viewport.width / Math.max(frame.viewport.height, 1);

@@ -92,7 +92,7 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
   const geometries: ICEPreparedGeometry[] = [];
   const materials: ICEPreparedMaterial[] = [];
   const meshes: ICEPreparedMesh[] = [];
-  const selectionNodes = new Set<number>();
+  const selectionIds = new Set<string>();
   let primitiveCount = 0;
   let triangleCount = 0;
   let edgeSegmentCount = 0;
@@ -175,7 +175,7 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
         bounds,
       });
       for (const entry of nodesForMesh) {
-        selectionNodes.add(entry.index);
+        selectionIds.add(nodes[entry.index]!.selectionId);
         meshes.push({
           id: `${meshId}/primitive/${primitiveIndex}/${entry.index}`,
           node: entry.index,
@@ -193,7 +193,9 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
     triangleCount,
     edgeSegmentCount,
     materialCount: sourceMaterials.length,
-    selectionGroupCount: selectionNodes.size,
+    selectionGroupCount: batching
+      ? new Set(batching.semanticSelectionIds).size
+      : selectionIds.size,
   };
   const contract = preparedContract(profile);
 
@@ -230,6 +232,7 @@ function readBatchingMetadata(
   const semanticSelectionIds = stringArray(
     raw.semanticSelectionIds,
     'semanticSelectionIds',
+    false,
   );
   if (
     semanticIds.length === 0
@@ -344,11 +347,15 @@ function readBatchingMetadata(
   };
 }
 
-function stringArray(value: unknown, field: string): readonly string[] {
+function stringArray(
+  value: unknown,
+  field: string,
+  unique = true,
+): readonly string[] {
   if (
     !Array.isArray(value)
     || value.some((entry) => typeof entry !== 'string' || !entry.trim())
-    || new Set(value).size !== value.length
+    || (unique && new Set(value).size !== value.length)
   ) {
     throw assetError('ICE3_ASSET_BATCH_INVALID', `${field} is invalid`);
   }

@@ -415,6 +415,8 @@ it('unloads a partition after the camera leaves it', async () => {
   }).open('https://example.test/spatial-demo/tileset.json');
   await tileset.whenIdle();
   const initialIds = [...tileset.scene.children].map((node) => node.id);
+  const logicalSelection = 'logical/equipment/1';
+  engine.setSelection([logicalSelection]);
 
   orbitCamera.setTarget([12, 0, 0]).setPosition([12, 0, 8]);
   engine.trigger('AFTER_RENDER');
@@ -422,6 +424,7 @@ it('unloads a partition after the camera leaves it', async () => {
     [...tileset.scene.children].map((node) => node.id)
   )).not.toEqual(initialIds);
   expect(tileset.stats.evicted).toBeGreaterThan(0);
+  expect(engine.getSelection()).toEqual([logicalSelection]);
 });
 
 it('does not extend an older idle wait after the camera changes', async () => {

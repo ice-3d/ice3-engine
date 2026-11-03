@@ -1,4 +1,10 @@
-import { defineConfig, devices } from '@playwright/test';
+import {
+  defineConfig,
+  devices,
+  type BrowserChannel,
+} from '@playwright/test';
+
+const browserChannel = process.env.PLAYWRIGHT_CHANNEL as BrowserChannel | undefined;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -29,7 +35,13 @@ export default defineConfig({
     },
   ],
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        ...(browserChannel ? { channel: browserChannel } : {}),
+      },
+    },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ],
 });

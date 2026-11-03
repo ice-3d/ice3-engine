@@ -72,6 +72,20 @@ it('counts a shared mesh once while preserving every node selection', () => {
   expect(snapshot.meshes).toHaveLength(4);
 });
 
+it('counts unique business selections without batching metadata', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB({
+    sharedNodeCount: 2,
+    selectionId: 'fixture/equipment/7',
+    selectionGroupCount: 1,
+  }));
+
+  expect(snapshot.nodes.map((node) => node.selectionId)).toEqual([
+    'fixture/equipment/7',
+    'fixture/equipment/7',
+  ]);
+  expect(snapshot.stats.selectionGroupCount).toBe(1);
+});
+
 it('rejects an ordinary GLB without the ICE3 profile', () => {
   expect(() => readPreparedGLB(createOrdinaryGLB())).toThrowError(
     /ICE3_ASSET_PROFILE_UNSUPPORTED/,
@@ -176,6 +190,22 @@ it('reads validated render batch metadata', () => {
   expect(snapshot.geometries[0]!.semanticIndices).toEqual(
     new Uint32Array([0, 0, 0]),
   );
+});
+
+it('allows multiple render nodes to share one business selection', () => {
+  const snapshot = readPreparedGLB(
+    createBatchedPreparedGLB('shared-semantic-selection'),
+  );
+
+  expect(snapshot.batching?.semanticNodeIds).toEqual([
+    'fixture/node/0',
+    'fixture/node/1',
+  ]);
+  expect(snapshot.batching?.semanticSelectionIds).toEqual([
+    'fixture/equipment/7',
+    'fixture/equipment/7',
+  ]);
+  expect(snapshot.stats.selectionGroupCount).toBe(1);
 });
 
 for (const issue of [

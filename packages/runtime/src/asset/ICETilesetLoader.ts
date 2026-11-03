@@ -1017,14 +1017,6 @@ export class ICETilesetHandle extends ICEEventDispatcher {
     for (const uri of record.contentUris) this.assetLoader.clear(uri);
     this.states.set(tileId, 'evicted');
     this.emit('TILESET_TILE_UNLOADED', tileId);
-    const remainingIds = new Set<string>();
-    collectNodeAndSelectionIDs(this.scene, remainingIds);
-    const selection = this.engine.getSelection();
-    if (selection.some((id) => !remainingIds.has(id))) {
-      this.engine.setSelection(
-        selection.filter((id) => remainingIds.has(id)),
-      );
-    }
     this.engine.requestRender('tileset-tile-unloaded');
   }
 
@@ -1097,7 +1089,6 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       if (fallbackId) this.failedLodFallbacks.delete(fallbackId);
     }
     this.visibleCoverageIds = targetIds;
-    this.reconcileSelectionVisibility();
     this.engine.requestRender('tileset-visible-target-committed');
     if (!this.readySettled) {
       this.readySettled = true;
@@ -1137,18 +1128,6 @@ export class ICETilesetHandle extends ICEEventDispatcher {
       if (coveredByDescendant) visible.delete(id);
     }
     return visible;
-  }
-
-  private reconcileSelectionVisibility(): void {
-    const visibleIds = new Set<string>();
-    for (const child of this.scene.children) {
-      collectVisibleNodeAndSelectionIDs(child, visibleIds);
-    }
-    const selection = this.engine.getSelection();
-    const visibleSelection = selection.filter((id) => visibleIds.has(id));
-    if (visibleSelection.length !== selection.length) {
-      this.engine.setSelection(visibleSelection);
-    }
   }
 
   private rejectReadyIfVisibleSetFailed(): void {
@@ -1684,39 +1663,6 @@ function collectNodeGeometries(node: ICENode): ICEGeometry[] {
 function collectNodeIDs(node: ICENode, output: Set<string>): void {
   output.add(node.id);
   for (const child of node.children) collectNodeIDs(child, output);
-}
-
-function collectNodeAndSelectionIDs(
-  node: ICENode,
-  output: Set<string>,
-): void {
-  output.add(node.id);
-  if (node instanceof ICEMesh) output.add(node.selectionId);
-  if (node instanceof ICERenderBatch) {
-    for (const selectionId of node.semanticSelectionIds) {
-      output.add(selectionId);
-    }
-  }
-  for (const child of node.children) {
-    collectNodeAndSelectionIDs(child, output);
-  }
-}
-
-function collectVisibleNodeAndSelectionIDs(
-  node: ICENode,
-  output: Set<string>,
-): void {
-  if (!node.visible) return;
-  output.add(node.id);
-  if (node instanceof ICEMesh) output.add(node.selectionId);
-  if (node instanceof ICERenderBatch) {
-    for (const selectionId of node.semanticSelectionIds) {
-      output.add(selectionId);
-    }
-  }
-  for (const child of node.children) {
-    collectVisibleNodeAndSelectionIDs(child, output);
-  }
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

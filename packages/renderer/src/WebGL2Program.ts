@@ -67,6 +67,7 @@ void main() {
 const FRAGMENT_SOURCE = `#version 300 es
 precision highp float;
 uniform vec4 u_color;
+uniform float u_pickMode;
 uniform float u_useVertexColor;
 uniform float u_useDirectionalShading;
 uniform float u_waterShading;
@@ -79,6 +80,10 @@ in vec3 v_worldPosition;
 out vec4 outputColor;
 
 void main() {
+  if (u_pickMode > 0.5) {
+    outputColor = u_color;
+    return;
+  }
   vec3 color = u_color.rgb
     * mix(vec3(1.0), v_color, step(0.5, u_useVertexColor));
   vec3 normal = normalize(cross(
@@ -194,6 +199,7 @@ export class WebGL2Program {
   private readonly lightMatrixLocation: WebGLUniformLocation | null;
   private readonly shadowEnabledLocation: WebGLUniformLocation | null;
   private readonly instancingLocation: WebGLUniformLocation;
+  private readonly pickModeLocation: WebGLUniformLocation;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     const program = this.createProgram(VERTEX_SOURCE, FRAGMENT_SOURCE);
@@ -208,6 +214,7 @@ export class WebGL2Program {
     const waterShadingLocation = gl.getUniformLocation(program, 'u_waterShading');
     const cameraPositionLocation = gl.getUniformLocation(program, 'u_cameraPosition');
     const instancingLocation = gl.getUniformLocation(program, 'u_useInstancing');
+    const pickModeLocation = gl.getUniformLocation(program, 'u_pickMode');
     const shadowMapLocation = gl.getUniformLocation(program, 'u_shadowMap');
     const lightMatrixLocation = gl.getUniformLocation(program, 'u_lightViewProjection');
     const shadowEnabledLocation = gl.getUniformLocation(program, 'u_shadowEnabled');
@@ -220,6 +227,7 @@ export class WebGL2Program {
       || !waterShadingLocation
       || !cameraPositionLocation
       || !instancingLocation
+      || !pickModeLocation
     ) {
       gl.deleteProgram(program);
       throw new ICEEngineError(
@@ -242,6 +250,11 @@ export class WebGL2Program {
     this.lightMatrixLocation = lightMatrixLocation;
     this.shadowEnabledLocation = shadowEnabledLocation;
     this.instancingLocation = instancingLocation;
+    this.pickModeLocation = pickModeLocation;
+    if (shadowMapLocation) {
+      gl.useProgram(program);
+      gl.uniform1i(shadowMapLocation, 3);
+    }
   }
 
   use(): void {
@@ -299,6 +312,10 @@ export class WebGL2Program {
 
   setInstancing(enabled: boolean): void {
     this.gl.uniform1f(this.instancingLocation, enabled ? 1 : 0);
+  }
+
+  setPickMode(enabled: boolean): void {
+    this.gl.uniform1f(this.pickModeLocation, enabled ? 1 : 0);
   }
 
   dispose(): void {

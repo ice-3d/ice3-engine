@@ -218,9 +218,9 @@ function validatePreparedStats(json: JSONRecord, profile: JSONRecord): void {
   let primitiveCount = 0;
   let triangleCount = 0;
   let edgeSegmentCount = 0;
-  const selectionNodes = new Set<number>();
+  const selectionIds = new Set<string>();
   const referencedMeshes = new Set<number>();
-  for (const [nodeIndex, node] of nodes.entries()) {
+  for (const node of nodes) {
     if (node.mesh === undefined) continue;
     const mesh = meshes[Number(node.mesh)];
     if (!mesh) continue;
@@ -228,7 +228,9 @@ function validatePreparedStats(json: JSONRecord, profile: JSONRecord): void {
     for (const primitive of records(mesh.primitives)) {
       const mode = Number(primitive.mode ?? 4);
       if (mode === 4) {
-        selectionNodes.add(nodeIndex);
+        const nodeProfile = record(record(node.extras)?.ice3);
+        const selectionId = nodeProfile?.selectionId ?? nodeProfile?.id;
+        if (typeof selectionId === 'string') selectionIds.add(selectionId);
       }
     }
   }
@@ -253,7 +255,7 @@ function validatePreparedStats(json: JSONRecord, profile: JSONRecord): void {
     materialCount: records(json.materials).length,
     selectionGroupCount: Array.isArray(batchingSelectionIds)
       ? new Set(batchingSelectionIds).size
-      : selectionNodes.size,
+      : selectionIds.size,
   };
   for (const [key, value] of Object.entries(expected)) {
     if (stats?.[key] !== value) {

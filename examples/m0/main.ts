@@ -147,6 +147,10 @@ window.__ice3M0 = {
     return rect;
   },
   getSelection: () => engine.getSelection(),
+  pickSelectionId: async (point: { readonly x: number; readonly y: number }) => {
+    const node = await engine.pick(point);
+    return node?.selectionId ?? node?.id;
+  },
   loseContext: () => {
     if (!loseContextExtension) {
       throw new Error('Context-loss test extension unavailable');

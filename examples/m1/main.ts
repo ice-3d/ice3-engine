@@ -57,7 +57,7 @@ const adaptiveBatching = query.get('adaptive') === '0'
   : adaptiveDemo || query.get('adaptive') === '1';
 const defaultAssetUrl = adaptiveDemo
   ? '/assets/adaptive-demo/tileset.json'
-  : '/assets/wastewater-plant/tiled/tileset.json';
+  : '/assets/hierarchical-demo/tileset.json';
 const assetOverride = query.get('asset');
 const loader = new ICETilesetLoader(engine, {
   camera,

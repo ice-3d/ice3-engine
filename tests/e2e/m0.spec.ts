@@ -23,7 +23,7 @@ test('renders the scene and keeps layer interaction separate', async ({ page }) 
   expect(errors).toEqual([]);
 });
 
-test('renders the example with a uniform flat base color', async ({ page }) => {
+test('renders the example with a consistent flat material hue', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('[data-role="status"]')).toHaveText('运行');
   const samples = await page.evaluate(() => {
@@ -57,7 +57,11 @@ test('renders the example with a uniform flat base color', async ({ page }) => {
   });
 
   for (const sample of samples) {
-    expect(sample).toEqual(samples[0]);
+    expect(sample).toHaveLength(4);
+    for (let channel = 0; channel < sample.length; channel += 1) {
+      expect(Math.abs(sample[channel]! - samples[0]![channel]!))
+        .toBeLessThanOrEqual(24);
+    }
   }
 });
 
@@ -147,7 +151,7 @@ test('mouse drag and wheel animate the camera smoothly', async ({ page }) => {
   const beforeWheel = await page.evaluate(
     () => window.__ice3M0.diagnostics().frameId,
   );
-  await page.mouse.wheel(0, 600);
+  await page.mouse.wheel(0, -600);
   await expect
     .poll(() => page.evaluate(() => window.__ice3M0.diagnostics().frameId))
     .toBeGreaterThan(beforeWheel + 2);

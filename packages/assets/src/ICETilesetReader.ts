@@ -322,10 +322,18 @@ function assertContains(
   child: ICEGeometryBounds,
   id: string,
 ): void {
-  if ([0, 1, 2].some((axis) => (
-    child.min[axis]! < parent.min[axis]! - EPSILON
-    || child.max[axis]! > parent.max[axis]! + EPSILON
-  ))) {
+  if ([0, 1, 2].some((axis) => {
+    const scale = Math.max(
+      1,
+      Math.abs(parent.min[axis]!),
+      Math.abs(parent.max[axis]!),
+      Math.abs(child.min[axis]!),
+      Math.abs(child.max[axis]!),
+    );
+    const tolerance = EPSILON * scale;
+    return child.min[axis]! < parent.min[axis]! - tolerance
+      || child.max[axis]! > parent.max[axis]! + tolerance;
+  })) {
     throw invalid(`child bounds escape parent tile ${id}`);
   }
 }

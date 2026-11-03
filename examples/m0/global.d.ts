@@ -13,6 +13,7 @@ declare global {
         height: number;
       }>;
       getSelection(): readonly string[];
+      pickSelectionId(point: { readonly x: number; readonly y: number }): Promise<string | undefined>;
       loseContext(): void;
       restoreContext(): void;
     };

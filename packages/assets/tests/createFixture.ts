@@ -16,6 +16,7 @@ type FixtureOptions = {
   readonly selectionId?: string;
   readonly metadata?: Readonly<Record<string, unknown>>;
   readonly sharedNodeCount?: number;
+  readonly selectionGroupCount?: number;
   readonly contract?: 'active' | 'legacy' | 'unsupported' | 'conversion';
   readonly missingBufferViewBuffer?: boolean;
   readonly batchIssue?:
@@ -23,6 +24,7 @@ type FixtureOptions = {
     | 'out-of-range-semantic-index'
     | 'duplicate-batch-id'
     | 'mismatched-semantic-arrays'
+    | 'shared-semantic-selection'
     | 'unsupported-version';
 };
 
@@ -102,7 +104,7 @@ export function createMinimalPreparedGLB(
                 triangleCount: 1,
                 edgeSegmentCount: 3,
                 materialCount: 3,
-                selectionGroupCount: nodeCount,
+                selectionGroupCount: options.selectionGroupCount ?? nodeCount,
               },
             },
           },
@@ -267,7 +269,15 @@ export function createVertexColorGLB(): ArrayBuffer {
 export function createBatchedPreparedGLB(
   issue: FixtureOptions['batchIssue'] = undefined,
 ): ArrayBuffer {
-  const bytes = Buffer.from(createMinimalPreparedGLB());
+  const sharedSelection = issue === 'shared-semantic-selection';
+  const bytes = Buffer.from(createMinimalPreparedGLB(
+    sharedSelection
+      ? {
+          sharedNodeCount: 2,
+          selectionId: 'fixture/equipment/7',
+        }
+      : undefined,
+  ));
   const jsonLength = bytes.readUInt32LE(12);
   const json = JSON.parse(
     bytes.subarray(20, 20 + jsonLength).toString('utf8').replace(/ +$/g, ''),
@@ -301,12 +311,17 @@ export function createBatchedPreparedGLB(
   }
   json.asset.extras.ice3.batching = {
     version: issue === 'unsupported-version' ? '2.0' : '1.0',
-    semanticIds:
-      issue === 'mismatched-semantic-arrays'
+    semanticIds: sharedSelection
+      ? ['semantic:0', 'semantic:1']
+      : issue === 'mismatched-semantic-arrays'
         ? ['semantic:0', 'semantic:1']
         : ['semantic:0'],
-    semanticNodeIds: ['fixture/node/0'],
-    semanticSelectionIds: ['fixture/node/0'],
+    semanticNodeIds: sharedSelection
+      ? ['fixture/node/0', 'fixture/node/1']
+      : ['fixture/node/0'],
+    semanticSelectionIds: sharedSelection
+      ? ['fixture/equipment/7', 'fixture/equipment/7']
+      : ['fixture/node/0'],
     batches: [
       {
         id: 'batch:0',
@@ -330,6 +345,9 @@ export function createBatchedPreparedGLB(
         : []),
     ],
   };
+  if (sharedSelection) {
+    json.asset.extras.ice3.stats.selectionGroupCount = 1;
+  }
   return packGLB(json, nextBinary);
 }
 
