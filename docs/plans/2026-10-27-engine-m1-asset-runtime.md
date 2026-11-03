@@ -2,9 +2,12 @@
 
 > Document ID: ICE3-ENG-PLAN-002
 >
-> Status: Implemented
+> Status: Historical
 >
 > Owner: ICE3 Engine maintainers
+
+> **历史状态：** 本文保留 M1 Asset Runtime 的交付过程记录，不代表当前预处理器依赖；
+> 当前 Asset 生产链见 [Studio Asset Pipeline](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/asset-pipeline.md)。
 
 > **面向代理工作者的说明：** 必需子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 按任务逐项实施本计划。使用复选框（`- [ ]`）跟踪进度。
 
@@ -16,7 +19,8 @@
 
 **规范：** `docs/specs/2026-10-27-engine-m1-asset-design.md`
 
-**前置计划：** [ICE3 Toolchain M1 GLB Pipeline Plan](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/plans/2026-10-27-toolchain-m1-glb-pipeline.md)
+**当前对应交付链：** [Studio Asset Pipeline](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/asset-pipeline.md)。
+原 Toolchain 实施计划已随仓库退役，不再作为可执行入口。
 
 ## 全局约束
 

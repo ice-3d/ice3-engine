@@ -54,9 +54,10 @@ WebGL2 兼容别名。拾取使用 `await engine.pick(point)`。
 完整文档和相关工具见
 [Engine 文档](https://github.com/ice-3d/ice3-engine/blob/main/README.md)。
 
-工业模型接入 Runtime 前，使用配套的
-[ICE3 Toolchain](https://github.com/ice-3d/ice3-toolchain/blob/main/README.md)
-进行离线格式转换、验证、切分、LOD 和 Tileset 发布。功能与格式支持见
-[Toolchain 功能指南](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/guides/capabilities.md)。
+工业模型接入 Runtime 前，使用
+[ICE3 Studio](https://github.com/ice-3d/ice3-studio/blob/main/README.md)
+完成 Source Import、Prepare、验证、partition、LOD 和 Tileset 发布。当前生产链见
+[Studio Asset Pipeline](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/asset-pipeline.md)。
+公开 package 的当前版本为 `0.2.1`。
 
 本项目采用 MIT License。

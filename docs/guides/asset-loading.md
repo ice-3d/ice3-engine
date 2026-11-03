@@ -13,7 +13,7 @@
 
 ## 前置条件
 
-- 由 `ice3-toolchain` 生成的文件。
+- 由 `ice3-studio` 生成且通过 Prepare/Profile validation 的文件。
 - 拥有当前视图的 PerspectiveCamera。
 - Example 中的 Asset 文件从同源地址提供。
 
@@ -39,7 +39,7 @@ engine.setScene(handle.scene).setCamera(camera).start();
 
 ## 打开 Tileset
 
-Toolchain 的 `partition` 输出目录应作为一个整体发布。例如输出被复制到静态目录
+Studio `partition` 或 `export tileset` 的输出目录应作为一个整体发布。例如输出被复制到静态目录
 `assets/plant/` 后，需要保留 `tileset.json`、`parts/` 和 `coarse/` 的相对层级，
 并按 `/assets/plant/tileset.json` 加载。
 
@@ -89,5 +89,5 @@ orbit.dispose();
 
 - `ICE3-ENG-API-002` — [M1 Asset API 参考](../api/m1.md)
 - `ICE3-ENG-REF-001` — [Diagnostic 参考](../diagnostics.md)
-- `ICE3-TOOL-GUIDE-003` — [从 GLB 到 Engine 的完整接入流程](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/guides/glb-to-engine.md)
+- `ICE3-STUDIO-REF-005` — [Studio Asset Pipeline](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/asset-pipeline.md)
 - `ICE3-DOC-CTR-001` — [Asset Preparation Contract v1 契约](https://github.com/ice-3d/ice3-doc/blob/main/docs/contracts/asset-preparation-contract-v1.md)

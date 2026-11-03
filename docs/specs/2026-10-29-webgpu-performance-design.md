@@ -2,9 +2,12 @@
 
 > Document ID: ICE3-ENG-SPEC-005
 >
-> Status: Implemented
+> Status: Historical
 >
 > Owner: ICE3 Engine maintainers
+
+> **历史状态：** 本文保留 WebGPU 性能优化的设计记录；当前能力和 opt-in 规则以
+> [Engine API](../api/m0.md) 与 [文档索引](../README.md) 为准。
 
 ## 1. 目标
 

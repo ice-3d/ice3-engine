@@ -26,7 +26,7 @@ npm install
 npm run dev:example
 ```
 
-Open `http://127.0.0.1:8103/`.
+打开 `http://127.0.0.1:8103/`。
 
 渲染 tiled industrial Scene：
 
@@ -34,7 +34,7 @@ Open `http://127.0.0.1:8103/`.
 npm run dev:example:m1
 ```
 
-Open `http://127.0.0.1:8104/`.
+打开 `http://127.0.0.1:8104/`。
 
 默认使用 WebGL2。追加 `?renderer=webgpu` 可手动启用实验性 WebGPU；追加
 `?renderer=webgl2` 或 `?renderer=auto` 使用稳定 WebGL2 路径。
@@ -63,4 +63,4 @@ Open `http://127.0.0.1:8104/`.
 - `ICE3-ENG-API-001` — [M0 公开 API](../api/m0.md)
 - `ICE3-ENG-API-002` — [M1 Asset API](../api/m1.md)
 - `ICE3-ENG-GUIDE-002` — [Asset 加载](asset-loading.md)
-- `ICE3-TOOL-GUIDE-003` — [从 GLB 到 Engine 的完整接入流程](https://github.com/ice-3d/ice3-toolchain/blob/main/docs/guides/glb-to-engine.md)
+- `ICE3-STUDIO-REF-005` — [Studio Asset Pipeline](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/asset-pipeline.md)

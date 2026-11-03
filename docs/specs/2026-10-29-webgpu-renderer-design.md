@@ -2,9 +2,12 @@
 
 > Document ID: ICE3-ENG-SPEC-004
 >
-> Status: Implemented
+> Status: Historical
 >
 > Owner: ICE3 Engine maintainers
+
+> **历史状态：** 本文保留 WebGPU Renderer 的设计记录；当前能力和 opt-in 规则以
+> [Engine API](../api/m0.md) 与 [文档索引](../README.md) 为准。
 
 > Amended by `ICE3-ENG-ADR-004`: WebGL2 is the production default. WebGPU is
 > experimental and must be explicitly selected with `renderer: 'webgpu'`; `auto`

@@ -2,9 +2,12 @@
 
 > Document ID: ICE3-ENG-PLAN-005
 >
-> Status: Implemented
+> Status: Historical
 >
 > Owner: ICE3 Engine maintainers
+
+> **历史状态：** 本文保留 WebGPU 性能优化的实施记录；当前能力和 opt-in 规则以
+> [Engine API](../api/m0.md) 与 [文档索引](../README.md) 为准。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

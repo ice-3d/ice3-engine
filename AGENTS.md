@@ -12,7 +12,8 @@
 - 依赖方向为 `@ice3/core` ← `@ice3/assets` ← `@ice3/runtime` ← `ice3`，同时 `@ice3/core` ← `@ice3/renderer` 为 runtime 提供渲染能力。
 - `@ice3/core` 必须独立于 DOM、Canvas、GPU 和同级 package。
 - Renderer 实现不得通过公开 API 泄漏 GPU objects。
-- Runtime 只接受 ICE3 Prepared GLB Profile Asset；source format parsing 和重型 Geometry conversion 留在 `ice3-toolchain`。
+- Runtime 只接受 ICE3 Prepared GLB Profile Asset；source format parsing、Geometry
+  conversion、partition 和 LOD 由 `ice3-studio` 在离线 pipeline 中完成。
 - npm 公开发布入口只有 `ice3`；`@ice3/core`、`@ice3/assets`、`@ice3/renderer` 和 `@ice3/runtime` 保持私有 workspace package，并打入 `ice3` 发布产物。
 - 应用、脚本、测试、编辑器和外部 adapter 使用同一套公开 semantic API。
 - Runtime 以 Geometry 为先；Material 和 lighting 保持基础能力。
@@ -23,7 +24,8 @@
 - Runtime fixtures 和 examples 只包含虚构、已脱敏或明确可分发的 Asset。
 - 不得加入客户模型、转换片段、粗模、preview 或提取 textures。
 - Prepared Asset 的兼容性和 budget 定义遵循 `ice3-doc` 中的权威 contract。
-- Prepared GLB profile 变更必须同步更新 `ice3-toolchain` 生成逻辑并执行一致性验证。
+- Prepared GLB profile 变更必须同步更新 Studio `studio-assets::prepare` 生成逻辑，并用
+  Engine reader 和 Studio parity 门禁执行一致性验证。
 
 ## 交付
 

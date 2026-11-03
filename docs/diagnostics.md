@@ -41,26 +41,26 @@ Diagnostic 使用稳定 code。调用方应根据 `code` 分支，不依赖 mess
 | --- | --- | --- |
 | `ICE3_ASSET_FETCH_FAILED` | Asset network request 失败 | 检查 URL、network 和 permission |
 | `ICE3_ASSET_ABORTED` | 外部 abort signal 取消加载 | 只有调用方启动新 request 时才重试 |
-| `ICE3_ASSET_INVALID_GLB` | GLB framing、Scene graph 或 required profile field 无效 | 使用 Toolchain 重新生成 Asset |
-| `ICE3_ASSET_PROFILE_UNSUPPORTED` | GLB 不是受支持的 ICE3 prepared profile | 使用 Toolchain 处理 source model |
+| `ICE3_ASSET_INVALID_GLB` | GLB framing、Scene graph 或 required profile field 无效 | 使用 Studio Prepare 重新生成 Asset |
+| `ICE3_ASSET_PROFILE_UNSUPPORTED` | GLB 不是受支持的 ICE3 prepared profile | 使用 Studio `build` 或 `import` 处理 source model |
 | `ICE3_ASSET_ACCESSOR_INVALID` | Accessor type、alignment、range 或 index 违反 profile | 重新生成 Prepared GLB |
 | `ICE3_ASSET_UNSUPPORTED_FEATURE` | Profile 包含 animation、texture、camera、light 或其他 M1 禁止功能 | 只重新导出受支持的 Scene 子集 |
-| `ICE3_ASSET_DUPLICATE_ID` | Node 或 Mesh semantic ID 冲突 | 使用 Toolchain 重新生成确定性 ID |
+| `ICE3_ASSET_DUPLICATE_ID` | Node 或 Mesh semantic ID 冲突 | 使用 Studio Prepare 重新生成确定性 ID |
 | `ICE3_ASSET_INTEGRITY_FAILED` | 显式 BIN digest 校验失败 | 重新构建或下载 Asset |
-| `ICE3_ASSET_CONTRACT_MISSING` | Legacy Prepared Asset 没有 collaboration contract | 尽可能用当前 Toolchain 重建 |
-| `ICE3_ASSET_CONTRACT_UNSUPPORTED` | Contract version 或 budget metadata 不受支持 | 使用兼容的 Toolchain/Runtime 组合重建 |
-| `ICE3_ASSET_STATS_MISMATCH` | Embedded Asset stat 与 prepared structure 不一致 | 重建 Asset 并检查 Toolchain output |
-| `ICE3_ASSET_BATCH_INVALID` | Batch metadata、semantic array、primitive reference 或 semantic index 无效 | 使用当前 Toolchain 重新生成 static batch |
-| `ICE3_TOOL_RUNTIME_CONVERSION_REQUIRED` | Asset 声明需要 Runtime conversion | 将 conversion 移到外部 Toolchain |
+| `ICE3_ASSET_CONTRACT_MISSING` | Legacy Prepared Asset 没有 collaboration contract | 使用 Studio Prepare 重建 |
+| `ICE3_ASSET_CONTRACT_UNSUPPORTED` | Contract version 或 budget metadata 不受支持 | 使用兼容的 Studio/Engine 组合重建 |
+| `ICE3_ASSET_STATS_MISMATCH` | Embedded Asset stat 与 prepared structure 不一致 | 重建 Asset 并检查 Studio Prepare metrics |
+| `ICE3_ASSET_BATCH_INVALID` | Batch metadata、semantic array、primitive reference 或 semantic index 无效 | 使用 Studio `partition --render-batch static` 重新生成 |
+| `ICE3_TOOL_RUNTIME_CONVERSION_REQUIRED` | Asset 声明需要 Runtime conversion | 将 conversion 移到 Studio 离线 pipeline |
 
 ## Tileset
 
 | Code | 触发条件 | 调用方处理 |
 | --- | --- | --- |
-| `ICE3_TILESET_INVALID` | Tileset JSON、required identity、Bounds、transform 或 content reference 格式错误 | 使用 Toolchain 重新生成 Tileset |
+| `ICE3_TILESET_INVALID` | Tileset JSON、required identity、Bounds、transform 或 content reference 格式错误 | 使用 Studio `partition` 或 `export tileset` 重新生成 |
 | `ICE3_TILESET_UNSUPPORTED` | Tileset 使用 `region`、外部 Tileset、implicit tiling、不支持 content 或其他未批准功能 | 导出受支持的本地 Cartesian explicit-tree 子集 |
 | `ICE3_TILESET_TILE_FAILED` | 某个 partition 的 request、profile validation 或 Scene merge 失败 | 检查 tile ID 并保留已成功加载 partition |
-| `ICE3_TILESET_DUPLICATE_ID` | Partition 复用其他已加载 partition 中的 Scene ID | 使用 Toolchain 重新生成稳定唯一 ID |
+| `ICE3_TILESET_DUPLICATE_ID` | Partition 复用其他已加载 partition 中的 Scene ID | 使用 Studio 当前 partition-scoped Node ID 规则重新生成 |
 | `ICE3_TILESET_ABORTED` | Caller signal 或 Tileset disposal 取消加载 | Tileset 仍需要时启动新加载 |
 | `ICE3_TILESET_CAMERA_REQUIRED` | 创建 Tileset work-set scheduling 时没有 camera | 传入 active PerspectiveCamera |
 | `ICE3_TILESET_RESIDENT_BUDGET_EXCEEDED` | Resident partition 超过 soft memory 或 Tile budget | 接受更大的 visible work set 或减小 partition；residency 回到 budget 前 warning 会去重 |
