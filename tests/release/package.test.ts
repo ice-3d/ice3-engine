@@ -9,7 +9,7 @@ test('publishes the Engine facade as one dependency-free package', () => {
   const manifest = createPublicPackageManifest();
 
   expect(manifest.name).toBe('ice3');
-  expect(manifest.version).toBe('0.2.0');
+  expect(manifest.version).toBe('0.2.1');
   expect(manifest.private).toBeUndefined();
   expect(manifest.dependencies).toBeUndefined();
   expect(manifest.exports).toEqual({
@@ -20,7 +20,7 @@ test('publishes the Engine facade as one dependency-free package', () => {
   });
 });
 
-test('publishes WebGPU renderer API in ice3 0.2.0', () => {
+test('publishes WebGPU renderer API in ice3 0.2.1', () => {
   const manifest = createPublicPackageManifest();
   expect(manifest.keywords).toContain('webgpu');
 });

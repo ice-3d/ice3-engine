@@ -25,7 +25,7 @@ const internalPackages = ['core', 'assets', 'renderer', 'runtime'];
 export function createPublicPackageManifest() {
   return {
     name: 'ice3',
-    version: '0.2.0',
+    version: '0.2.1',
     description: 'Industrial-first browser 3D runtime',
     license: 'MIT',
     type: 'module',
