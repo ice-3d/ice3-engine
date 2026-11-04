@@ -242,24 +242,31 @@ void main() {
     float pixelRadius = (u_aoRadius / max(1e-4, centreDepth * tanHalfFov)) * (u_viewport.y * 0.5);
     float rotation = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) * 6.2831853;
 
+    // 两圈取样：内圈贴地处密、外圈负责缝隙的大范围压暗。样本按与法线的夹角
+    // 加权——正对着的平面不该被周围同样平的东西压暗，只有"立起来挡住我"的才算法。
     float occlusion = 0.0;
-    for (int i = 0; i < 8; i++) {
-      float angle = rotation + float(i) * 0.7853982;
-      float scale = mix(0.35, 1.0, float(i % 3) / 2.0);
-      vec2 offset = vec2(cos(angle), sin(angle)) * pixelRadius * scale;
-      vec2 sampleUv = screenUv + offset / u_viewport;
-      if (sampleUv.x < 0.0 || sampleUv.x > 1.0 || sampleUv.y < 0.0 || sampleUv.y > 1.0) continue;
-      vec3 samplePoint = viewPositionAt(sampleUv, tanHalfFov, aspect, near, far);
-      vec3 delta = samplePoint - centre;
-      float distance = length(delta);
-      // 只在半球内、且距离在半径内的样本算遮挡。
-      if (distance > 0.0001 && distance < u_aoRadius
-          && dot(delta, viewNormal) > 0.15 * distance) {
-        occlusion += 1.0;
+    float weightSum = 0.0;
+    for (int ring = 0; ring < 2; ring++) {
+      float ringScale = ring == 0 ? 0.45 : 1.0;
+      float ringWeight = ring == 0 ? 1.0 : 0.65;
+      for (int i = 0; i < 8; i++) {
+        float angle = rotation + float(i) * 0.7853982 + float(ring) * 0.3927;
+        vec2 offset = vec2(cos(angle), sin(angle)) * pixelRadius * ringScale;
+        vec2 sampleUv = screenUv + offset / u_viewport;
+        if (sampleUv.x < 0.0 || sampleUv.x > 1.0 || sampleUv.y < 0.0 || sampleUv.y > 1.0) continue;
+        vec3 delta = viewPositionAt(sampleUv, tanHalfFov, aspect, near, far) - centre;
+        float distance = length(delta);
+        if (distance < 0.0001 || distance > u_aoRadius) continue;
+        float alignment = dot(delta, viewNormal) / distance;
+        if (alignment <= 0.15) continue;
+        occlusion += ringWeight * alignment;
+        weightSum += ringWeight;
       }
     }
-    occlusion /= 8.0;
-    lit *= 1.0 - occlusion * 0.35;
+    if (weightSum > 0.0) {
+      occlusion /= weightSum;
+      lit *= 1.0 - clamp(occlusion, 0.0, 1.0) * 0.35;
+    }
   }
 
   // 金属没有漫反射：它的颜色全部来自反射。先把漫反射按 metallic 收掉，
