@@ -241,7 +241,9 @@ void main() {
 
     // 世界半径换算成像素半径：越远越小，近景远景才都有意义。
     float pixelRadius = (u_aoRadius / max(1e-4, centreDepth * tanHalfFov)) * (u_viewport.y * 0.5);
-    float rotation = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) * 6.2831853;
+    // 交错梯度噪声（IGN）代替 sin 哈希：同样是逐像素扰动，但它在相邻像素间是
+    // 渐变而非跳变，采样缺口看起来像细密抖动，不像椒盐噪点。
+    float rotation = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) * 6.2831853;
 
     // 两圈取样：内圈贴地处密、外圈负责缝隙的大范围压暗。样本按与法线的夹角
     // 加权——正对着的平面不该被周围同样平的东西压暗，只有"立起来挡住我"的才算法。
