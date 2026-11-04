@@ -91,6 +91,7 @@ uniform mat4 u_projection;
 uniform vec2 u_viewport;
 uniform vec2 u_clipRange;
 uniform float u_aoRadius;
+uniform float u_aoStrength;
 in vec3 v_color;
 in vec3 v_worldPosition;
 out vec4 outputColor;
@@ -265,7 +266,7 @@ void main() {
     }
     if (weightSum > 0.0) {
       occlusion /= weightSum;
-      lit *= 1.0 - clamp(occlusion, 0.0, 1.0) * 0.35;
+      lit *= 1.0 - clamp(occlusion, 0.0, 1.0) * u_aoStrength;
     }
   }
 
@@ -398,6 +399,7 @@ export class WebGL2Program {
   private readonly viewportLocation: WebGLUniformLocation | null;
   private readonly clipRangeLocation: WebGLUniformLocation | null;
   private readonly aoRadiusLocation: WebGLUniformLocation | null;
+  private readonly aoStrengthLocation: WebGLUniformLocation | null;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     const program = this.createProgram(VERTEX_SOURCE, FRAGMENT_SOURCE);
@@ -429,6 +431,7 @@ export class WebGL2Program {
     const viewportLocation = gl.getUniformLocation(program, 'u_viewport');
     const clipRangeLocation = gl.getUniformLocation(program, 'u_clipRange');
     const aoRadiusLocation = gl.getUniformLocation(program, 'u_aoRadius');
+    const aoStrengthLocation = gl.getUniformLocation(program, 'u_aoStrength');
     const shadowMapLocation = gl.getUniformLocation(program, 'u_shadowMap');
     const lightMatrixLocation = gl.getUniformLocation(program, 'u_lightViewProjection');
     const shadowEnabledLocation = gl.getUniformLocation(program, 'u_shadowEnabled');
@@ -481,6 +484,7 @@ export class WebGL2Program {
     this.viewportLocation = viewportLocation;
     this.clipRangeLocation = clipRangeLocation;
     this.aoRadiusLocation = aoRadiusLocation;
+    this.aoStrengthLocation = aoStrengthLocation;
     if (sceneDepthLocation) {
       gl.useProgram(program);
       gl.uniform1i(sceneDepthLocation, 2);
@@ -612,6 +616,13 @@ export class WebGL2Program {
     if (this.clipRangeLocation) {
       gl.uniform2f(this.clipRangeLocation, near, far);
     }
+  }
+
+  /** 遮蔽半径（米）与强度，供运行时调节。强度 0 等于关闭。 */
+  setOcclusion(radius: number, strength: number): void {
+    const gl = this.gl;
+    if (this.aoRadiusLocation) gl.uniform1f(this.aoRadiusLocation, radius);
+    if (this.aoStrengthLocation) gl.uniform1f(this.aoStrengthLocation, strength);
   }
 
   setClipOffset(x: number, y: number): void {

@@ -103,6 +103,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   };
   private textures: WebGL2TextureCache | null = null;
   private sceneDepth: WebGL2SceneDepth | null = null;
+  private occlusionRadius = 2.5;
+  private occlusionStrength = 0.35;
   private options: Parameters<ICERendererBackend['initialize']>[0] | null = null;
 
   /**
@@ -133,6 +135,31 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     program.setBaseColorMap(null, DEFAULT_UV_SCALE);
     program.setNormalMap(null, 1);
     program.setSurface(0, 0.85, undefined);
+  }
+
+  /**
+   * `?ao=<radius>,<strength>` 覆盖遮蔽参数（`ao=off` 关闭）。
+   *
+   * 屏幕空间遮蔽的合适参数与场景尺度强相关，靠改代码重编译来找太慢。这里只读一次
+   * 页面地址，纯属调参通道，不参与渲染决策。
+   */
+  private readOcclusionOverride(): void {
+    if (typeof location === 'undefined') return;
+    const value = new URLSearchParams(location.search).get('ao');
+    if (!value) return;
+    if (value === 'off') {
+      this.occlusionStrength = 0;
+      return;
+    }
+    const parts = value.split(',').map(Number);
+    const radius = parts[0];
+    const strength = parts[1];
+    if (radius !== undefined && Number.isFinite(radius) && radius > 0) {
+      this.occlusionRadius = radius;
+    }
+    if (strength !== undefined && Number.isFinite(strength) && strength >= 0) {
+      this.occlusionStrength = strength;
+    }
   }
 
   private ensureTextureCache(): void {
@@ -210,6 +237,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.createProgram(gl);
     this.ensureTextureCache();
     this.sceneDepth = new WebGL2SceneDepth(gl);
+    this.readOcclusionOverride();
     this.canvas.addEventListener('webglcontextlost', this.handleContextLost);
     this.canvas.addEventListener('webglcontextrestored', this.handleContextRestored);
   }
@@ -409,6 +437,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       Math.max(1, frame.viewport.width * this.dpr),
       Math.max(1, frame.viewport.height * this.dpr),
     );
+
+    this.program.setOcclusion(this.occlusionRadius, this.occlusionStrength);
 
     for (const transparentPass of [false, true] as const) {
       if (transparentPass) {
