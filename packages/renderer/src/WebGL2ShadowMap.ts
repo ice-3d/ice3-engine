@@ -3,6 +3,8 @@
 //! 一次深度 pass 把场景从光源方向渲染进深度纹理，主 pass 再按世界坐标比较深度。
 //! 只处理单方向光、单张贴图，够覆盖当前查看器的需要；级联与软阴影留给后续。
 
+import { createShaderProgram } from './WebGL2Shader.js';
+
 const VERTEX_SOURCE = `#version 300 es
 layout(location = 0) in vec3 a_position;
 layout(location = 3) in mat4 a_instanceMatrix;
@@ -30,6 +32,8 @@ const ORTHO_NEAR = -260;
 const ORTHO_FAR = 700;
 
 export class WebGL2ShadowMap {
+  /** 最近一次着色器编译/链接失败的原因，供诊断读取。 */
+  lastError: string | null = null;
   private framebuffer: WebGLFramebuffer | null = null;
   private depthTexture: WebGLTexture | null = null;
   private program: WebGLProgram | null = null;
@@ -156,34 +160,14 @@ export class WebGL2ShadowMap {
   }
 
   private createProgram(vertex: string, fragment: string): WebGLProgram | null {
-    const gl = this.gl;
-    const vertexShader = this.compile(gl.VERTEX_SHADER, vertex);
-    const fragmentShader = this.compile(gl.FRAGMENT_SHADER, fragment);
-    if (!vertexShader || !fragmentShader) return null;
-    const program = gl.createProgram();
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
-    gl.deleteShader(vertexShader);
-    gl.deleteShader(fragmentShader);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      gl.deleteProgram(program);
+    try {
+      return createShaderProgram(this.gl, vertex, fragment, 'shadow');
+    } catch (error) {
+      // 阴影是可选效果：编译失败不该让整帧崩掉，但必须留下可读的原因，
+      // 否则"阴影悄悄不工作"会伪装成光照问题。
+      this.lastError = error instanceof Error ? error.message : String(error);
       return null;
     }
-    return program;
-  }
-
-  private compile(type: number, source: string): WebGLShader | null {
-    const gl = this.gl;
-    const shader = gl.createShader(type);
-    if (!shader) return null;
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      gl.deleteShader(shader);
-      return null;
-    }
-    return shader;
   }
 }
 

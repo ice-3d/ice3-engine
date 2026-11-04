@@ -2,7 +2,7 @@
 
 > Document ID: ICE3-ENG-SPEC-007
 >
-> Status: Proposed
+> Status: Active
 >
 > Owner: ICE3 Engine maintainers
 
@@ -16,20 +16,20 @@
 
 ## 2. 一次失败的尝试（2026-11-04）
 
-### 做了什么
+### 2.1 做了什么
 
 参照 `WebGL2ShadowMap` 的结构新增 `WebGL2SceneDepth`：深度 FBO（`DEPTH_COMPONENT24`）、
 只写深度的极简着色器、随视口重建纹理；主着色器里加 8 方向 × 2 圈深度比较，邻居更靠近
 相机就把间接光压暗。编译通过，webpack 构建成功。
 
-### 结果
+### 2.2 结果
 
 ```
 AO 前：meanLuminance 99.19 / brightPixels 991
 AO 后：meanLuminance 99.19 / brightPixels 991   ← 一个像素都没变
 ```
 
-### 排查与根因
+### 2.3 排查与根因
 
 1. 先怀疑只有深度附件的 FBO 在 WebGL2 里不完整，补了 `gl.drawBuffers([gl.NONE])` 与
    `gl.readBuffer(gl.NONE)`——**画面依旧完全一致**。
@@ -37,7 +37,7 @@ AO 后：meanLuminance 99.19 / brightPixels 991   ← 一个像素都没变
    集通过 `ICERenderBatch` 走的是**渲染批次**路径。深度图是空的 → 采样恒为 0 →
    所有比较相等 → 遮蔽恒为 0。
 
-### 结论
+### 2.4 结论
 
 `WebGL2RendererBackend.render()` 里有八处绘制循环（实例化批次、渲染批次、单体网格，
 以及阴影/选择/拾取各自的变体）。**任何新增的屏幕空间通道都必须覆盖全部三条几何路径**，
