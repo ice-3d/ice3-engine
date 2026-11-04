@@ -60,6 +60,22 @@ n' = normalize(T·t.x·s + B·t.y·s + N·t.z)
 切线基与真实曲面法线并不严格正交——这是盒投影的固有近似，换来的是零顶点开销与和导出
 完全一致的 UV。法线贴图共用 base-colour 的 `uvScale`，两者永远对齐。
 
+### 3.2 金属度与粗糙度
+
+之前着色器只做漫反射，metallic / roughness / emissive 写了也只影响导出。现在片元里补了
+一条简化但可辨识的金属反射路径：
+
+| 项 | 做法 | 为什么 |
+|---|---|---|
+| 漫反射收掉 | `diffuse *= 1 - 0.85 * metallic` | 金属没有漫反射，颜色来自反射 |
+| 高光 | Blinn-Phong，指数 96→4、增益 1.0→0.18 随 roughness 变化 | 光滑面窄而亮，粗糙面宽而弱 |
+| 高光染色 | `reflectance = mix(0.04, baseColor, metallic)` | 金属高光带自身颜色，电介质接近白 |
+| 环境反射 | 按**反射方向**取天空/地面色，掠射角叠 Fresnel | 平躺金属反射天顶、立面反射地平线，这是金属最好认的特征 |
+| 自发光 | `lit += emissive` | 灯、指示面板在暗部也亮 |
+
+系数取自 `specularShininess` / `specularGain` / `specularReflectance` 三个纯函数，单测
+直接验证单调性（越光滑越紧、越粗糙越弱、金属染色），不必起 GPU。
+
 ## 4. 纹理管线
 
 | 层 | 职责 |

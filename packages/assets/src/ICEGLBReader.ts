@@ -189,6 +189,7 @@ export function readPreparedGLB(
         ...(shading === 'directional' || shading === 'water' ? { shading } : {}),
         ...(map ? { map } : {}),
         ...(normalMap ? { normalMap } : {}),
+        ...surfaceFactors(baseMaterial),
       });
       const bounds = boundsFromAccessor(accessors[positionIndex]);
       const geometryIndex = geometries.length;
@@ -727,6 +728,34 @@ function materialMap(
       ? { scale: [su, sv] as const }
       : {}),
   };
+}
+
+/**
+ * Metallic-roughness factors and emission, kept as plain numbers so the
+ * renderer can shade without re-reading the glTF.
+ */
+function surfaceFactors(material: JSONRecord | undefined): {
+  metallic?: number;
+  roughness?: number;
+  emissive?: readonly [number, number, number];
+} {
+  const pbr = record(material?.pbrMetallicRoughness);
+  const metallic = unitOrUndefined(pbr?.metallicFactor);
+  const roughness = unitOrUndefined(pbr?.roughnessFactor);
+  const emissive = numbers(material?.emissiveFactor, 3);
+  return {
+    ...(metallic !== undefined ? { metallic } : {}),
+    ...(roughness !== undefined ? { roughness } : {}),
+    ...(emissive && emissive.some((value) => value > 0)
+      ? { emissive: [emissive[0]!, emissive[1]!, emissive[2]!] as const }
+      : {}),
+  };
+}
+
+function unitOrUndefined(value: unknown): number | undefined {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return undefined;
+  return Math.min(1, Math.max(0, parsed));
 }
 
 /**

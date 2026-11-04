@@ -15,6 +15,9 @@ type FixtureOptions = {
   readonly materialOpacity?: number;
   readonly materialTexture?: string;
   readonly materialNormalTexture?: string;
+  readonly materialMetallic?: number;
+  readonly materialRoughness?: number;
+  readonly materialEmissive?: readonly [number, number, number];
   readonly materialNormalScale?: number;
   /** How the texture image is declared; defaults to a relative uri. */
   readonly materialTextureKind?: 'uri' | 'absolute' | 'embedded';
@@ -157,7 +160,16 @@ export function createMinimalPreparedGLB(
         pbrMetallicRoughness: {
           baseColorFactor: [0.2, 0.5, 0.9, options.materialOpacity ?? 1],
           ...(options.materialTexture ? { baseColorTexture: { index: 0 } } : {}),
+          ...(options.materialMetallic !== undefined
+            ? { metallicFactor: options.materialMetallic }
+            : {}),
+          ...(options.materialRoughness !== undefined
+            ? { roughnessFactor: options.materialRoughness }
+            : {}),
         },
+        ...(options.materialEmissive
+          ? { emissiveFactor: options.materialEmissive }
+          : {}),
         ...(options.materialNormalTexture
           ? {
             normalTexture: {

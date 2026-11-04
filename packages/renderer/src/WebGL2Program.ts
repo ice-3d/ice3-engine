@@ -82,6 +82,9 @@ uniform vec2 u_uvScale;
 uniform sampler2D u_normalMap;
 uniform float u_useNormalMap;
 uniform float u_normalScale;
+uniform float u_metallic;
+uniform float u_roughness;
+uniform vec3 u_emissive;
 in vec3 v_color;
 in vec3 v_worldPosition;
 out vec4 outputColor;
@@ -205,6 +208,39 @@ void main() {
       + vec3(0.42, 0.52, 0.54) * sparkle * 0.55;
   }
 
+  // 金属没有漫反射：它的颜色全部来自反射。先把漫反射按 metallic 收掉，
+  // 再用反射项补回来，否则金属和塑料在同一个太阳下只是"颜色不同"。
+  {
+    vec3 viewDirection = normalize(u_cameraPosition - v_worldPosition);
+    vec3 halfVector = normalize(lightDirection + viewDirection);
+    float metallic = clamp(u_metallic, 0.0, 1.0);
+    float roughness = clamp(u_roughness, 0.04, 1.0);
+    vec3 reflectance = mix(vec3(0.04), color, metallic);
+
+    float diffuseGain = 1.0 - metallic * 0.85;
+    float facing = max(dot(normal, lightDirection), 0.0);
+
+    // 高光：粗糙度决定叶瓣宽度与强度（指数 96 → 4，增益 1.0 → 0.18）。
+    float shininess = mix(96.0, 4.0, roughness * roughness);
+    float highlight = pow(max(dot(normal, halfVector), 0.0), shininess);
+    float specularGain = mix(1.0, 0.18, roughness);
+
+    // 环境反射：按反射方向取天空/地面色，掠射角再叠一层 Fresnel。
+    // 只看法线的话，平躺的金属会和立着的金属一个颜色——现实里前者反射天顶、
+    // 后者反射地平线，恰恰是金属最容易辨认的特征。
+    vec3 reflected = reflect(-viewDirection, normal);
+    float skyMix = clamp(reflected.y * 0.9 + 0.35, 0.0, 1.0);
+    vec3 skyColor = mix(vec3(0.15, 0.16, 0.17), vec3(0.62, 0.72, 0.84), skyMix);
+    float fresnel = pow(1.0 - clamp(dot(normal, viewDirection), 0.0, 1.0), 4.0);
+    float envGain = (0.22 + 0.55 * fresnel) * mix(0.4, 1.0, metallic);
+
+    float litScale = diffuseGain;
+    lit *= litScale;
+    lit += reflectance * (highlight * specularGain * mix(0.35, 1.0, facing)
+      + skyColor * envGain);
+    lit += u_emissive;
+  }
+
   // 阴影：把世界坐标投到光源空间，与深度图比较。取 3×3 采样的平均做轻微柔化。
   if (u_shadowEnabled > 0.5) {
     vec4 lightSpace = u_lightViewProjection * vec4(v_worldPosition, 1.0);
@@ -240,6 +276,33 @@ void main() {
 }
 `;
 
+/**
+ * Mirror of the shader's specular curve, exported so the response can be tested
+ * without a GPU: smoother surfaces get a tighter, stronger highlight.
+ */
+export function specularShininess(roughness: number): number {
+  const clamped = Math.min(1, Math.max(0.04, roughness));
+  return 180 + (8 - 180) * clamped * clamped;
+}
+
+export function specularGain(roughness: number): number {
+  const clamped = Math.min(1, Math.max(0.04, roughness));
+  return 0.9 + (0.08 - 0.9) * clamped;
+}
+
+/** Metals tint their highlight with the base colour; dielectrics stay neutral. */
+export function specularReflectance(
+  metallic: number,
+  color: readonly [number, number, number],
+): [number, number, number] {
+  const t = Math.min(1, Math.max(0, metallic));
+  return [
+    0.04 + (color[0] - 0.04) * t,
+    0.04 + (color[1] - 0.04) * t,
+    0.04 + (color[2] - 0.04) * t,
+  ];
+}
+
 export class WebGL2Program {
   static readonly POSITION_ATTRIBUTE = 0;
   static readonly COLOR_ATTRIBUTE = 1;
@@ -265,6 +328,9 @@ export class WebGL2Program {
   private readonly normalMapLocation: WebGLUniformLocation | null;
   private readonly useNormalMapLocation: WebGLUniformLocation | null;
   private readonly normalScaleLocation: WebGLUniformLocation | null;
+  private readonly metallicLocation: WebGLUniformLocation | null;
+  private readonly roughnessLocation: WebGLUniformLocation | null;
+  private readonly emissiveLocation: WebGLUniformLocation | null;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     const program = this.createProgram(VERTEX_SOURCE, FRAGMENT_SOURCE);
@@ -287,6 +353,9 @@ export class WebGL2Program {
     const normalMapLocation = gl.getUniformLocation(program, 'u_normalMap');
     const useNormalMapLocation = gl.getUniformLocation(program, 'u_useNormalMap');
     const normalScaleLocation = gl.getUniformLocation(program, 'u_normalScale');
+    const metallicLocation = gl.getUniformLocation(program, 'u_metallic');
+    const roughnessLocation = gl.getUniformLocation(program, 'u_roughness');
+    const emissiveLocation = gl.getUniformLocation(program, 'u_emissive');
     const shadowMapLocation = gl.getUniformLocation(program, 'u_shadowMap');
     const lightMatrixLocation = gl.getUniformLocation(program, 'u_lightViewProjection');
     const shadowEnabledLocation = gl.getUniformLocation(program, 'u_shadowEnabled');
@@ -330,6 +399,13 @@ export class WebGL2Program {
     this.normalMapLocation = normalMapLocation;
     this.useNormalMapLocation = useNormalMapLocation;
     this.normalScaleLocation = normalScaleLocation;
+    this.metallicLocation = metallicLocation;
+    this.roughnessLocation = roughnessLocation;
+    this.emissiveLocation = emissiveLocation;
+    if (emissiveLocation) {
+      gl.useProgram(program);
+      gl.uniform3f(emissiveLocation, 0, 0, 0);
+    }
     if (normalMapLocation) {
       gl.useProgram(program);
       gl.uniform1i(normalMapLocation, 1);
@@ -400,6 +476,21 @@ export class WebGL2Program {
     gl.uniform1f(this.useNormalMapLocation, 1);
     if (this.normalScaleLocation) {
       gl.uniform1f(this.normalScaleLocation, strength);
+    }
+  }
+
+  /** Metallic-roughness factors plus emission for the current draw. */
+  setSurface(
+    metallic: number,
+    roughness: number,
+    emissive: readonly [number, number, number] | undefined,
+  ): void {
+    const gl = this.gl;
+    if (this.metallicLocation) gl.uniform1f(this.metallicLocation, metallic);
+    if (this.roughnessLocation) gl.uniform1f(this.roughnessLocation, roughness);
+    if (this.emissiveLocation) {
+      if (emissive) gl.uniform3f(this.emissiveLocation, emissive[0], emissive[1], emissive[2]);
+      else gl.uniform3f(this.emissiveLocation, 0, 0, 0);
     }
   }
 

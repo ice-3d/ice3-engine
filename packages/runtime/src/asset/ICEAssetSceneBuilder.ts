@@ -49,6 +49,9 @@ export function buildAssetScene(
       ...(material.shading ? { shading: material.shading } : {}),
       ...(material.map ? { map: material.map } : {}),
       ...(material.normalMap ? { normalMap: material.normalMap } : {}),
+      ...(material.metallic !== undefined ? { metallic: material.metallic } : {}),
+      ...(material.roughness !== undefined ? { roughness: material.roughness } : {}),
+      ...(material.emissive ? { emissive: material.emissive } : {}),
     })
   ));
   const meshesByNode = new Map<number, typeof snapshot.meshes[number][]>();

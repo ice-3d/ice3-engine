@@ -343,3 +343,23 @@ it('leaves the normal map off when the material has none', () => {
   }));
   expect(snapshot.materials[0]!.normalMap).toBeUndefined();
 });
+
+it('reads metallic, roughness and emission from the material', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB({
+    materialMetallic: 0.9,
+    materialRoughness: 0.25,
+    materialEmissive: [0.1, 0.4, 0.2],
+  }));
+  const material = snapshot.materials[0]!;
+  expect(material.metallic).toBe(0.9);
+  expect(material.roughness).toBe(0.25);
+  expect(material.emissive).toEqual([0.1, 0.4, 0.2]);
+});
+
+it('leaves surface factors off when the material has none', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB());
+  const material = snapshot.materials[0]!;
+  expect(material.metallic).toBeUndefined();
+  expect(material.roughness).toBeUndefined();
+  expect(material.emissive).toBeUndefined();
+});

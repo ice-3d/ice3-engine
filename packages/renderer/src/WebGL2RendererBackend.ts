@@ -120,6 +120,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       ? this.textures.texture(normalMap.url)
       : null;
     program.setNormalMap(normalTexture, normalMap?.strength ?? 1);
+    program.setSurface(material.metallic, material.roughness, material.emissive);
   }
 
   /** Edge overlays are line work: never sampled, always flat. */
@@ -129,6 +130,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     program.setColor(colorToRgba(material.edgeColor ?? material.color));
     program.setBaseColorMap(null, DEFAULT_UV_SCALE);
     program.setNormalMap(null, 1);
+    program.setSurface(0, 0.85, undefined);
   }
 
   private ensureTextureCache(): void {

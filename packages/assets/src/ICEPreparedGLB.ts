@@ -32,6 +32,10 @@ export interface ICEPreparedMaterial {
   readonly map?: { readonly url: string; readonly scale?: readonly [number, number] };
   /** Tangent-space normal map. */
   readonly normalMap?: { readonly url: string; readonly strength?: number };
+  /** Metallic-roughness factors straight from the glTF material. */
+  readonly metallic?: number;
+  readonly roughness?: number;
+  readonly emissive?: readonly [number, number, number];
 }
 
 export interface ICEPreparedMesh {
