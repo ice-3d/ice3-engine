@@ -21,12 +21,15 @@ import { WebGL2GeometryCache } from './WebGL2GeometryCache.js';
 import { WebGL2Picker } from './WebGL2Picker.js';
 import { WebGL2ShadowMap } from './WebGL2ShadowMap.js';
 import { WebGL2Program } from './WebGL2Program.js';
+import { WebGL2TextureCache } from './WebGL2TextureCache.js';
+import { DEFAULT_UV_SCALE, type ICEUvScale } from './WebGL2Uv.js';
 import { WebGL2SemanticProgram } from './WebGL2SemanticProgram.js';
 import { colorToRgba } from './Color.js';
 import {
   RendererProfiler,
   type ICEFrameStageProfile,
 } from './RendererProfiler.js';
+import type { ICEBasicMaterial } from '@ice3/core';
 import type {
   ICERendererBackend,
   ICERendererCapabilities,
@@ -97,6 +100,39 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     gpuEvictions: 0,
     gpuBytes: 0,
   };
+  private textures: WebGL2TextureCache | null = null;
+  private options: Parameters<ICERendererBackend['initialize']>[0] | null = null;
+
+  /**
+   * Bind the material's colour and (if it has one) its base-colour texture.
+   * Called for every opaque/shaded draw so a batched draw and a single mesh draw
+   * cannot drift apart.
+   */
+  private applyMaterial(material: ICEBasicMaterial): void {
+    const program = this.program;
+    if (!program) return;
+    program.setColor(colorToRgba(material.color));
+    const map = material.map;
+    const texture = map && this.textures ? this.textures.texture(map.url) : null;
+    program.setBaseColorMap(texture, map?.scale ?? DEFAULT_UV_SCALE);
+  }
+
+  /** Edge overlays are line work: never sampled, always flat. */
+  private applyEdgeMaterial(material: ICEBasicMaterial): void {
+    const program = this.program;
+    if (!program) return;
+    program.setColor(colorToRgba(material.edgeColor ?? material.color));
+    program.setBaseColorMap(null, DEFAULT_UV_SCALE);
+  }
+
+  private ensureTextureCache(): void {
+    if (this.textures || !this.gl) return;
+    this.textures = new WebGL2TextureCache(this.gl, undefined, () => {
+      // The texture arrived after the frame was drawn; ask for one more frame.
+      this.options?.onUploadReady?.();
+    });
+  }
+
   private readonly handleContextLost = (event: Event): void => {
     event.preventDefault();
     this.picker = null;
@@ -130,7 +166,9 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     readonly canvas: HTMLCanvasElement;
     readonly onContextLost?: () => void;
     readonly onContextRestored?: () => void;
+    readonly onUploadReady?: () => void;
   }): void {
+    this.options = options;
     const gl = options.canvas.getContext('webgl2', {
       alpha: true,
       antialias: true,
@@ -158,6 +196,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     gl.enable(gl.POLYGON_OFFSET_FILL);
     gl.polygonOffset(2, 4);
     this.createProgram(gl);
+    this.ensureTextureCache();
     this.canvas.addEventListener('webglcontextlost', this.handleContextLost);
     this.canvas.addEventListener('webglcontextrestored', this.handleContextRestored);
   }
@@ -324,7 +363,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       for (const id of batch.meshIds) this.instancedMeshIds.add(id);
       mvp.elements.set(viewProjection.elements);
       this.program.setMatrix(mvp);
-      this.program.setColor(colorToRgba(batch.material.color));
+      this.applyMaterial(batch.material);
       this.program.setVertexColors(Boolean(batch.geometry.colors));
       this.program.setDirectionalShading(
         batch.material.shading !== 'flat',
@@ -346,7 +385,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         this.program.setVertexColors(false);
         this.program.setDirectionalShading(false);
         this.program.setWaterShading(false);
-        this.program.setColor(colorToRgba(batch.material.edgeColor));
+        this.applyEdgeMaterial(batch.material);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, instance.edgeIndexBuffer);
         for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
           this.program.setClipOffset(
@@ -375,7 +414,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       world.elements.set(draw.worldMatrix);
       mvp.multiply(world);
       this.program.setMatrix(mvp);
-      this.program.setColor(colorToRgba(draw.batch.material.color));
+      this.applyMaterial(draw.batch.material);
       const geometry = this.geometryCache.retain(gl, draw.batch.geometry);
       this.program.setVertexColors(Boolean(draw.batch.geometry.colors));
       this.program.setDirectionalShading(
@@ -398,7 +437,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         this.program.setVertexColors(false);
         this.program.setDirectionalShading(false);
         this.program.setWaterShading(false);
-        this.program.setColor(colorToRgba(draw.batch.material.edgeColor));
+        this.applyEdgeMaterial(draw.batch.material);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.edgeIndexBuffer);
         for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
           this.program.setClipOffset(
@@ -428,7 +467,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       world.elements.set(renderable.worldMatrix);
       mvp.multiply(world);
       this.program.setMatrix(mvp);
-      this.program.setColor(colorToRgba(renderable.mesh.material.color));
+      this.applyMaterial(renderable.mesh.material);
       const geometry = this.geometryCache.retain(gl, renderable.mesh.geometry);
       this.program.setVertexColors(Boolean(renderable.mesh.geometry.colors));
       this.program.setDirectionalShading(
@@ -450,9 +489,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         this.program.setVertexColors(false);
         this.program.setDirectionalShading(false);
         this.program.setWaterShading(false);
-        this.program.setColor(
-          colorToRgba(renderable.mesh.material.edgeColor),
-        );
+        this.applyEdgeMaterial(renderable.mesh.material);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.edgeIndexBuffer);
         for (const [offsetX, offsetY] of EDGE_PIXEL_OFFSETS) {
           this.program.setClipOffset(

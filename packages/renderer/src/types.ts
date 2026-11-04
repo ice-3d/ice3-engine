@@ -66,6 +66,8 @@ export interface ICERendererBackend {
     readonly onContextLost?: () => void;
     readonly onContextRestored?: () => void;
     readonly onError?: (error: ICEEngineError) => void;
+    /** A deferred GPU upload (for example a base-colour texture) just landed. */
+    readonly onUploadReady?: () => void;
   }): void;
   resize(viewport: ICEViewport, dpr: number): void;
   setBackgroundColor?(color: string): void;

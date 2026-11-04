@@ -277,6 +277,11 @@ export class ICE3 extends ICEEventDispatcher {
             'error',
           );
         },
+        onUploadReady: () => {
+          // A texture finished decoding after the last frame; ask the scheduler
+          // for one more frame so it becomes visible without user input.
+          if (this.state === 'running') this.requestRender('upload-ready');
+        },
       });
       window.addEventListener('resize', this.handleWindowResize);
       this.removeInputListeners.push(() =>

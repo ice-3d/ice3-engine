@@ -28,6 +28,8 @@ export interface ICEPreparedMaterial {
   readonly baseColor: string;
   readonly edgeColor?: string;
   readonly shading?: 'directional' | 'flat' | 'water';
+  /** Base-colour texture resolved from the source glTF. */
+  readonly map?: { readonly url: string; readonly scale?: readonly [number, number] };
 }
 
 export interface ICEPreparedMesh {

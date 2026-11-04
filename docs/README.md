@@ -51,6 +51,7 @@
 | `ICE3-ENG-SPEC-003` | [设备 Selection](specs/2026-10-27-equipment-selection-design.md) | Implemented | 稳定设备 picking 和 highlight 设计 |
 | `ICE3-ENG-SPEC-004` | [WebGPU Renderer 设计](specs/2026-10-29-webgpu-renderer-design.md) | Historical | 已完成 WebGPU backend、fallback 和性能设计记录 |
 | `ICE3-ENG-SPEC-005` | [WebGPU 性能优化设计](specs/2026-10-29-webgpu-performance-design.md) | Historical | 已完成测量、Selection Mask、Storage、Bundle 和 Compute 设计记录 |
+| `ICE3-ENG-SPEC-006` | [视口贴图采样设计](specs/2026-11-04-viewport-texture-sampling-design.md) | Implemented | Base-colour 贴图采样、盒投影 UV 与纹理缓存 |
 
 ## 6. 实施计划
 

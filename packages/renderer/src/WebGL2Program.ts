@@ -76,6 +76,9 @@ uniform vec3 u_cameraPosition;
 uniform sampler2D u_shadowMap;
 uniform mat4 u_lightViewProjection;
 uniform float u_shadowEnabled;
+uniform sampler2D u_baseColorMap;
+uniform float u_useBaseColorMap;
+uniform vec2 u_uvScale;
 in vec3 v_color;
 in vec3 v_worldPosition;
 out vec4 outputColor;
@@ -109,6 +112,21 @@ void main() {
     ${LIGHTING.minimum},
     ${LIGHTING.maximum}
   );
+  // Base-colour texture. There is no UV vertex channel: the projection is
+  // derived from the surface normal's dominant axis, in metres, which matches
+  // the coordinates Studio writes into exported glTF.
+  if (u_useBaseColorMap > 0.5) {
+    vec3 axisWeight = abs(normal);
+    vec2 uv;
+    if (axisWeight.x >= axisWeight.y && axisWeight.x >= axisWeight.z) {
+      uv = vec2(-sign(normal.x) * v_worldPosition.z, v_worldPosition.y);
+    } else if (axisWeight.y >= axisWeight.z) {
+      uv = vec2(v_worldPosition.x, sign(normal.y) * v_worldPosition.z);
+    } else {
+      uv = vec2(sign(normal.z) * v_worldPosition.x, v_worldPosition.y);
+    }
+    color *= texture(u_baseColorMap, uv * u_uvScale).rgb;
+  }
   vec3 lit = color * mix(1.0, shade, u_useDirectionalShading);
 
   // 表面颗粒：按世界坐标取两层哈希，打散整片纯色带来的塑料感。
@@ -207,6 +225,9 @@ export class WebGL2Program {
   private readonly instancingLocation: WebGLUniformLocation;
   private readonly pickModeLocation: WebGLUniformLocation;
   private readonly clipPlaneLocation: WebGLUniformLocation | null;
+  private readonly baseColorMapLocation: WebGLUniformLocation | null;
+  private readonly useBaseColorMapLocation: WebGLUniformLocation | null;
+  private readonly uvScaleLocation: WebGLUniformLocation | null;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     const program = this.createProgram(VERTEX_SOURCE, FRAGMENT_SOURCE);
@@ -223,6 +244,9 @@ export class WebGL2Program {
     const instancingLocation = gl.getUniformLocation(program, 'u_useInstancing');
     const pickModeLocation = gl.getUniformLocation(program, 'u_pickMode');
     const clipPlaneLocation = gl.getUniformLocation(program, 'u_clipPlane');
+    const baseColorMapLocation = gl.getUniformLocation(program, 'u_baseColorMap');
+    const useBaseColorMapLocation = gl.getUniformLocation(program, 'u_useBaseColorMap');
+    const uvScaleLocation = gl.getUniformLocation(program, 'u_uvScale');
     const shadowMapLocation = gl.getUniformLocation(program, 'u_shadowMap');
     const lightMatrixLocation = gl.getUniformLocation(program, 'u_lightViewProjection');
     const shadowEnabledLocation = gl.getUniformLocation(program, 'u_shadowEnabled');
@@ -260,6 +284,17 @@ export class WebGL2Program {
     this.instancingLocation = instancingLocation;
     this.pickModeLocation = pickModeLocation;
     this.clipPlaneLocation = clipPlaneLocation;
+    this.baseColorMapLocation = baseColorMapLocation;
+    this.useBaseColorMapLocation = useBaseColorMapLocation;
+    this.uvScaleLocation = uvScaleLocation;
+    if (baseColorMapLocation) {
+      gl.useProgram(program);
+      gl.uniform1i(baseColorMapLocation, 0);
+    }
+    if (useBaseColorMapLocation) {
+      gl.useProgram(program);
+      gl.uniform1f(useBaseColorMapLocation, 0);
+    }
     if (clipPlaneLocation) {
       gl.useProgram(program);
       gl.uniform4f(clipPlaneLocation, 0, 0, 0, 0);
@@ -280,6 +315,25 @@ export class WebGL2Program {
 
   setColor(color: readonly [number, number, number, number]): void {
     this.gl.uniform4f(this.colorLocation, ...color);
+  }
+
+  /**
+   * Bind a base-colour texture to unit 0 and enable sampling. Passing `null`
+   * restores flat shading without touching the bound texture.
+   */
+  setBaseColorMap(texture: WebGLTexture | null, scale: readonly [number, number]): void {
+    const gl = this.gl;
+    if (!this.useBaseColorMapLocation) return;
+    if (!texture) {
+      gl.uniform1f(this.useBaseColorMapLocation, 0);
+      return;
+    }
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniform1f(this.useBaseColorMapLocation, 1);
+    if (this.uvScaleLocation) {
+      gl.uniform2f(this.uvScaleLocation, scale[0], scale[1]);
+    }
   }
 
   setClipOffset(x: number, y: number): void {
