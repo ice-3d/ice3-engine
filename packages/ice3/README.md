@@ -58,6 +58,6 @@ WebGL2 兼容别名。拾取使用 `await engine.pick(point)`。
 [ICE3 Studio](https://github.com/ice-3d/ice3-studio/blob/main/README.md)
 完成 Source Import、Prepare、验证、partition、LOD 和 Tileset 发布。当前生产链见
 [Studio Asset Pipeline](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/asset-pipeline.md)。
-公开 package 的当前版本为 `0.2.1`。
+公开 package 的当前版本为 `0.2.2`。
 
 本项目采用 MIT License。

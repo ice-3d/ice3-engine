@@ -1,4 +1,5 @@
 import { expect } from '#test-expect';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
   createPublicPackageManifest,
@@ -9,7 +10,11 @@ test('publishes the Engine facade as one dependency-free package', () => {
   const manifest = createPublicPackageManifest();
 
   expect(manifest.name).toBe('ice3');
-  expect(manifest.version).toBe('0.2.1');
+  // 发布清单里的版本必须和公开包的 package.json 一致，这里不写死数字。
+  const declared = JSON.parse(
+    readFileSync(new URL('../../packages/ice3/package.json', import.meta.url), 'utf8'),
+  ) as { version: string };
+  expect(manifest.version).toBe(declared.version);
   expect(manifest.private).toBeUndefined();
   expect(manifest.dependencies).toBeUndefined();
   expect(manifest.exports).toEqual({
@@ -20,7 +25,7 @@ test('publishes the Engine facade as one dependency-free package', () => {
   });
 });
 
-test('publishes WebGPU renderer API in ice3 0.2.1', () => {
+test('publishes WebGPU renderer API in the public facade', () => {
   const manifest = createPublicPackageManifest();
   expect(manifest.keywords).toContain('webgpu');
 });

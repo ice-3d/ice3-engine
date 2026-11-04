@@ -13,6 +13,7 @@ import {
   relative,
   sep,
 } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -22,10 +23,18 @@ const outputRoot = join(releaseRoot, 'ice3');
 const outputDist = join(outputRoot, 'dist');
 const internalPackages = ['core', 'assets', 'renderer', 'runtime'];
 
+/** 版本号只有一个来源：packages/ice3/package.json。手抄一份迟早会和它对不上。 */
+function publicVersion() {
+  const manifest = JSON.parse(
+    readFileSync(join(packageRoot, 'package.json'), 'utf8'),
+  );
+  return manifest.version;
+}
+
 export function createPublicPackageManifest() {
   return {
     name: 'ice3',
-    version: '0.2.1',
+    version: publicVersion(),
     description: 'Industrial-first browser 3D runtime',
     license: 'MIT',
     type: 'module',
