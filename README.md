@@ -20,6 +20,7 @@ npm install ice3
 import { ICE3, ICEScene, ICEPerspectiveCamera } from 'ice3';
 
 const engine = new ICE3().init(document.querySelector('#stage'));
+const camera = new ICEPerspectiveCamera({ id: 'cam', position: [3, 2, 4], target: [0, 0, 0] });
 engine.setScene(new ICEScene({ id: 'main' })).setCamera(camera).start();
 ```
 
