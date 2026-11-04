@@ -104,7 +104,12 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private textures: WebGL2TextureCache | null = null;
   private sceneDepth: WebGL2SceneDepth | null = null;
   private occlusionRadius = 2.5;
-  private occlusionStrength = 0.35;
+  /**
+   * 三圈采样比双圈多找到约 1.7 个亮度点的遮蔽（同参数 96.36 → 94.65），原样沿用到
+   * 默认值就把厂区压得发闷。0.30 是回调后的值：整帧 95.70（无遮蔽 99.59），
+   * 高光像素 878（无遮蔽 1088），接触暗部仍看得见。详见 SPEC-007 第 5.5 节。
+   */
+  private occlusionStrength = 0.3;
   private options: Parameters<ICERendererBackend['initialize']>[0] | null = null;
 
   /**
