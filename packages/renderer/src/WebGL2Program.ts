@@ -249,11 +249,13 @@ void main() {
     // 加权——正对着的平面不该被周围同样平的东西压暗，只有"立起来挡住我"的才算法。
     float occlusion = 0.0;
     float weightSum = 0.0;
-    for (int ring = 0; ring < 2; ring++) {
-      float ringScale = ring == 0 ? 0.45 : 1.0;
-      float ringWeight = ring == 0 ? 1.0 : 0.65;
+    for (int ring = 0; ring < 3; ring++) {
+      // 三圈：贴地接触 / 缝隙中部 / 大面积夹角。没有模糊通道时，靠圈层分摊
+      // 采样密度是压噪点最直接的办法（模糊要额外的 FBO 与全屏通道）。
+      float ringScale = ring == 0 ? 0.35 : (ring == 1 ? 0.65 : 1.0);
+      float ringWeight = ring == 0 ? 1.0 : (ring == 1 ? 0.7 : 0.45);
       for (int i = 0; i < 8; i++) {
-        float angle = rotation + float(i) * 0.7853982 + float(ring) * 0.3927;
+        float angle = rotation + float(i) * 0.7853982 + float(ring) * 0.2618;
         vec2 offset = vec2(cos(angle), sin(angle)) * pixelRadius * ringScale;
         vec2 sampleUv = screenUv + offset / u_viewport;
         if (sampleUv.x < 0.0 || sampleUv.x > 1.0 || sampleUv.y < 0.0 || sampleUv.y > 1.0) continue;
