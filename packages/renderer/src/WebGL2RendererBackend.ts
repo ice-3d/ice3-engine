@@ -74,7 +74,11 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private program: WebGL2Program | null = null;
   private clipPlane: readonly [number, number, number, number] = [0, 0, 0, 0];
   private shadowMap: WebGL2ShadowMap | null = null;
-  /** 方向光阴影开关：默认关闭，由 `initialize({ shadows })` 或页面地址 `?shadows=` 打开。 */
+  /**
+   * 方向光阴影开关。默认开启：没有影子的厂区看起来像浮在地上，
+   * 而多一次全场景深度 pass 的代价远小于这个观感损失。
+   * 要关掉用 `initialize({ shadows: false })` 或页面地址 `?shadows=0`。
+   */
   private shadowEnabled = false;
   /** `?shadowdebug=1` 输出遮蔽判定，`=2` 输出深度图；排查阴影问题的唯一可信手段。 */
   private shadowDebug = 0;
@@ -280,7 +284,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.ensureTextureCache();
     this.sceneDepth = new WebGL2SceneDepth(gl);
     this.readOcclusionOverride();
-    this.shadowEnabled = options.shadows ?? false;
+    this.shadowEnabled = options.shadows ?? true;
     this.readShadowOverride();
     this.canvas.addEventListener('webglcontextlost', this.handleContextLost);
     this.canvas.addEventListener('webglcontextrestored', this.handleContextRestored);

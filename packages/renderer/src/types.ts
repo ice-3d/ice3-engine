@@ -68,7 +68,7 @@ export interface ICERendererBackend {
     readonly onError?: (error: ICEEngineError) => void;
     /** A deferred GPU upload (for example a base-colour texture) just landed. */
     readonly onUploadReady?: () => void;
-    /** Directional-light shadows. Off by default: it costs a full extra scene pass. */
+    /** Directional-light shadows. On by default; pass false to skip the extra scene pass. */
     readonly shadows?: boolean;
   }): void;
   resize(viewport: ICEViewport, dpr: number): void;
