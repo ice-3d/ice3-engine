@@ -79,6 +79,9 @@ uniform float u_shadowEnabled;
 uniform sampler2D u_baseColorMap;
 uniform float u_useBaseColorMap;
 uniform vec2 u_uvScale;
+uniform sampler2D u_normalMap;
+uniform float u_useNormalMap;
+uniform float u_normalScale;
 in vec3 v_color;
 in vec3 v_worldPosition;
 out vec4 outputColor;
@@ -99,6 +102,38 @@ void main() {
     dFdx(v_worldPosition),
     dFdy(v_worldPosition)
   ));
+  // Box-projected UVs make the tangent frame analytic: the projection plane's
+  // two world axes are the tangents, so no vertex tangent channel is needed.
+  vec3 tangent = vec3(0.0);
+  vec3 bitangent = vec3(0.0);
+  vec3 axisWeight = abs(normal);
+  if (axisWeight.x >= axisWeight.y && axisWeight.x >= axisWeight.z) {
+    tangent = vec3(0.0, 0.0, -sign(normal.x));
+    bitangent = vec3(0.0, 1.0, 0.0);
+  } else if (axisWeight.y >= axisWeight.z) {
+    tangent = vec3(1.0, 0.0, 0.0);
+    bitangent = vec3(0.0, 0.0, sign(normal.y));
+  } else {
+    tangent = vec3(sign(normal.z), 0.0, 0.0);
+    bitangent = vec3(0.0, 1.0, 0.0);
+  }
+  if (u_useNormalMap > 0.5) {
+    vec2 uv = vec2(0.0);
+    if (axisWeight.x >= axisWeight.y && axisWeight.x >= axisWeight.z) {
+      uv = vec2(-sign(normal.x) * v_worldPosition.z, v_worldPosition.y);
+    } else if (axisWeight.y >= axisWeight.z) {
+      uv = vec2(v_worldPosition.x, sign(normal.y) * v_worldPosition.z);
+    } else {
+      uv = vec2(sign(normal.z) * v_worldPosition.x, v_worldPosition.y);
+    }
+    vec3 sampled = texture(u_normalMap, uv * u_uvScale).xyz * 2.0 - 1.0;
+    sampled.xy *= u_normalScale;
+    normal = normalize(
+      normalize(tangent) * sampled.x
+      + normalize(bitangent) * sampled.y
+      + normal * sampled.z
+    );
+  }
   // 主光 + 半球天光。法线由屏幕空间导数求出，朝向与绕序一致：
   // 迎着光的一面吃满直射，背光面只留 35% 的反弹光，暗部不至于糊成一片。
   vec3 lightDirection = normalize(vec3(${LIGHT_DIRECTION.join(', ')}));
@@ -116,7 +151,6 @@ void main() {
   // derived from the surface normal's dominant axis, in metres, which matches
   // the coordinates Studio writes into exported glTF.
   if (u_useBaseColorMap > 0.5) {
-    vec3 axisWeight = abs(normal);
     vec2 uv;
     if (axisWeight.x >= axisWeight.y && axisWeight.x >= axisWeight.z) {
       uv = vec2(-sign(normal.x) * v_worldPosition.z, v_worldPosition.y);
@@ -228,6 +262,9 @@ export class WebGL2Program {
   private readonly baseColorMapLocation: WebGLUniformLocation | null;
   private readonly useBaseColorMapLocation: WebGLUniformLocation | null;
   private readonly uvScaleLocation: WebGLUniformLocation | null;
+  private readonly normalMapLocation: WebGLUniformLocation | null;
+  private readonly useNormalMapLocation: WebGLUniformLocation | null;
+  private readonly normalScaleLocation: WebGLUniformLocation | null;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     const program = this.createProgram(VERTEX_SOURCE, FRAGMENT_SOURCE);
@@ -247,6 +284,9 @@ export class WebGL2Program {
     const baseColorMapLocation = gl.getUniformLocation(program, 'u_baseColorMap');
     const useBaseColorMapLocation = gl.getUniformLocation(program, 'u_useBaseColorMap');
     const uvScaleLocation = gl.getUniformLocation(program, 'u_uvScale');
+    const normalMapLocation = gl.getUniformLocation(program, 'u_normalMap');
+    const useNormalMapLocation = gl.getUniformLocation(program, 'u_useNormalMap');
+    const normalScaleLocation = gl.getUniformLocation(program, 'u_normalScale');
     const shadowMapLocation = gl.getUniformLocation(program, 'u_shadowMap');
     const lightMatrixLocation = gl.getUniformLocation(program, 'u_lightViewProjection');
     const shadowEnabledLocation = gl.getUniformLocation(program, 'u_shadowEnabled');
@@ -287,6 +327,17 @@ export class WebGL2Program {
     this.baseColorMapLocation = baseColorMapLocation;
     this.useBaseColorMapLocation = useBaseColorMapLocation;
     this.uvScaleLocation = uvScaleLocation;
+    this.normalMapLocation = normalMapLocation;
+    this.useNormalMapLocation = useNormalMapLocation;
+    this.normalScaleLocation = normalScaleLocation;
+    if (normalMapLocation) {
+      gl.useProgram(program);
+      gl.uniform1i(normalMapLocation, 1);
+    }
+    if (useNormalMapLocation) {
+      gl.useProgram(program);
+      gl.uniform1f(useNormalMapLocation, 0);
+    }
     if (baseColorMapLocation) {
       gl.useProgram(program);
       gl.uniform1i(baseColorMapLocation, 0);
@@ -333,6 +384,22 @@ export class WebGL2Program {
     gl.uniform1f(this.useBaseColorMapLocation, 1);
     if (this.uvScaleLocation) {
       gl.uniform2f(this.uvScaleLocation, scale[0], scale[1]);
+    }
+  }
+
+  /** Bind a tangent-space normal map to unit 1; `null` disables perturbation. */
+  setNormalMap(texture: WebGLTexture | null, strength: number): void {
+    const gl = this.gl;
+    if (!this.useNormalMapLocation) return;
+    if (!texture) {
+      gl.uniform1f(this.useNormalMapLocation, 0);
+      return;
+    }
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniform1f(this.useNormalMapLocation, 1);
+    if (this.normalScaleLocation) {
+      gl.uniform1f(this.normalScaleLocation, strength);
     }
   }
 

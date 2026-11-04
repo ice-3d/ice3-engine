@@ -30,6 +30,8 @@ export interface ICEPreparedMaterial {
   readonly shading?: 'directional' | 'flat' | 'water';
   /** Base-colour texture resolved from the source glTF. */
   readonly map?: { readonly url: string; readonly scale?: readonly [number, number] };
+  /** Tangent-space normal map. */
+  readonly normalMap?: { readonly url: string; readonly strength?: number };
 }
 
 export interface ICEPreparedMesh {

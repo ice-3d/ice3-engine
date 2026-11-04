@@ -48,6 +48,7 @@ export function buildAssetScene(
       ...(material.edgeColor ? { edgeColor: material.edgeColor } : {}),
       ...(material.shading ? { shading: material.shading } : {}),
       ...(material.map ? { map: material.map } : {}),
+      ...(material.normalMap ? { normalMap: material.normalMap } : {}),
     })
   ));
   const meshesByNode = new Map<number, typeof snapshot.meshes[number][]>();

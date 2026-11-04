@@ -176,12 +176,19 @@ export function readPreparedGLB(
         sourceImages,
         options.baseUrl,
       );
+      const normalMap = normalMaterialMap(
+        baseMaterial,
+        sourceTextures,
+        sourceImages,
+        options.baseUrl,
+      );
       materials.push({
         id: `${meshId}/material/${primitiveIndex}`,
         baseColor: materialColor(baseMaterial),
         ...(edgeMaterial ? { edgeColor: materialColor(edgeMaterial) } : {}),
         ...(shading === 'directional' || shading === 'water' ? { shading } : {}),
         ...(map ? { map } : {}),
+        ...(normalMap ? { normalMap } : {}),
       });
       const bounds = boundsFromAccessor(accessors[positionIndex]);
       const geometryIndex = geometries.length;
@@ -719,6 +726,28 @@ function materialMap(
     ...(typeof su === 'number' && typeof sv === 'number' && su > 0 && sv > 0
       ? { scale: [su, sv] as const }
       : {}),
+  };
+}
+
+/**
+ * Resolve a tangent-space normal map, carrying glTF's `normalTexture.scale` as
+ * the perturbation strength.
+ */
+function normalMaterialMap(
+  material: JSONRecord | undefined,
+  textures: readonly JSONRecord[],
+  images: readonly JSONRecord[],
+  baseUrl: string | undefined,
+): { url: string; strength?: number } | undefined {
+  const reference = record(material?.normalTexture);
+  if (!reference) return undefined;
+  const texture = textures[Number(reference.index)];
+  const uri = record(images[Number(record(texture)?.source)])?.uri;
+  if (typeof uri !== 'string' || uri.length === 0) return undefined;
+  const strength = Number(reference.scale);
+  return {
+    url: resolveTextureUrl(uri, baseUrl),
+    ...(Number.isFinite(strength) && strength >= 0 ? { strength } : {}),
   };
 }
 

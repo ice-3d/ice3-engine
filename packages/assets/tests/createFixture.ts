@@ -14,6 +14,8 @@ type FixtureOptions = {
   readonly materialShading?: 'directional' | 'water';
   readonly materialOpacity?: number;
   readonly materialTexture?: string;
+  readonly materialNormalTexture?: string;
+  readonly materialNormalScale?: number;
   /** How the texture image is declared; defaults to a relative uri. */
   readonly materialTextureKind?: 'uri' | 'absolute' | 'embedded';
   readonly selectionId?: string;
@@ -156,6 +158,14 @@ export function createMinimalPreparedGLB(
           baseColorFactor: [0.2, 0.5, 0.9, options.materialOpacity ?? 1],
           ...(options.materialTexture ? { baseColorTexture: { index: 0 } } : {}),
         },
+        ...(options.materialNormalTexture
+          ? {
+            normalTexture: {
+              index: options.materialTexture ? 1 : 0,
+              scale: options.materialNormalScale ?? 1,
+            },
+          }
+          : {}),
         extras: {
           ice3: {
             id: 'fixture/material/0',
@@ -211,11 +221,11 @@ export function createMinimalPreparedGLB(
       }] : []),
     ],
     buffers: [{ byteLength: binaryLength }],
-    ...(options.materialTexture
+    ...(textureImages(options).length > 0
       ? {
-        images: [textureImage(options)],
+        images: textureImages(options),
         samplers: [{ wrapS: 10497, wrapT: 10497 }],
-        textures: [{ sampler: 0, source: 0 }],
+        textures: textureImages(options).map((_, index) => ({ sampler: 0, source: index })),
       }
       : {}),
     ...(options.forbiddenFeature ? { animations: [{}] } : {}),
@@ -381,8 +391,20 @@ function packGLB(json: unknown, binary: Buffer): ArrayBuffer {
   );
 }
 
-function textureImage(options: FixtureOptions): Record<string, unknown> {
-  const uri = options.materialTexture ?? '';
+/** Images in declaration order: base colour first, then normal. */
+function textureImages(options: FixtureOptions): Record<string, unknown>[] {
+  const images: Record<string, unknown>[] = [];
+  if (options.materialTexture) images.push(textureImage(options, options.materialTexture));
+  if (options.materialNormalTexture) {
+    images.push(textureImage(options, options.materialNormalTexture));
+  }
+  return images;
+}
+
+function textureImage(
+  options: FixtureOptions,
+  uri: string,
+): Record<string, unknown> {
   if (options.materialTextureKind === 'absolute') return { uri: `/${uri}` };
   if (options.materialTextureKind === 'embedded') return { bufferView: 0 };
   return { uri };

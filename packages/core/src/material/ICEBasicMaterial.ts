@@ -9,11 +9,23 @@ export interface ICEBasicMaterialMap {
   readonly scale?: readonly [number, number];
 }
 
+/**
+ * Tangent-space normal map.
+ *
+ * `strength` multiplies the sampled X/Y perturbation, matching glTF's
+ * `normalTexture.scale`; 1 is neutral.
+ */
+export interface ICEBasicMaterialNormalMap {
+  readonly url: string;
+  readonly strength?: number;
+}
+
 export interface ICEBasicMaterialOptions {
   readonly color: string;
   readonly edgeColor?: string;
   readonly shading?: 'directional' | 'flat' | 'water';
   readonly map?: ICEBasicMaterialMap;
+  readonly normalMap?: ICEBasicMaterialNormalMap;
 }
 
 export class ICEBasicMaterial {
@@ -22,12 +34,14 @@ export class ICEBasicMaterial {
   readonly edgeColor: string | undefined;
   readonly shading: 'directional' | 'flat' | 'water' | undefined;
   readonly map: ICEBasicMaterialMap | undefined;
+  readonly normalMap: ICEBasicMaterialNormalMap | undefined;
 
   constructor(options: ICEBasicMaterialOptions) {
     this.color = options.color;
     this.edgeColor = options.edgeColor;
     this.shading = options.shading;
     this.map = options.map;
+    this.normalMap = options.normalMap;
   }
 
   toJSON(): Record<string, unknown> {
@@ -37,6 +51,7 @@ export class ICEBasicMaterial {
       ...(this.edgeColor ? { edgeColor: this.edgeColor } : {}),
       ...(this.shading ? { shading: this.shading } : {}),
       ...(this.map ? { map: this.map } : {}),
+      ...(this.normalMap ? { normalMap: this.normalMap } : {}),
     };
   }
 }

@@ -46,14 +46,19 @@ function validateTextures(json: JSONRecord): void {
     }
   }
   for (const material of records(json.materials)) {
-    const reference = record(record(material.pbrMetallicRoughness)?.baseColorTexture);
-    if (!reference) continue;
-    const index = Number(reference.index);
-    if (!Number.isInteger(index) || index < 0 || index >= textures.length) {
-      throw assetError(
-        'ICE3_ASSET_INVALID_GLB',
-        'baseColorTexture index is out of range',
-      );
+    const slots = [
+      ['baseColorTexture', record(record(material.pbrMetallicRoughness)?.baseColorTexture)],
+      ['normalTexture', record(material.normalTexture)],
+    ] as const;
+    for (const [slot, reference] of slots) {
+      if (!reference) continue;
+      const index = Number(reference.index);
+      if (!Number.isInteger(index) || index < 0 || index >= textures.length) {
+        throw assetError(
+          'ICE3_ASSET_INVALID_GLB',
+          `${slot} index is out of range`,
+        );
+      }
     }
   }
 }

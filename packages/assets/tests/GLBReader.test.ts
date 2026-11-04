@@ -318,3 +318,28 @@ it('keeps the recorded path when no base url is available', () => {
   );
   expect(snapshot.materials[0]!.map?.url).toBe('textures/steel.png');
 });
+
+it('resolves a normal map with its perturbation strength', () => {
+  const snapshot = readPreparedGLB(
+    createMinimalPreparedGLB({
+      materialTexture: 'textures/steel.png',
+      materialNormalTexture: 'textures/steel-normal.png',
+      materialNormalScale: 0.6,
+    }),
+    { baseUrl: 'https://host.example/assets/plant/parts/part-000.glb' },
+  );
+  expect(snapshot.materials[0]!.map?.url).toBe(
+    'https://host.example/assets/plant/parts/textures/steel.png',
+  );
+  expect(snapshot.materials[0]!.normalMap).toEqual({
+    url: 'https://host.example/assets/plant/parts/textures/steel-normal.png',
+    strength: 0.6,
+  });
+});
+
+it('leaves the normal map off when the material has none', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB({
+    materialTexture: 'textures/steel.png',
+  }));
+  expect(snapshot.materials[0]!.normalMap).toBeUndefined();
+});
