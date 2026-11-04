@@ -182,6 +182,12 @@ export function readPreparedGLB(
         sourceImages,
         options.baseUrl,
       );
+      const ormMap = ormMaterialMap(
+        baseMaterial,
+        sourceTextures,
+        sourceImages,
+        options.baseUrl,
+      );
       materials.push({
         id: `${meshId}/material/${primitiveIndex}`,
         baseColor: materialColor(baseMaterial),
@@ -189,6 +195,7 @@ export function readPreparedGLB(
         ...(shading === 'directional' || shading === 'water' ? { shading } : {}),
         ...(map ? { map } : {}),
         ...(normalMap ? { normalMap } : {}),
+        ...(ormMap ? { ormMap } : {}),
         ...surfaceFactors(baseMaterial),
       });
       const bounds = boundsFromAccessor(accessors[positionIndex]);
@@ -777,6 +784,72 @@ function normalMaterialMap(
   return {
     url: resolveTextureUrl(uri, baseUrl),
     ...(Number.isFinite(strength) && strength >= 0 ? { strength } : {}),
+  };
+}
+
+/**
+ * Resolve the packed occlusion-roughness-metallic slots.
+ *
+ * glTF keeps them apart (`pbrMetallicRoughness.metallicRoughnessTexture` and the
+ * top-level `occlusionTexture`), but they normally point at the same image, so
+ * one sampler covers both. When only one slot exists, the flags say which
+ * channels to trust — reading a metallic-roughness image as occlusion would
+ * darken the surface for no reason.
+ */
+function ormMaterialMap(
+  material: JSONRecord | undefined,
+  textures: readonly JSONRecord[],
+  images: readonly JSONRecord[],
+  baseUrl: string | undefined,
+): {
+  url: string;
+  scale?: readonly [number, number];
+  occlusion: boolean;
+  metallicRoughness: boolean;
+} | undefined {
+  const metallicRoughness = textureReference(
+    record(record(material?.pbrMetallicRoughness)?.metallicRoughnessTexture),
+    textures,
+    images,
+    baseUrl,
+  );
+  const occlusion = textureReference(
+    record(material?.occlusionTexture),
+    textures,
+    images,
+    baseUrl,
+  );
+  if (!metallicRoughness && !occlusion) return undefined;
+  const url = metallicRoughness?.url ?? occlusion!.url;
+  const scale = metallicRoughness?.scale ?? occlusion?.scale;
+  return {
+    url,
+    ...(scale ? { scale } : {}),
+    occlusion: occlusion?.url === url,
+    metallicRoughness: metallicRoughness !== undefined,
+  };
+}
+
+/** Resolve one texture reference (index → texture → image uri) to a URL. */
+function textureReference(
+  reference: JSONRecord | undefined,
+  textures: readonly JSONRecord[],
+  images: readonly JSONRecord[],
+  baseUrl: string | undefined,
+): { url: string; scale?: readonly [number, number] } | undefined {
+  if (!reference) return undefined;
+  const texture = textures[Number(reference.index)];
+  const uri = record(images[Number(record(texture)?.source)])?.uri;
+  if (typeof uri !== 'string' || uri.length === 0) return undefined;
+  const transform = record(record(reference.extensions)?.KHR_texture_transform);
+  const scale = numbers(transform?.scale, 2);
+  const su = scale?.[0];
+  const sv = scale?.[1];
+  return {
+    url: resolveTextureUrl(uri, baseUrl),
+    ...(typeof su === 'number' && typeof sv === 'number' && su > 0 && sv > 0
+      ? { scale: [su, sv] as const }
+      : {}),
   };
 }
 

@@ -15,6 +15,8 @@ type FixtureOptions = {
   readonly materialOpacity?: number;
   readonly materialTexture?: string;
   readonly materialNormalTexture?: string;
+  readonly materialOrmTexture?: string;
+  readonly materialMetallicRoughnessOnly?: boolean;
   readonly materialMetallic?: number;
   readonly materialRoughness?: number;
   readonly materialEmissive?: readonly [number, number, number];
@@ -166,14 +168,31 @@ export function createMinimalPreparedGLB(
           ...(options.materialRoughness !== undefined
             ? { roughnessFactor: options.materialRoughness }
             : {}),
+          ...(options.materialOrmTexture
+            ? {
+              metallicRoughnessTexture: {
+                index: (options.materialTexture ? 1 : 0)
+                  + (options.materialNormalTexture ? 1 : 0),
+              },
+            }
+            : {}),
         },
         ...(options.materialEmissive
           ? { emissiveFactor: options.materialEmissive }
           : {}),
+        ...(options.materialOrmTexture && !options.materialMetallicRoughnessOnly
+          ? {
+            occlusionTexture: {
+              index: (options.materialTexture ? 1 : 0)
+                + (options.materialNormalTexture ? 1 : 0),
+            },
+          }
+          : {}),
         ...(options.materialNormalTexture
           ? {
             normalTexture: {
-              index: options.materialTexture ? 1 : 0,
+              index: (options.materialTexture ? 1 : 0)
+                + (options.materialOrmTexture ? 1 : 0),
               scale: options.materialNormalScale ?? 1,
             },
           }
@@ -409,6 +428,9 @@ function textureImages(options: FixtureOptions): Record<string, unknown>[] {
   if (options.materialTexture) images.push(textureImage(options, options.materialTexture));
   if (options.materialNormalTexture) {
     images.push(textureImage(options, options.materialNormalTexture));
+  }
+  if (options.materialOrmTexture) {
+    images.push(textureImage(options, options.materialOrmTexture));
   }
   return images;
 }

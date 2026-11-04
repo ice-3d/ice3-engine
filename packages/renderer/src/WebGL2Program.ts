@@ -83,6 +83,10 @@ uniform float u_useBaseColorMap;
 uniform vec2 u_uvScale;
 uniform sampler2D u_normalMap;
 uniform float u_useNormalMap;
+uniform sampler2D u_ormMap;
+uniform float u_useOrmMap;
+uniform float u_ormOcclusion;
+uniform float u_ormMetallicRoughness;
 uniform float u_normalScale;
 uniform float u_metallic;
 uniform float u_roughness;
@@ -138,16 +142,19 @@ void main() {
     tangent = vec3(sign(normal.z), 0.0, 0.0);
     bitangent = vec3(0.0, 1.0, 0.0);
   }
+  // 三张贴图共用同一套盒投影 UV：法线主导轴决定投影平面，单位是米。
+  // 写一次就够了——底图、法线图、ORM 各写一遍迟早会漂。
+  vec2 surfaceUv;
+  if (axisWeight.x >= axisWeight.y && axisWeight.x >= axisWeight.z) {
+    surfaceUv = vec2(-sign(normal.x) * v_worldPosition.z, v_worldPosition.y);
+  } else if (axisWeight.y >= axisWeight.z) {
+    surfaceUv = vec2(v_worldPosition.x, sign(normal.y) * v_worldPosition.z);
+  } else {
+    surfaceUv = vec2(sign(normal.z) * v_worldPosition.x, v_worldPosition.y);
+  }
+  surfaceUv *= u_uvScale;
   if (u_useNormalMap > 0.5) {
-    vec2 uv = vec2(0.0);
-    if (axisWeight.x >= axisWeight.y && axisWeight.x >= axisWeight.z) {
-      uv = vec2(-sign(normal.x) * v_worldPosition.z, v_worldPosition.y);
-    } else if (axisWeight.y >= axisWeight.z) {
-      uv = vec2(v_worldPosition.x, sign(normal.y) * v_worldPosition.z);
-    } else {
-      uv = vec2(sign(normal.z) * v_worldPosition.x, v_worldPosition.y);
-    }
-    vec3 sampled = texture(u_normalMap, uv * u_uvScale).xyz * 2.0 - 1.0;
+    vec3 sampled = texture(u_normalMap, surfaceUv).xyz * 2.0 - 1.0;
     sampled.xy *= u_normalScale;
     normal = normalize(
       normalize(tangent) * sampled.x
@@ -161,10 +168,24 @@ void main() {
   float ndl = dot(normal, lightDirection);
   float key = max(ndl, 0.0) + 0.35 * max(-ndl, 0.0);
   float sky = 0.5 + 0.5 * normal.y;
+  // ORM：R 遮蔽、G 粗糙度、B 金属度，和 glTF 的打包约定一致。
+  // 遮蔽只压间接光（环境与天光），直射照度不受影响——否则阴影和贴图会互相打架。
+  float surfaceOcclusion = 1.0;
+  float surfaceMetallic = u_metallic;
+  float surfaceRoughness = clamp(u_roughness, 0.04, 1.0);
+  if (u_useOrmMap > 0.5) {
+    vec3 orm = texture(u_ormMap, surfaceUv).rgb;
+    if (u_ormOcclusion > 0.5) surfaceOcclusion = clamp(orm.r, 0.0, 1.0);
+    if (u_ormMetallicRoughness > 0.5) {
+      surfaceRoughness = clamp(surfaceRoughness * orm.g, 0.04, 1.0);
+      surfaceMetallic = clamp(surfaceMetallic * orm.b, 0.0, 1.0);
+    }
+  }
   // 直射光强度按真实日照给：朝上的面会超过 1，过曝到接近白色是对的，
   // 之前上限压到 1 附近，整个厂区就永远晒不到太阳，看着发闷发暗。
   float shade = clamp(
-    ${LIGHTING.ambient} + ${LIGHTING.direct} * key + ${LIGHTING.sky} * sky,
+    (${LIGHTING.ambient} + ${LIGHTING.sky} * sky) * surfaceOcclusion
+      + ${LIGHTING.direct} * key,
     ${LIGHTING.minimum},
     ${LIGHTING.maximum}
   );
@@ -172,15 +193,7 @@ void main() {
   // derived from the surface normal's dominant axis, in metres, which matches
   // the coordinates Studio writes into exported glTF.
   if (u_useBaseColorMap > 0.5) {
-    vec2 uv;
-    if (axisWeight.x >= axisWeight.y && axisWeight.x >= axisWeight.z) {
-      uv = vec2(-sign(normal.x) * v_worldPosition.z, v_worldPosition.y);
-    } else if (axisWeight.y >= axisWeight.z) {
-      uv = vec2(v_worldPosition.x, sign(normal.y) * v_worldPosition.z);
-    } else {
-      uv = vec2(sign(normal.z) * v_worldPosition.x, v_worldPosition.y);
-    }
-    color *= texture(u_baseColorMap, uv * u_uvScale).rgb;
+    color *= texture(u_baseColorMap, surfaceUv).rgb;
   }
   vec3 lit = color * mix(1.0, shade, u_useDirectionalShading);
 
@@ -282,8 +295,8 @@ void main() {
   {
     vec3 viewDirection = normalize(u_cameraPosition - v_worldPosition);
     vec3 halfVector = normalize(lightDirection + viewDirection);
-    float metallic = clamp(u_metallic, 0.0, 1.0);
-    float roughness = clamp(u_roughness, 0.04, 1.0);
+    float metallic = clamp(surfaceMetallic, 0.0, 1.0);
+    float roughness = clamp(surfaceRoughness, 0.04, 1.0);
     vec3 reflectance = mix(vec3(0.04), color, metallic);
 
     float diffuseGain = 1.0 - metallic * 0.85;
@@ -412,6 +425,10 @@ export class WebGL2Program {
   private readonly useBaseColorMapLocation: WebGLUniformLocation | null;
   private readonly uvScaleLocation: WebGLUniformLocation | null;
   private readonly normalMapLocation: WebGLUniformLocation | null;
+  private readonly ormMapLocation: WebGLUniformLocation | null;
+  private readonly useOrmMapLocation: WebGLUniformLocation | null;
+  private readonly ormOcclusionLocation: WebGLUniformLocation | null;
+  private readonly ormMetallicRoughnessLocation: WebGLUniformLocation | null;
   private readonly useNormalMapLocation: WebGLUniformLocation | null;
   private readonly normalScaleLocation: WebGLUniformLocation | null;
   private readonly metallicLocation: WebGLUniformLocation | null;
@@ -444,6 +461,10 @@ export class WebGL2Program {
     const useBaseColorMapLocation = gl.getUniformLocation(program, 'u_useBaseColorMap');
     const uvScaleLocation = gl.getUniformLocation(program, 'u_uvScale');
     const normalMapLocation = gl.getUniformLocation(program, 'u_normalMap');
+    const ormMapLocation = gl.getUniformLocation(program, 'u_ormMap');
+    const useOrmMapLocation = gl.getUniformLocation(program, 'u_useOrmMap');
+    const ormOcclusionLocation = gl.getUniformLocation(program, 'u_ormOcclusion');
+    const ormMetallicRoughnessLocation = gl.getUniformLocation(program, 'u_ormMetallicRoughness');
     const useNormalMapLocation = gl.getUniformLocation(program, 'u_useNormalMap');
     const normalScaleLocation = gl.getUniformLocation(program, 'u_normalScale');
     const metallicLocation = gl.getUniformLocation(program, 'u_metallic');
@@ -498,6 +519,10 @@ export class WebGL2Program {
     this.useBaseColorMapLocation = useBaseColorMapLocation;
     this.uvScaleLocation = uvScaleLocation;
     this.normalMapLocation = normalMapLocation;
+    this.ormMapLocation = ormMapLocation;
+    this.useOrmMapLocation = useOrmMapLocation;
+    this.ormOcclusionLocation = ormOcclusionLocation;
+    this.ormMetallicRoughnessLocation = ormMetallicRoughnessLocation;
     this.useNormalMapLocation = useNormalMapLocation;
     this.normalScaleLocation = normalScaleLocation;
     this.metallicLocation = metallicLocation;
@@ -529,6 +554,11 @@ export class WebGL2Program {
     if (normalMapLocation) {
       gl.useProgram(program);
       gl.uniform1i(normalMapLocation, 1);
+    }
+    // ORM 走 4 号单元：0 底色、1 法线、2 场景深度、3 阴影，别撞车。
+    if (ormMapLocation) {
+      gl.useProgram(program);
+      gl.uniform1i(ormMapLocation, 4);
     }
     if (useNormalMapLocation) {
       gl.useProgram(program);
@@ -596,6 +626,32 @@ export class WebGL2Program {
     gl.uniform1f(this.useNormalMapLocation, 1);
     if (this.normalScaleLocation) {
       gl.uniform1f(this.normalScaleLocation, strength);
+    }
+  }
+
+  /**
+   * Bind the packed ORM map. `occlusion` / `metallicRoughness` describe which
+   * halves of the image are meaningful; both false disables sampling.
+   */
+  setOrmMap(
+    texture: WebGLTexture | null,
+    occlusion: boolean,
+    metallicRoughness: boolean,
+  ): void {
+    const gl = this.gl;
+    if (!this.useOrmMapLocation) return;
+    if (!texture || (!occlusion && !metallicRoughness)) {
+      gl.uniform1f(this.useOrmMapLocation, 0);
+      return;
+    }
+    gl.activeTexture(gl.TEXTURE4);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniform1f(this.useOrmMapLocation, 1);
+    if (this.ormOcclusionLocation) {
+      gl.uniform1f(this.ormOcclusionLocation, occlusion ? 1 : 0);
+    }
+    if (this.ormMetallicRoughnessLocation) {
+      gl.uniform1f(this.ormMetallicRoughnessLocation, metallicRoughness ? 1 : 0);
     }
   }
 

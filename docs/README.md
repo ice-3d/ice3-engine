@@ -54,6 +54,7 @@
 | `ICE3-ENG-SPEC-006` | [视口贴图采样设计](specs/2026-11-04-viewport-texture-sampling-design.md) | Implemented | Base-colour 贴图采样、盒投影 UV 与纹理缓存 |
 | `ICE3-ENG-SPEC-007` | [屏幕空间遮蔽笔记](specs/2026-11-04-screen-space-occlusion-notes.md) | Implemented | 三次失败记录、视空间采样实现、三圈权重与 `?ao` 调参通道 |
 | `ICE3-ENG-SPEC-008` | [方向光阴影](specs/2026-11-04-directional-light-shadows.md) | Implemented | 三条几何路径、视锥拟合、法线偏移与 `?shadowdebug` 调试通道 |
+| `ICE3-ENG-SPEC-009` | [ORM 打包](specs/2026-11-04-orm-packing.md) | Implemented | 遮蔽/粗糙度/金属度一张图，双槽位写入与通道可信标记 |
 
 ## 6. 实施计划
 

@@ -127,12 +127,24 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     program.setColor(colorToRgba(material.color));
     const map = material.map;
     const texture = map && this.textures ? this.textures.texture(map.url) : null;
-    program.setBaseColorMap(texture, map?.scale ?? DEFAULT_UV_SCALE);
+    // 三张贴图共用一套米制 UV，平铺倍率也就只有一个：底色图优先，
+    // 没有底色图时退回 ORM 自己带的倍率（导入的资产常常只带 ORM）。
+    program.setBaseColorMap(
+      texture,
+      map?.scale ?? material.ormMap?.scale ?? DEFAULT_UV_SCALE,
+    );
     const normalMap = material.normalMap;
     const normalTexture = normalMap && this.textures
       ? this.textures.texture(normalMap.url)
       : null;
     program.setNormalMap(normalTexture, normalMap?.strength ?? 1);
+    const ormMap = material.ormMap;
+    const ormTexture = ormMap && this.textures ? this.textures.texture(ormMap.url) : null;
+    program.setOrmMap(
+      ormTexture,
+      ormMap?.occlusion !== false,
+      ormMap?.metallicRoughness !== false,
+    );
     program.setSurface(material.metallic, material.roughness, material.emissive);
   }
 
@@ -143,6 +155,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     program.setColor(colorToRgba(material.edgeColor ?? material.color));
     program.setBaseColorMap(null, DEFAULT_UV_SCALE);
     program.setNormalMap(null, 1);
+    program.setOrmMap(null, false, false);
     program.setSurface(0, 0.85, undefined);
   }
 

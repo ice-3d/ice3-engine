@@ -49,6 +49,8 @@ function validateTextures(json: JSONRecord): void {
     const slots = [
       ['baseColorTexture', record(record(material.pbrMetallicRoughness)?.baseColorTexture)],
       ['normalTexture', record(material.normalTexture)],
+      ['metallicRoughnessTexture', record(record(material.pbrMetallicRoughness)?.metallicRoughnessTexture)],
+      ['occlusionTexture', record(material.occlusionTexture)],
     ] as const;
     for (const [slot, reference] of slots) {
       if (!reference) continue;

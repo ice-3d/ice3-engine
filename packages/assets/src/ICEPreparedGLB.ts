@@ -32,6 +32,17 @@ export interface ICEPreparedMaterial {
   readonly map?: { readonly url: string; readonly scale?: readonly [number, number] };
   /** Tangent-space normal map. */
   readonly normalMap?: { readonly url: string; readonly strength?: number };
+  /**
+   * Packed ORM map: R occlusion, G roughness, B metallic. A glTF may ship the
+   * two halves as separate slots; when they resolve to the same image the
+   * renderer samples it once.
+   */
+  readonly ormMap?: {
+    readonly url: string;
+    readonly scale?: readonly [number, number];
+    readonly occlusion: boolean;
+    readonly metallicRoughness: boolean;
+  };
   /** Metallic-roughness factors straight from the glTF material. */
   readonly metallic?: number;
   readonly roughness?: number;

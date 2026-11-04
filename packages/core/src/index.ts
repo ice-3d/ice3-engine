@@ -19,6 +19,7 @@ export type {
   ICEBasicMaterialMap,
   ICEBasicMaterialNormalMap,
   ICEBasicMaterialOptions,
+  ICEBasicMaterialOrmMap,
 } from './material/ICEBasicMaterial.js';
 export { ICEPerspectiveCamera } from './camera/ICEPerspectiveCamera.js';
 export type { ICEPerspectiveCameraOptions } from './camera/ICEPerspectiveCamera.js';

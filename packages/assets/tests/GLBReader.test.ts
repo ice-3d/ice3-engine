@@ -363,3 +363,41 @@ it('leaves surface factors off when the material has none', () => {
   expect(material.roughness).toBeUndefined();
   expect(material.emissive).toBeUndefined();
 });
+
+it('packs the occlusion and metallic-roughness slots into one ORM map', () => {
+  const snapshot = readPreparedGLB(
+    createMinimalPreparedGLB({
+      materialTexture: 'textures/steel.png',
+      materialOrmTexture: 'textures/steel-orm.png',
+    }),
+    { baseUrl: 'https://host.example/assets/plant/tileset.json' },
+  );
+  const material = snapshot.materials[0]!;
+  // 两个槽位指向同一张图：运行时只采样一次，两个通道都可信。
+  expect(material.ormMap).toEqual({
+    url: 'https://host.example/assets/plant/textures/steel-orm.png',
+    occlusion: true,
+    metallicRoughness: true,
+  });
+});
+
+it('trusts only the metallic-roughness half when occlusion is absent', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB({
+    materialOrmTexture: 'textures/steel-orm.png',
+    materialMetallicRoughnessOnly: true,
+  }));
+  const material = snapshot.materials[0]!;
+  // 只有 metallicRoughnessTexture 时不能拿 R 通道当遮蔽，否则整片材质无故变暗。
+  expect(material.ormMap).toEqual({
+    url: 'textures/steel-orm.png',
+    occlusion: false,
+    metallicRoughness: true,
+  });
+});
+
+it('leaves the ORM map off when the material has none', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB({
+    materialTexture: 'textures/steel.png',
+  }));
+  expect(snapshot.materials[0]!.ormMap).toBeUndefined();
+});
