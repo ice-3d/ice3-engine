@@ -2,6 +2,7 @@ export {
   readPreparedGLB,
   verifyPreparedGLBIntegrity,
 } from './ICEGLBReader.js';
+export type { ICEPreparedReadOptions } from './ICEGLBReader.js';
 export type {
   ICEPreparedAssetSnapshot,
   ICEPreparedBatch,

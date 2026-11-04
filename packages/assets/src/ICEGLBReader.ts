@@ -19,7 +19,18 @@ import {
 
 type JSONRecord = Record<string, unknown>;
 
-export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
+export interface ICEPreparedReadOptions {
+  /**
+   * URL the GLB was loaded from. Texture images are resolved against it, as
+   * glTF requires external resources to be relative to the referencing file.
+   */
+  readonly baseUrl?: string;
+}
+
+export function readPreparedGLB(
+  bytes: ArrayBuffer,
+  options: ICEPreparedReadOptions = {},
+): ICEPreparedAssetSnapshot {
   const { json, binary, profile } = parseGLB(bytes);
   const accessors = records(json.accessors);
   const views = records(json.bufferViews);
@@ -159,7 +170,12 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
         : undefined;
       const shading = record(record(baseMaterial?.extras)?.ice3)?.shading;
       const materialIndex = materials.length;
-      const map = materialMap(baseMaterial, sourceTextures, sourceImages);
+      const map = materialMap(
+        baseMaterial,
+        sourceTextures,
+        sourceImages,
+        options.baseUrl,
+      );
       materials.push({
         id: `${meshId}/material/${primitiveIndex}`,
         baseColor: materialColor(baseMaterial),
@@ -687,6 +703,7 @@ function materialMap(
   material: JSONRecord | undefined,
   textures: readonly JSONRecord[],
   images: readonly JSONRecord[],
+  baseUrl: string | undefined,
 ): { url: string; scale?: readonly [number, number] } | undefined {
   const reference = record(record(material?.pbrMetallicRoughness)?.baseColorTexture);
   if (!reference) return undefined;
@@ -698,11 +715,24 @@ function materialMap(
   const su = scale?.[0];
   const sv = scale?.[1];
   return {
-    url: uri,
+    url: resolveTextureUrl(uri, baseUrl),
     ...(typeof su === 'number' && typeof sv === 'number' && su > 0 && sv > 0
       ? { scale: [su, sv] as const }
       : {}),
   };
+}
+
+/**
+ * Resolve a texture path against the asset URL, falling back to the raw path
+ * when there is no usable base (unit tests, in-memory snapshots).
+ */
+function resolveTextureUrl(uri: string, baseUrl: string | undefined): string {
+  if (!baseUrl) return uri;
+  try {
+    return new URL(uri, baseUrl).href;
+  } catch {
+    return uri;
+  }
 }
 
 function materialColor(material: JSONRecord | undefined): string {

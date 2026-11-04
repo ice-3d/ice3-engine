@@ -301,3 +301,20 @@ it('rejects texture images that are not relative files next to the asset', () =>
     materialTextureKind: 'embedded',
   }))).toThrowError(/ICE3_ASSET_UNSUPPORTED_FEATURE/);
 });
+
+it('resolves texture images against the asset url', () => {
+  const snapshot = readPreparedGLB(
+    createMinimalPreparedGLB({ materialTexture: 'textures/steel.png' }),
+    { baseUrl: 'https://host.example/assets/plant/parts/part-000.glb' },
+  );
+  expect(snapshot.materials[0]!.map?.url).toBe(
+    'https://host.example/assets/plant/parts/textures/steel.png',
+  );
+});
+
+it('keeps the recorded path when no base url is available', () => {
+  const snapshot = readPreparedGLB(
+    createMinimalPreparedGLB({ materialTexture: 'textures/steel.png' }),
+  );
+  expect(snapshot.materials[0]!.map?.url).toBe('textures/steel.png');
+});

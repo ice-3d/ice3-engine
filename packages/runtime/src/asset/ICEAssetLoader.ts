@@ -128,7 +128,9 @@ export class ICEAssetLoader {
       throw new Error(`ICE3_ASSET_FETCH_FAILED: HTTP ${response.status}`);
     }
     const bytes = await response.arrayBuffer();
-    const snapshot = readPreparedGLB(bytes);
+    // glTF resolves external resources relative to the referencing file, so the
+    // asset URL is the base for every texture image.
+    const snapshot = readPreparedGLB(bytes, { baseUrl: url });
     return { bytes, snapshot };
   }
 }
