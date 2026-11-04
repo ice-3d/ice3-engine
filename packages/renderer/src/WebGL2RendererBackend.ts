@@ -20,6 +20,7 @@ import {
 import { WebGL2GeometryCache } from './WebGL2GeometryCache.js';
 import { WebGL2Picker } from './WebGL2Picker.js';
 import { WebGL2ShadowMap } from './WebGL2ShadowMap.js';
+import { WebGL2SceneDepth } from './WebGL2SceneDepth.js';
 import { WebGL2Program } from './WebGL2Program.js';
 import { WebGL2TextureCache } from './WebGL2TextureCache.js';
 import { DEFAULT_UV_SCALE, type ICEUvScale } from './WebGL2Uv.js';
@@ -101,6 +102,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     gpuBytes: 0,
   };
   private textures: WebGL2TextureCache | null = null;
+  private sceneDepth: WebGL2SceneDepth | null = null;
   private options: Parameters<ICERendererBackend['initialize']>[0] | null = null;
 
   /**
@@ -145,6 +147,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     event.preventDefault();
     this.picker = null;
     this.program = null;
+    this.sceneDepth?.dispose();
+    this.sceneDepth = null;
     this.shadowMap?.dispose();
     this.shadowMap = null;
     this.geometryCache?.clear();
@@ -205,6 +209,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     gl.polygonOffset(2, 4);
     this.createProgram(gl);
     this.ensureTextureCache();
+    this.sceneDepth = new WebGL2SceneDepth(gl);
     this.canvas.addEventListener('webglcontextlost', this.handleContextLost);
     this.canvas.addEventListener('webglcontextrestored', this.handleContextRestored);
   }
@@ -317,6 +322,53 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     const batches = collectRenderBatches(frame.scene, this.batchesScratch);
     this.profiler.mark('collect');
 
+    // 相机深度 pass（屏幕空间遮蔽的来源）：两条几何路径都要画。
+    let aoReady = false;
+    if (this.sceneDepth) {
+      const deviceWidth = Math.max(1, Math.round(frame.viewport.width * this.dpr));
+      const deviceHeight = Math.max(1, Math.round(frame.viewport.height * this.dpr));
+      this.sceneDepth.begin(viewProjection.elements, deviceWidth, deviceHeight);
+      this.sceneDepth.setInstancing(true);
+      for (const batch of instances) {
+        if (isTransparentColor(batch.material.color)) continue;
+        const instance = this.instanceCache!.retain(gl, this.geometryCache, batch);
+        if (!instance) continue;
+        gl.bindVertexArray(instance.vertexArray);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, instance.triangleIndexBuffer);
+        gl.drawElementsInstanced(
+          gl.TRIANGLES,
+          instance.triangleCount,
+          batch.geometry.indices instanceof Uint16Array
+            ? gl.UNSIGNED_SHORT
+            : gl.UNSIGNED_INT,
+          0,
+          instance.instanceCount,
+        );
+      }
+      this.sceneDepth.setInstancing(false);
+      for (const draw of batches) {
+        if (isTransparentColor(draw.batch.material.color)) continue;
+        world.elements.set(draw.worldMatrix);
+        mvp.elements.set(viewProjection.elements);
+        mvp.multiply(world);
+        this.sceneDepth.setMatrix(mvp.elements);
+        const geometry = this.geometryCache.retain(gl, draw.batch.geometry);
+        gl.bindVertexArray(geometry.vertexArray);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
+        gl.drawElements(
+          gl.TRIANGLES,
+          geometry.triangleCount,
+          draw.batch.geometry.indices instanceof Uint16Array
+            ? gl.UNSIGNED_SHORT
+            : gl.UNSIGNED_INT,
+          0,
+        );
+      }
+      this.sceneDepth.end(deviceWidth, deviceHeight);
+      aoReady = true;
+      this.program.use();
+    }
+
     // 阴影 pass：先用深度程序把场景渲染进贴图，主 pass 再采样。
     if (this.shadowEnabled && this.shadowMap?.begin()) {
       for (const batch of instances) {
@@ -348,6 +400,15 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         this.shadowMap.matrix,
       );
     }
+
+    this.program.setSceneDepth(
+      aoReady ? this.sceneDepth!.texture : null,
+      frame.camera.getProjectionMatrix(aspect),
+      frame.camera.near,
+      frame.camera.far,
+      Math.max(1, frame.viewport.width * this.dpr),
+      Math.max(1, frame.viewport.height * this.dpr),
+    );
 
     for (const transparentPass of [false, true] as const) {
       if (transparentPass) {

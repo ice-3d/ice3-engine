@@ -85,9 +85,24 @@ uniform float u_normalScale;
 uniform float u_metallic;
 uniform float u_roughness;
 uniform vec3 u_emissive;
+uniform sampler2D u_sceneDepth;
+uniform float u_useSceneDepth;
+uniform mat4 u_projection;
+uniform vec2 u_viewport;
+uniform vec2 u_clipRange;
+uniform float u_aoRadius;
 in vec3 v_color;
 in vec3 v_worldPosition;
 out vec4 outputColor;
+
+// 由屏幕 UV 与深度缓冲重建视空间坐标（与 WebGL2DepthMath 的换算一致）。
+vec3 viewPositionAt(vec2 uv, float tanHalfFov, float aspect, float near, float far) {
+  float depth = texture(u_sceneDepth, uv).r;
+  float ndcZ = depth * 2.0 - 1.0;
+  float linear = (2.0 * near * far) / (far + near - ndcZ * (far - near));
+  vec2 ndc = uv * 2.0 - 1.0;
+  return vec3(ndc.x * tanHalfFov * aspect * linear, ndc.y * tanHalfFov * linear, -linear);
+}
 
 void main() {
   // Section plane: discard the half-space on the negative side. A zero plane
@@ -206,6 +221,45 @@ void main() {
     );
     lit = mix(lit, surfaceColor * shade, 0.92)
       + vec3(0.42, 0.52, 0.54) * sparkle * 0.55;
+  }
+
+  // 屏幕空间遮蔽：先把深度还原成视空间坐标，再按**世界半径**取样。
+  // 直接比较 NDC 深度差表达不了"1 米"这种量（远端千分之几就跨了十米），
+  // 这也是 SPEC-007 前三轮失败的原因。
+  if (u_useSceneDepth > 0.5) {
+    vec2 screenUv = gl_FragCoord.xy / u_viewport;
+    float tanHalfFov = 1.0 / u_projection[1][1];
+    float aspect = u_projection[1][1] / u_projection[0][0];
+    float near = u_clipRange.x;
+    float far = u_clipRange.y;
+
+    vec3 centre = viewPositionAt(screenUv, tanHalfFov, aspect, near, far);
+    // 法线由视空间位置的屏幕导数求出：几何没有法线属性，也不需要。
+    vec3 viewNormal = normalize(cross(dFdx(centre), dFdy(centre)));
+    float centreDepth = -centre.z;
+
+    // 世界半径换算成像素半径：越远越小，近景远景才都有意义。
+    float pixelRadius = (u_aoRadius / max(1e-4, centreDepth * tanHalfFov)) * (u_viewport.y * 0.5);
+    float rotation = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) * 6.2831853;
+
+    float occlusion = 0.0;
+    for (int i = 0; i < 8; i++) {
+      float angle = rotation + float(i) * 0.7853982;
+      float scale = mix(0.35, 1.0, float(i % 3) / 2.0);
+      vec2 offset = vec2(cos(angle), sin(angle)) * pixelRadius * scale;
+      vec2 sampleUv = screenUv + offset / u_viewport;
+      if (sampleUv.x < 0.0 || sampleUv.x > 1.0 || sampleUv.y < 0.0 || sampleUv.y > 1.0) continue;
+      vec3 samplePoint = viewPositionAt(sampleUv, tanHalfFov, aspect, near, far);
+      vec3 delta = samplePoint - centre;
+      float distance = length(delta);
+      // 只在半球内、且距离在半径内的样本算遮挡。
+      if (distance > 0.0001 && distance < u_aoRadius
+          && dot(delta, viewNormal) > 0.15 * distance) {
+        occlusion += 1.0;
+      }
+    }
+    occlusion /= 8.0;
+    lit *= 1.0 - occlusion * 0.35;
   }
 
   // 金属没有漫反射：它的颜色全部来自反射。先把漫反射按 metallic 收掉，
@@ -331,6 +385,12 @@ export class WebGL2Program {
   private readonly metallicLocation: WebGLUniformLocation | null;
   private readonly roughnessLocation: WebGLUniformLocation | null;
   private readonly emissiveLocation: WebGLUniformLocation | null;
+  private readonly sceneDepthLocation: WebGLUniformLocation | null;
+  private readonly useSceneDepthLocation: WebGLUniformLocation | null;
+  private readonly projectionLocation: WebGLUniformLocation | null;
+  private readonly viewportLocation: WebGLUniformLocation | null;
+  private readonly clipRangeLocation: WebGLUniformLocation | null;
+  private readonly aoRadiusLocation: WebGLUniformLocation | null;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     const program = this.createProgram(VERTEX_SOURCE, FRAGMENT_SOURCE);
@@ -356,6 +416,12 @@ export class WebGL2Program {
     const metallicLocation = gl.getUniformLocation(program, 'u_metallic');
     const roughnessLocation = gl.getUniformLocation(program, 'u_roughness');
     const emissiveLocation = gl.getUniformLocation(program, 'u_emissive');
+    const sceneDepthLocation = gl.getUniformLocation(program, 'u_sceneDepth');
+    const useSceneDepthLocation = gl.getUniformLocation(program, 'u_useSceneDepth');
+    const projectionLocation = gl.getUniformLocation(program, 'u_projection');
+    const viewportLocation = gl.getUniformLocation(program, 'u_viewport');
+    const clipRangeLocation = gl.getUniformLocation(program, 'u_clipRange');
+    const aoRadiusLocation = gl.getUniformLocation(program, 'u_aoRadius');
     const shadowMapLocation = gl.getUniformLocation(program, 'u_shadowMap');
     const lightMatrixLocation = gl.getUniformLocation(program, 'u_lightViewProjection');
     const shadowEnabledLocation = gl.getUniformLocation(program, 'u_shadowEnabled');
@@ -402,6 +468,24 @@ export class WebGL2Program {
     this.metallicLocation = metallicLocation;
     this.roughnessLocation = roughnessLocation;
     this.emissiveLocation = emissiveLocation;
+    this.sceneDepthLocation = sceneDepthLocation;
+    this.useSceneDepthLocation = useSceneDepthLocation;
+    this.projectionLocation = projectionLocation;
+    this.viewportLocation = viewportLocation;
+    this.clipRangeLocation = clipRangeLocation;
+    this.aoRadiusLocation = aoRadiusLocation;
+    if (sceneDepthLocation) {
+      gl.useProgram(program);
+      gl.uniform1i(sceneDepthLocation, 2);
+    }
+    if (useSceneDepthLocation) {
+      gl.useProgram(program);
+      gl.uniform1f(useSceneDepthLocation, 0);
+    }
+    if (aoRadiusLocation) {
+      gl.useProgram(program);
+      gl.uniform1f(aoRadiusLocation, 2.5);
+    }
     if (emissiveLocation) {
       gl.useProgram(program);
       gl.uniform3f(emissiveLocation, 0, 0, 0);
@@ -491,6 +575,35 @@ export class WebGL2Program {
     if (this.emissiveLocation) {
       if (emissive) gl.uniform3f(this.emissiveLocation, emissive[0], emissive[1], emissive[2]);
       else gl.uniform3f(this.emissiveLocation, 0, 0, 0);
+    }
+  }
+
+  /** 绑定相机深度纹理（unit 2）并传入重建视空间所需的相机参数。 */
+  setSceneDepth(
+    texture: WebGLTexture | null,
+    projection: { readonly elements: Float32Array } | null,
+    near: number,
+    far: number,
+    deviceWidth: number,
+    deviceHeight: number,
+  ): void {
+    const gl = this.gl;
+    if (!this.useSceneDepthLocation) return;
+    if (!texture || !projection) {
+      gl.uniform1f(this.useSceneDepthLocation, 0);
+      return;
+    }
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniform1f(this.useSceneDepthLocation, 1);
+    if (this.projectionLocation) {
+      gl.uniformMatrix4fv(this.projectionLocation, false, projection.elements);
+    }
+    if (this.viewportLocation) {
+      gl.uniform2f(this.viewportLocation, deviceWidth, deviceHeight);
+    }
+    if (this.clipRangeLocation) {
+      gl.uniform2f(this.clipRangeLocation, near, far);
     }
   }
 
