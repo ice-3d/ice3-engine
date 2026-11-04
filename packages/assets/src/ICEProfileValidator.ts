@@ -6,6 +6,58 @@ export interface ICEProfileValidation {
   readonly profile: JSONRecord;
 }
 
+/**
+ * Base-colour textures are supported, but only as external relative images.
+ *
+ * The profile keeps exactly one buffer, so an embedded `bufferView` image would
+ * turn the asset into a self-contained binary whose images the renderer cannot
+ * address; a relative `uri` travels next to the asset and stays streamable.
+ */
+function validateTextures(json: JSONRecord): void {
+  const images = records(json.images);
+  const textures = records(json.textures);
+  const samplers = records(json.samplers);
+  for (const image of images) {
+    const uri = image.uri;
+    if (
+      typeof uri !== 'string'
+      || !uri
+      || uri.startsWith('/')
+      || uri.includes('..')
+      || uri.includes('://')
+      || image.bufferView !== undefined
+    ) {
+      throw assetError(
+        'ICE3_ASSET_UNSUPPORTED_FEATURE',
+        'images must reference a relative file path',
+      );
+    }
+  }
+  for (const texture of textures) {
+    const source = Number(texture.source);
+    if (!Number.isInteger(source) || source < 0 || source >= images.length) {
+      throw assetError('ICE3_ASSET_INVALID_GLB', 'texture source is out of range');
+    }
+    if (texture.sampler !== undefined) {
+      const sampler = Number(texture.sampler);
+      if (!Number.isInteger(sampler) || sampler < 0 || sampler >= samplers.length) {
+        throw assetError('ICE3_ASSET_INVALID_GLB', 'texture sampler is out of range');
+      }
+    }
+  }
+  for (const material of records(json.materials)) {
+    const reference = record(record(material.pbrMetallicRoughness)?.baseColorTexture);
+    if (!reference) continue;
+    const index = Number(reference.index);
+    if (!Number.isInteger(index) || index < 0 || index >= textures.length) {
+      throw assetError(
+        'ICE3_ASSET_INVALID_GLB',
+        'baseColorTexture index is out of range',
+      );
+    }
+  }
+}
+
 export function validatePreparedProfile(
   json: JSONRecord,
   binary: Uint8Array,
@@ -64,9 +116,6 @@ export function validatePreparedProfile(
     'animations',
     'skins',
     'cameras',
-    'textures',
-    'images',
-    'samplers',
     'lights',
   ]) {
     if (Array.isArray(json[field]) && json[field].length > 0) {
@@ -76,6 +125,7 @@ export function validatePreparedProfile(
       );
     }
   }
+  validateTextures(json);
   if (
     records(json.scenes).length !== 1
     || json.scene !== 0

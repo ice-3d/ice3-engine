@@ -69,18 +69,18 @@ glTF 里落在同一片纹素上。单位是米：一个 UV 单位 = 一米表�
   ready 转换、上传回调触发、失败不重试、dispose 释放全部纹理、dispose 后才到达的上传
   被丢弃。
 
-## 6. 与资产 profile 的边界
+## 6. 资产 profile
 
-Prepared GLB profile 目前**显式禁止** `textures`/`images`（
-`ICE3_ASSET_UNSUPPORTED_FEATURE`）。因此本轮只交付渲染器能力与材质契约：
-`ICEPreparedMaterial.map` 字段与场景构建的透传已经就位，但资产侧还不会产出它。
+Prepared GLB profile 已放开 `textures`/`images`/`samplers`，但只接受**相对路径**的
+外部图片：profile 只保留一个 buffer，把图片塞进 `bufferView` 会让它藏进二进制，渲染器
+既拿不到可寻址的字节，资产也不再可流式。绝对路径、`..`、`://` 与 `bufferView` 形态
+一律报 `ICE3_ASSET_UNSUPPORTED_FEATURE`。
 
-要打通 Studio 视口，还需要两步（后续）：
+读取器把 `baseColorTexture.index → textures[].source → images[].uri` 解析成
+`ICEPreparedMaterial.map`，`KHR_texture_transform.scale` 作为平铺倍率一并带出。
 
-1. 放宽 `ICEProfileValidator` 对 `textures`/`images`/`samplers` 的限制，并同步 Studio
-   侧的 canonical writer 与 profile 校验；
-2. canonical GLB 写入 `baseColorTexture`（`KHR_texture_transform` 携带 `uvScale`）并把
-   图片以相对 URI 放到资产目录旁，由 Studio 的静态路由提供。
+尚未完成（后续）：分区打包给每个 tile 复制 images/textures 数组并落盘图片文件，以及
+Studio 侧把这些文件用静态路由供出去。
 
 ## 7. 代码落点
 

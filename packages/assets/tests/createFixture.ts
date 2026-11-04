@@ -13,6 +13,9 @@ type FixtureOptions = {
   readonly withVertexColors?: boolean;
   readonly materialShading?: 'directional' | 'water';
   readonly materialOpacity?: number;
+  readonly materialTexture?: string;
+  /** How the texture image is declared; defaults to a relative uri. */
+  readonly materialTextureKind?: 'uri' | 'absolute' | 'embedded';
   readonly selectionId?: string;
   readonly metadata?: Readonly<Record<string, unknown>>;
   readonly sharedNodeCount?: number;
@@ -151,6 +154,7 @@ export function createMinimalPreparedGLB(
       {
         pbrMetallicRoughness: {
           baseColorFactor: [0.2, 0.5, 0.9, options.materialOpacity ?? 1],
+          ...(options.materialTexture ? { baseColorTexture: { index: 0 } } : {}),
         },
         extras: {
           ice3: {
@@ -207,9 +211,14 @@ export function createMinimalPreparedGLB(
       }] : []),
     ],
     buffers: [{ byteLength: binaryLength }],
-    ...(options.forbiddenFeature
-      ? { animations: [{}], textures: [{}] }
+    ...(options.materialTexture
+      ? {
+        images: [textureImage(options)],
+        samplers: [{ wrapS: 10497, wrapT: 10497 }],
+        textures: [{ sampler: 0, source: 0 }],
+      }
       : {}),
+    ...(options.forbiddenFeature ? { animations: [{}] } : {}),
   };
 
   return packGLB(json, binary);
@@ -370,4 +379,11 @@ function packGLB(json: unknown, binary: Buffer): ArrayBuffer {
     output.byteOffset,
     output.byteOffset + output.byteLength,
   );
+}
+
+function textureImage(options: FixtureOptions): Record<string, unknown> {
+  const uri = options.materialTexture ?? '';
+  if (options.materialTextureKind === 'absolute') return { uri: `/${uri}` };
+  if (options.materialTextureKind === 'embedded') return { bufferView: 0 };
+  return { uri };
 }

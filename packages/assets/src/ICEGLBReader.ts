@@ -26,6 +26,8 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
   const sourceNodes = records(json.nodes);
   const sourceMeshes = records(json.meshes);
   const sourceMaterials = records(json.materials);
+  const sourceTextures = records(json.textures);
+  const sourceImages = records(json.images);
   const activeScene = records(json.scenes)[Number(json.scene ?? 0)];
   const sceneRoots = integers(activeScene?.nodes);
   const parents = new Array<number | null>(sourceNodes.length).fill(null);
@@ -157,11 +159,13 @@ export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot {
         : undefined;
       const shading = record(record(baseMaterial?.extras)?.ice3)?.shading;
       const materialIndex = materials.length;
+      const map = materialMap(baseMaterial, sourceTextures, sourceImages);
       materials.push({
         id: `${meshId}/material/${primitiveIndex}`,
         baseColor: materialColor(baseMaterial),
         ...(edgeMaterial ? { edgeColor: materialColor(edgeMaterial) } : {}),
         ...(shading === 'directional' || shading === 'water' ? { shading } : {}),
+        ...(map ? { map } : {}),
       });
       const bounds = boundsFromAccessor(accessors[positionIndex]);
       const geometryIndex = geometries.length;
@@ -669,6 +673,35 @@ function boundsFromProfile(value: unknown): ICEGeometryBounds {
   return {
     min: [Number(min[0]), Number(min[1]), Number(min[2])],
     max: [Number(max[0]), Number(max[1]), Number(max[2])],
+  };
+}
+
+/**
+ * Resolve a base-colour texture reference to a loadable URL.
+ *
+ * The profile only allows external relative images, so the URL the renderer gets
+ * is exactly the path recorded in the glTF; the caller resolves it against the
+ * asset base.
+ */
+function materialMap(
+  material: JSONRecord | undefined,
+  textures: readonly JSONRecord[],
+  images: readonly JSONRecord[],
+): { url: string; scale?: readonly [number, number] } | undefined {
+  const reference = record(record(material?.pbrMetallicRoughness)?.baseColorTexture);
+  if (!reference) return undefined;
+  const texture = textures[Number(reference.index)];
+  const uri = record(images[Number(record(texture)?.source)])?.uri;
+  if (typeof uri !== 'string' || uri.length === 0) return undefined;
+  const transform = record(record(reference.extensions)?.KHR_texture_transform);
+  const scale = numbers(transform?.scale, 2);
+  const su = scale?.[0];
+  const sv = scale?.[1];
+  return {
+    url: uri,
+    ...(typeof su === 'number' && typeof sv === 'number' && su > 0 && sv > 0
+      ? { scale: [su, sv] as const }
+      : {}),
   };
 }
 

@@ -115,7 +115,7 @@ it('rejects misaligned accessor component offsets with a profile diagnostic', ()
   );
 });
 
-it('rejects animation and texture content outside the M1 profile', () => {
+it('rejects animation content outside the M1 profile', () => {
   expect(() => readPreparedGLB(createForbiddenFeatureGLB())).toThrowError(
     /ICE3_ASSET_UNSUPPORTED_FEATURE/,
   );
@@ -277,4 +277,27 @@ it('reads the frozen toolchain fixture with its active contract', () => {
     edgeSegmentCount: 12,
     selectionGroupCount: 1,
   });
+});
+
+it('resolves a base-colour texture reference to a loadable url', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB({
+    materialTexture: 'textures/steel.png',
+  }));
+  expect(snapshot.materials[0]!.map).toEqual({ url: 'textures/steel.png' });
+});
+
+it('leaves the map off when the primitive has no texture', () => {
+  const snapshot = readPreparedGLB(createMinimalPreparedGLB());
+  expect(snapshot.materials[0]!.map).toBeUndefined();
+});
+
+it('rejects texture images that are not relative files next to the asset', () => {
+  expect(() => readPreparedGLB(createMinimalPreparedGLB({
+    materialTexture: 'textures/steel.png',
+    materialTextureKind: 'absolute',
+  }))).toThrowError(/ICE3_ASSET_UNSUPPORTED_FEATURE/);
+  expect(() => readPreparedGLB(createMinimalPreparedGLB({
+    materialTexture: 'textures/steel.png',
+    materialTextureKind: 'embedded',
+  }))).toThrowError(/ICE3_ASSET_UNSUPPORTED_FEATURE/);
 });
