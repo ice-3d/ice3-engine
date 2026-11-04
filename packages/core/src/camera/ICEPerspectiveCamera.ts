@@ -58,13 +58,22 @@ export class ICEPerspectiveCamera {
     return this.lookTarget;
   }
 
-  getViewProjectionMatrix(aspect: number): ICEMatrix4 {
-    const projection = new ICEMatrix4().perspective(this.fov, aspect, this.near, this.far);
-    const view = new ICEMatrix4().lookAt(
+  /**
+   * 投影矩阵。屏幕空间效果要从深度重建视空间坐标，光有 viewProjection 不够。
+   */
+  getProjectionMatrix(aspect: number): ICEMatrix4 {
+    return new ICEMatrix4().perspective(this.fov, aspect, this.near, this.far);
+  }
+
+  getViewMatrix(): ICEMatrix4 {
+    return new ICEMatrix4().lookAt(
       this.eye,
       this.lookTarget,
       new ICEVector3(0, 1, 0),
     );
-    return projection.multiply(view);
+  }
+
+  getViewProjectionMatrix(aspect: number): ICEMatrix4 {
+    return this.getProjectionMatrix(aspect).multiply(this.getViewMatrix());
   }
 }
