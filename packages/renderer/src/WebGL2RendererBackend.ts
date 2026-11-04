@@ -21,6 +21,7 @@ import {
 import { WebGL2GeometryCache } from './WebGL2GeometryCache.js';
 import { WebGL2Picker } from './WebGL2Picker.js';
 import { WebGL2ShadowMap } from './WebGL2ShadowMap.js';
+import { accumulateSceneBounds } from './SceneBounds.js';
 import { WebGL2SceneDepth } from './WebGL2SceneDepth.js';
 import { WebGL2Program } from './WebGL2Program.js';
 import { WebGL2TextureCache } from './WebGL2TextureCache.js';
@@ -73,8 +74,10 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private program: WebGL2Program | null = null;
   private clipPlane: readonly [number, number, number, number] = [0, 0, 0, 0];
   private shadowMap: WebGL2ShadowMap | null = null;
-  // 阴影采样开关。定位掉深度偏差之前保持关闭，避免把错误的明暗关系画出来。
-  private readonly shadowEnabled = false;
+  /** 方向光阴影开关：默认关闭，由 `initialize({ shadows })` 或页面地址 `?shadows=` 打开。 */
+  private shadowEnabled = false;
+  /** `?shadowdebug=1` 输出遮蔽判定，`=2` 输出深度图；排查阴影问题的唯一可信手段。 */
+  private shadowDebug = 0;
   private semanticProgram: WebGL2SemanticProgram | null = null;
   private geometryCache: WebGL2GeometryCache | null = null;
   private instanceCache: WebGL2InstanceCache | null = null;
@@ -168,6 +171,25 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     }
   }
 
+  /**
+   * `?shadows=1` / `?shadows=0` 覆盖阴影开关，与 `?ao` 同属调参通道。
+   *
+   * 阴影是一次额外全场景 pass，默认不开；演示与对比时靠地址栏切换，
+   * 不必为看清"有影子/没影子"重编译一次。
+   */
+  private readShadowOverride(): void {
+    if (typeof location === 'undefined') return;
+    const params = new URLSearchParams(location.search);
+    const value = params.get('shadows');
+    if (value !== null) {
+      this.shadowEnabled = value !== '0' && value !== 'off';
+    }
+    const debug = Number(params.get('shadowdebug'));
+    this.shadowDebug = Number.isFinite(debug) ? Math.max(0, Math.min(2, Math.trunc(debug))) : 0;
+    // 调试通道要有内容可看，顺手把阴影打开，免得再拼一个参数。
+    if (this.shadowDebug > 0) this.shadowEnabled = true;
+  }
+
   private ensureTextureCache(): void {
     if (this.textures || !this.gl) return;
     this.textures = new WebGL2TextureCache(this.gl, undefined, () => {
@@ -212,6 +234,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     readonly onContextLost?: () => void;
     readonly onContextRestored?: () => void;
     readonly onUploadReady?: () => void;
+    readonly shadows?: boolean;
   }): void {
     this.options = options;
     const gl = options.canvas.getContext('webgl2', {
@@ -244,6 +267,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.ensureTextureCache();
     this.sceneDepth = new WebGL2SceneDepth(gl);
     this.readOcclusionOverride();
+    this.shadowEnabled = options.shadows ?? false;
+    this.readShadowOverride();
     this.canvas.addEventListener('webglcontextlost', this.handleContextLost);
     this.canvas.addEventListener('webglcontextrestored', this.handleContextRestored);
   }
@@ -426,7 +451,15 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     }
 
     // 阴影 pass：先用深度程序把场景渲染进贴图，主 pass 再采样。
+    // 与相机深度通道同理，三条几何路径都要画——只画实例化批次的话，厂区的瓦片、
+    // 单独编辑的物件全都不会投影，看起来像"太阳只照某些设备"。
+    if (this.shadowEnabled && this.shadowMap) {
+      // 视锥按场景贴合：写死范围会同时浪费深度精度和贴图分辨率，
+      // 深度偏差大到能把短影子整段吃掉（详见 ShadowFrustum 的说明）。
+      this.shadowMap.setBounds(accumulateSceneBounds(renderables));
+    }
     if (this.shadowEnabled && this.shadowMap?.begin()) {
+      const lightViewProjection = this.shadowMap.matrix;
       for (const batch of instances) {
         if (isTransparentColor(batch.material.color)) continue;
         const instance = this.instanceCache!.retain(gl, this.geometryCache, batch);
@@ -443,18 +476,63 @@ export class WebGL2RendererBackend implements ICERendererBackend {
           instance.instanceCount,
         );
       }
+      this.shadowMap.setInstancing(false);
+      for (const draw of batches) {
+        if (isTransparentColor(draw.batch.material.color)) continue;
+        world.elements.set(draw.worldMatrix);
+        mvp.elements.set(lightViewProjection);
+        mvp.multiply(world);
+        this.shadowMap.setMatrix(mvp.elements);
+        const geometry = this.geometryCache.retain(gl, draw.batch.geometry);
+        gl.bindVertexArray(geometry.vertexArray);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
+        gl.drawElements(
+          gl.TRIANGLES,
+          geometry.triangleCount,
+          draw.batch.geometry.indices instanceof Uint16Array
+            ? gl.UNSIGNED_SHORT
+            : gl.UNSIGNED_INT,
+          0,
+        );
+      }
+      for (const renderable of standalone) {
+        if (isTransparentColor(renderable.mesh.material.color)) continue;
+        world.elements.set(renderable.worldMatrix);
+        mvp.elements.set(lightViewProjection);
+        mvp.multiply(world);
+        this.shadowMap.setMatrix(mvp.elements);
+        const geometry = this.geometryCache.retain(gl, renderable.mesh.geometry);
+        gl.bindVertexArray(geometry.vertexArray);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
+        gl.drawElements(
+          gl.TRIANGLES,
+          geometry.triangleCount,
+          renderable.mesh.geometry.indices instanceof Uint16Array
+            ? gl.UNSIGNED_SHORT
+            : gl.UNSIGNED_INT,
+          0,
+        );
+      }
       // 视口要用设备像素：resize 里 canvas.width 是按 dpr 放大的，用 CSS 像素会把画面缩到左下角。
       this.shadowMap.end(frame.viewport.width * this.dpr, frame.viewport.height * this.dpr);
       // 阴影 pass 用的是深度程序，结束后必须切回主程序：
       // 否则后面的 setColor/setMatrix 都在往另一个程序上写 uniform，主 pass 拿到的是空的。
       this.program.use();
-      // 采样参数放在深度 pass 之后再设：此时贴图内容与矩阵都已就绪，
-      // 也和「先建图、后采样」的语义一致，避免任何先后顺序造成的错配。
+    }
+
+    // 采样参数放在深度 pass 之后再设：此时贴图内容与矩阵都已就绪，
+    // 也和「先建图、后采样」的语义一致，避免任何先后顺序造成的错配。
+    // 关闭时也要走一遍：uniform 默认 0 只是"恰好正确"，显式关掉才不会在开关切换时残留。
+    if (this.shadowMap) {
+      this.program.use();
       this.program.setShadow(
         this.shadowEnabled,
         this.shadowMap.texture,
         this.shadowMap.matrix,
+        // 1.5 个纹素：够把平躺在光里的面抬离自身深度，又不会让影子明显离开物体。
+        this.shadowMap.texelWorld * 1.5,
       );
+      this.program.setShadowDebug(this.shadowDebug);
     }
 
     this.program.setSceneDepth(

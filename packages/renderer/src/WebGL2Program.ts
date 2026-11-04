@@ -76,6 +76,8 @@ uniform vec3 u_cameraPosition;
 uniform sampler2D u_shadowMap;
 uniform mat4 u_lightViewProjection;
 uniform float u_shadowEnabled;
+uniform float u_shadowNormalOffset;
+uniform float u_shadowDebug;
 uniform sampler2D u_baseColorMap;
 uniform float u_useBaseColorMap;
 uniform vec2 u_uvScale;
@@ -309,19 +311,23 @@ void main() {
   }
 
   // 阴影：把世界坐标投到光源空间，与深度图比较。取 3×3 采样的平均做轻微柔化。
+  // shadowLit 在调试通道里直接输出：1 = 受光，0 = 被遮。
+  float shadowLit = 1.0;
   if (u_shadowEnabled > 0.5) {
-    vec4 lightSpace = u_lightViewProjection * vec4(v_worldPosition, 1.0);
+    // 采样点沿法线推出 1.5 个纹素：平躺在光里的面（屋顶、地面）在每个纹素内
+    // 本身就有深度差，靠深度偏差去追这个差只会让影子脱离物体（peter-panning）。
+    // 把比较点抬离表面才是正解，偏移量按纹素换算，和贴图分辨率解耦。
+    vec3 shadowPosition = v_worldPosition + normal * u_shadowNormalOffset;
+    vec4 lightSpace = u_lightViewProjection * vec4(shadowPosition, 1.0);
     vec3 projected = lightSpace.xyz / max(lightSpace.w, 1e-5) * 0.5 + 0.5;
     if (projected.x > 0.002 && projected.x < 0.998
         && projected.y > 0.002 && projected.y < 0.998
         && projected.z > 0.0 && projected.z < 1.0) {
-      // 斜面对深度的误差最敏感，按 N·L 放大偏移：
-      // 固定小偏移在这套 960 米深的光锥里等于几米，墙面会自己把自己遮住（阴影痤疮）。
+      // 视锥贴合场景后深度跨度只有百米量级，偏差也就可以按纹理单元给。
+      // 阴影 pass 只画背面（cull FRONT），受光面和深度图天然错开，基数可以很小；
+      // 斜面最敏感，仍按 N·L 放大（阴影痤疮与阴影脱离之间的那条窄缝）。
       float ndlShadow = max(dot(normal, lightDirection), 0.0);
-      // 偏移按光锥深度（近 -260 / 远 700，共 960 米）换算：
-      // 0.006 对应约 5.8 米，正好压掉深度图与逐像素投影之间的系统误差，
-      // 同时还能留住十几米高构筑物的投影。
-      float bias = 0.0015 + 0.0025 * (1.0 - ndlShadow);
+      float bias = 0.0006 + 0.0012 * (1.0 - ndlShadow);
       float lit2 = 0.0;
       vec2 texel = vec2(1.0 / 2048.0);
       for (int dx = -1; dx <= 1; dx++) {
@@ -330,9 +336,20 @@ void main() {
           lit2 += projected.z - bias > depth ? 0.0 : 1.0;
         }
       }
-      lit *= mix(0.68, 1.0, lit2 / 9.0);
+      shadowLit = lit2 / 9.0;
+      lit *= mix(0.68, 1.0, shadowLit);
 
     }
+  }
+  // 调试通道：?shadowdebug=1 看遮蔽判定，=2 看深度图本身。
+  if (u_shadowDebug > 0.5) {
+    if (u_shadowDebug < 1.5) {
+      outputColor = vec4(shadowLit, 0.12, 0.12, 1.0);
+    } else {
+      float stored = texture(u_shadowMap, gl_FragCoord.xy / u_viewport).r;
+      outputColor = vec4(vec3(stored), 1.0);
+    }
+    return;
   }
   // 画布按 sRGB 解释写入值，而材质是线性空间的分量，必须做一次编码。
   // 不做的话线性 0.017 会当作 sRGB 0.017 显示，深色材质全部塌成黑色。
@@ -386,6 +403,8 @@ export class WebGL2Program {
   private readonly shadowMapLocation: WebGLUniformLocation | null;
   private readonly lightMatrixLocation: WebGLUniformLocation | null;
   private readonly shadowEnabledLocation: WebGLUniformLocation | null;
+  private readonly shadowNormalOffsetLocation: WebGLUniformLocation | null;
+  private readonly shadowDebugLocation: WebGLUniformLocation | null;
   private readonly instancingLocation: WebGLUniformLocation;
   private readonly pickModeLocation: WebGLUniformLocation;
   private readonly clipPlaneLocation: WebGLUniformLocation | null;
@@ -440,6 +459,8 @@ export class WebGL2Program {
     const shadowMapLocation = gl.getUniformLocation(program, 'u_shadowMap');
     const lightMatrixLocation = gl.getUniformLocation(program, 'u_lightViewProjection');
     const shadowEnabledLocation = gl.getUniformLocation(program, 'u_shadowEnabled');
+    const shadowNormalOffsetLocation = gl.getUniformLocation(program, 'u_shadowNormalOffset');
+    const shadowDebugLocation = gl.getUniformLocation(program, 'u_shadowDebug');
     if (
       !matrixLocation
       || !colorLocation
@@ -468,9 +489,8 @@ export class WebGL2Program {
     this.shadowMapLocation = shadowMapLocation;
     this.lightMatrixLocation = lightMatrixLocation;
     this.shadowEnabledLocation = shadowEnabledLocation;
-    this.shadowMapLocation = shadowMapLocation;
-    this.lightMatrixLocation = lightMatrixLocation;
-    this.shadowEnabledLocation = shadowEnabledLocation;
+    this.shadowNormalOffsetLocation = shadowNormalOffsetLocation;
+    this.shadowDebugLocation = shadowDebugLocation;
     this.instancingLocation = instancingLocation;
     this.pickModeLocation = pickModeLocation;
     this.clipPlaneLocation = clipPlaneLocation;
@@ -649,6 +669,7 @@ export class WebGL2Program {
     enabled: boolean,
     texture: WebGLTexture | null,
     matrix: Float32Array | null,
+    normalOffset = 0,
     unit = 3,
   ): void {
     const gl = this.gl;
@@ -658,7 +679,16 @@ export class WebGL2Program {
     gl.bindTexture(gl.TEXTURE_2D, texture);
     if (this.shadowMapLocation) gl.uniform1i(this.shadowMapLocation, unit);
     if (this.lightMatrixLocation) gl.uniformMatrix4fv(this.lightMatrixLocation, false, matrix);
+    if (this.shadowNormalOffsetLocation) {
+      gl.uniform1f(this.shadowNormalOffsetLocation, normalOffset);
+    }
     gl.activeTexture(gl.TEXTURE0);
+  }
+
+  /** 阴影调试通道：0 关闭，1 输出遮蔽判定，2 输出深度图。 */
+  setShadowDebug(mode: number): void {
+    if (!this.shadowDebugLocation) return;
+    this.gl.uniform1f(this.shadowDebugLocation, mode);
   }
 
   setDirectionalShading(enabled: boolean): void {

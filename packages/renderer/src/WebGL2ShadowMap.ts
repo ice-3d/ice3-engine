@@ -1,17 +1,20 @@
 //! 方向光阴影贴图。
 //!
 //! 一次深度 pass 把场景从光源方向渲染进深度纹理，主 pass 再按世界坐标比较深度。
-//! 只处理单方向光、单张贴图，够覆盖当前查看器的需要；级联与软阴影留给后续。
+//! 只处理单方向光、单张贴图；视锥按场景包围盒拟合（见 ShadowFrustum）。
 
 import { createShaderProgram } from './WebGL2Shader.js';
+import { shadowFrustum, type ICEBounds } from './ShadowFrustum.js';
 
 const VERTEX_SOURCE = `#version 300 es
 layout(location = 0) in vec3 a_position;
 layout(location = 3) in mat4 a_instanceMatrix;
-uniform mat4 u_lightViewProjection;
+uniform mat4 u_matrix;
+uniform float u_useInstancing;
 void main() {
-  vec4 world = a_instanceMatrix * vec4(a_position, 1.0);
-  gl_Position = u_lightViewProjection * world;
+  vec4 local = vec4(a_position, 1.0);
+  vec4 world = mix(local, a_instanceMatrix * local, u_useInstancing);
+  gl_Position = u_matrix * world;
 }
 `;
 
@@ -23,13 +26,9 @@ void main() {
 `;
 
 /** 光源方向（与主着色器的 diffuse 保持同一方向）。 */
-export const LIGHT_DIRECTION: readonly [number, number, number] = [-0.35, 0.85, 0.4];
+export { SHADOW_LIGHT_DIRECTION as LIGHT_DIRECTION } from './ShadowFrustum.js';
 
 const SHADOW_SIZE = 2048;
-const DEPTH_BIAS = 0.0018;
-const ORTHO_EXTENT = 430;
-const ORTHO_NEAR = -260;
-const ORTHO_FAR = 700;
 
 export class WebGL2ShadowMap {
   /** 最近一次着色器编译/链接失败的原因，供诊断读取。 */
@@ -37,8 +36,10 @@ export class WebGL2ShadowMap {
   private framebuffer: WebGLFramebuffer | null = null;
   private depthTexture: WebGLTexture | null = null;
   private program: WebGLProgram | null = null;
-  private lightMatrixLocation: WebGLUniformLocation | null = null;
+  private matrixLocation: WebGLUniformLocation | null = null;
+  private instancingLocation: WebGLUniformLocation | null = null;
   private matrixScratch = new Float32Array(16);
+  private texelWorldValue = 1;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     this.createResources();
@@ -53,6 +54,21 @@ export class WebGL2ShadowMap {
     return this.matrixScratch;
   }
 
+  /** 一个深度纹素在世界空间的边长（米）。法线偏移按它换算，别用魔数。 */
+  get texelWorld(): number {
+    return this.texelWorldValue;
+  }
+
+  /**
+   * 按场景包围盒拟合视锥。每帧调用没有意义——场景内容不变时矩阵也不会变，
+   * 所以由调用方决定何时重算（包围盒变化或首帧）。
+   */
+  setBounds(bounds: ICEBounds | null): void {
+    const frustum = shadowFrustum(bounds, SHADOW_SIZE);
+    this.matrixScratch.set(frustum.matrix);
+    this.texelWorldValue = frustum.texelWorld;
+  }
+
   /** 绑定阴影帧缓冲，返回是否成功。 */
   begin(): boolean {
     const gl = this.gl;
@@ -64,13 +80,27 @@ export class WebGL2ShadowMap {
     gl.disable(gl.POLYGON_OFFSET_FILL);
     gl.clear(gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
-    // 只渲染背面：深度图记下的是物体「背着光」的那一层，
-    // 受光面自己就不会和自己打架，剩下的偏移量可以给得很小。
-    gl.enable(gl.CULL_FACE);
-    gl.cullFace(gl.FRONT);
+    // 不做面剔除：深度图记下的是「离光最近」的那一层，配合法线偏移，
+    // 受光面不会和自己打架。剔除依赖顶点绕序，导入模型绕序不统一时会静默失效。
+    gl.disable(gl.CULL_FACE);
     gl.useProgram(this.program);
-    gl.uniformMatrix4fv(this.lightMatrixLocation, false, this.matrixScratch);
+    gl.uniformMatrix4fv(this.matrixLocation, false, this.matrixScratch);
+    gl.uniform1f(this.instancingLocation, 1);
     return true;
+  }
+
+  /**
+   * 非实例化绘制：矩阵换成 `lightViewProjection × world`，顶点位置直接当世界坐标用。
+   *
+   * 阴影通道原先只会画实例化批次，瓦片（渲染批次）与落单网格因此完全不投影。
+   * 补这两条路径靠的就是这个入口——和 `WebGL2SceneDepth` 同一套写法。
+   */
+  setMatrix(matrix: Float32Array): void {
+    this.gl.uniformMatrix4fv(this.matrixLocation, false, matrix);
+  }
+
+  setInstancing(enabled: boolean): void {
+    this.gl.uniform1f(this.instancingLocation, enabled ? 1 : 0);
   }
 
   /** 解绑，恢复默认帧缓冲。 */
@@ -130,33 +160,13 @@ export class WebGL2ShadowMap {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     this.program = this.createProgram(VERTEX_SOURCE, FRAGMENT_SOURCE);
-    this.lightMatrixLocation = this.program
-      ? gl.getUniformLocation(this.program, 'u_lightViewProjection')
+    this.matrixLocation = this.program
+      ? gl.getUniformLocation(this.program, 'u_matrix')
       : null;
-    this.updateLightMatrix();
-  }
-
-  /** 正交光源矩阵：覆盖整片场地，与主着色器的光方向一致。 */
-  private updateLightMatrix(): void {
-    const direction = normalize(LIGHT_DIRECTION);
-    // 视锥对准场地中心：偏到一端的话，另一端会整片落在投影范围之外，
-    // 表现就是「只有一半厂区有影子，还带一条斜的硬边」。
-    const target: [number, number, number] = [300, 0, 0];
-    const eye: [number, number, number] = [
-      target[0]! + direction[0]! * 400,
-      target[1]! + direction[1]! * 400,
-      target[2]! + direction[2]! * 400,
-    ];
-    const view = lookAt(eye, target, [0, 1, 0]);
-    const projection = orthographic(
-      -ORTHO_EXTENT,
-      ORTHO_EXTENT,
-      -ORTHO_EXTENT,
-      ORTHO_EXTENT,
-      ORTHO_NEAR,
-      ORTHO_FAR,
-    );
-    this.matrixScratch.set(multiply(projection, view));
+    this.instancingLocation = this.program
+      ? gl.getUniformLocation(this.program, 'u_useInstancing')
+      : null;
+    this.setBounds(null);
   }
 
   private createProgram(vertex: string, fragment: string): WebGLProgram | null {
@@ -169,78 +179,4 @@ export class WebGL2ShadowMap {
       return null;
     }
   }
-}
-
-export const SHADOW_BIAS = DEPTH_BIAS;
-
-function normalize(value: readonly [number, number, number]): [number, number, number] {
-  const length = Math.hypot(value[0]!, value[1]!, value[2]!) || 1;
-  return [value[0]! / length, value[1]! / length, value[2]! / length];
-}
-
-function subtract(a: readonly number[], b: readonly number[]): [number, number, number] {
-  return [a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!];
-}
-
-function cross(a: readonly number[], b: readonly number[]): [number, number, number] {
-  return [
-    a[1]! * b[2]! - a[2]! * b[1]!,
-    a[2]! * b[0]! - a[0]! * b[2]!,
-    a[0]! * b[1]! - a[1]! * b[0]!,
-  ];
-}
-
-function dot(a: readonly number[], b: readonly number[]): number {
-  return a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!;
-}
-
-function lookAt(
-  eye: readonly number[],
-  target: readonly number[],
-  up: readonly number[],
-): number[] {
-  const forward = normalize(subtract(eye, target) as [number, number, number]);
-  const right = normalize(cross(up, forward));
-  const cameraUp = cross(forward, right);
-  // 列主序：三个基向量各占一列，平移在最后一列。
-  // 写成「行主序」的样子会让整个视图变换变成转置，投影出来的坐标全是乱的。
-  return [
-    right[0]!, right[1]!, right[2]!, 0,
-    cameraUp[0]!, cameraUp[1]!, cameraUp[2]!, 0,
-    forward[0]!, forward[1]!, forward[2]!, 0,
-    -dot(right, eye), -dot(cameraUp, eye), -dot(forward, eye), 1,
-  ];
-}
-
-function orthographic(
-  left: number,
-  right: number,
-  bottom: number,
-  top: number,
-  near: number,
-  far: number,
-): number[] {
-  const lr = 1 / (left - right);
-  const bt = 1 / (bottom - top);
-  const nf = 1 / (near - far);
-  return [
-    -2 * lr, 0, 0, 0,
-    0, -2 * bt, 0, 0,
-    0, 0, 2 * nf, 0,
-    (left + right) * lr, (top + bottom) * bt, (far + near) * nf, 1,
-  ];
-}
-
-function multiply(a: number[], b: number[]): number[] {
-  const out = new Array<number>(16).fill(0);
-  for (let column = 0; column < 4; column += 1) {
-    for (let row = 0; row < 4; row += 1) {
-      let sum = 0;
-      for (let k = 0; k < 4; k += 1) {
-        sum += (a[k * 4 + row] ?? 0) * (b[column * 4 + k] ?? 0);
-      }
-      out[column * 4 + row] = sum;
-    }
-  }
-  return out;
 }
