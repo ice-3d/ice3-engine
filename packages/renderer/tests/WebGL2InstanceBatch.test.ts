@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import { expect } from '../../../tests/assertions.ts';
 import {
   collectInstanceBatches,
+  renderablesOutsideInstanceBatches,
   type ICEGeometryRenderable,
   type ICEInstanceBatch,
   WebGL2InstanceCache,
@@ -59,6 +60,51 @@ test('collects repeated shared geometry into one instance batch', () => {
   expect(batches[0]!.instanceMatrices[28]).toBe(10);
   expect(batches[0]!.instanceMatrices[44]).toBe(20);
   expect(batches[0]!.instanceMatrices[60]).toBe(30);
+});
+
+test('meshes outside any instance batch stay on the individual draw path', () => {
+  const shared = new ICEIndexedGeometry({
+    id: 'shared-device',
+    positions: new Float32Array([
+      0, 0, 0,
+      1, 0, 0,
+      0, 1, 0,
+    ]),
+    indices: new Uint16Array([0, 1, 2]),
+  });
+  const unique = new ICEIndexedGeometry({
+    id: 'unique-tank',
+    positions: new Float32Array([
+      0, 0, 0,
+      2, 0, 0,
+      0, 2, 0,
+    ]),
+    indices: new Uint16Array([0, 1, 2]),
+  });
+  const material = new ICEBasicMaterial({ color: '#ffb000' });
+  const renderable = (id: string, geometry: ICEIndexedGeometry): ICEGeometryRenderable => {
+    const mesh = new ICEMesh({
+      id,
+      selectionId: `selection-${id}`,
+      geometry,
+      material,
+    });
+    return { id: mesh.id, mesh, worldMatrix: mesh.updateWorldMatrix().elements };
+  };
+  const renderables = [
+    renderable('device-a', shared),
+    renderable('device-b', shared),
+    renderable('tank', unique),
+  ];
+
+  const batches = collectInstanceBatches(renderables);
+  // 实例化只收出现两次以上的组合，落单的 tank 不在任何批次里。
+  expect(batches).toHaveLength(1);
+  expect(batches[0]!.meshIds).toEqual(['device-a', 'device-b']);
+
+  // 深度通道靠这个函数补齐第三条路径；漏掉就等于那些网格没有接触阴影。
+  const standalone = renderablesOutsideInstanceBatches(renderables, batches);
+  expect(standalone.map((entry) => entry.id)).toEqual(['tank']);
 });
 
 test('updates the cached instance count when a group changes size', () => {

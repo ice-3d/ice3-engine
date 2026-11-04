@@ -59,3 +59,20 @@ export function collectInstanceBatches(
   }
   return output;
 }
+
+/**
+ * 落单的网格：几何与材质组合只出现一次，实例化省不下开销，主通道仍按单体绘制。
+ *
+ * 单独抽出来是因为**每个附加通道都要画同一批东西**。深度通道漏掉这一条，
+ * 落单的网格就既不参与遮挡也不接收遮蔽（SPEC-007 第 5 节）。
+ */
+export function renderablesOutsideInstanceBatches(
+  renderables: readonly ICEGeometryRenderable[],
+  batches: readonly ICEInstanceBatch[],
+): ICEGeometryRenderable[] {
+  const batched = new Set<string>();
+  for (const batch of batches) {
+    for (const id of batch.meshIds) batched.add(id);
+  }
+  return renderables.filter((renderable) => !batched.has(renderable.id));
+}

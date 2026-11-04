@@ -10,6 +10,7 @@ import type { ICEInstanceBatch } from './InstanceBatch.js';
 export type { ICEGeometryRenderable } from './Renderables.js';
 export {
   collectInstanceBatches,
+  renderablesOutsideInstanceBatches,
   type ICEInstanceBatch,
 } from './InstanceBatch.js';
 

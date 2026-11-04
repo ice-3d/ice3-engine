@@ -76,6 +76,7 @@ export {
 } from './Renderables.js';
 export {
   collectInstanceBatches,
+  renderablesOutsideInstanceBatches,
   type ICEInstanceBatch,
 } from './InstanceBatch.js';
 export { queueBatchGeneration } from './ICEWebGL2BatchGenerationUploader.js';

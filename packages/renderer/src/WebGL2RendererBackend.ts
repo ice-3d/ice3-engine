@@ -14,6 +14,7 @@ import {
 } from './WebGL2RenderBatch.js';
 import {
   collectInstanceBatches,
+  renderablesOutsideInstanceBatches,
   WebGL2InstanceCache,
   type ICEInstanceBatch,
 } from './WebGL2InstanceBatch.js';
@@ -353,9 +354,11 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.instancesScratch,
     );
     const batches = collectRenderBatches(frame.scene, this.batchesScratch);
+    // 实例化批次只收重复组合；落单的网格由主通道按单体绘制，深度通道也要单独画一遍。
+    const standalone = renderablesOutsideInstanceBatches(renderables, instances);
     this.profiler.mark('collect');
 
-    // 相机深度 pass（屏幕空间遮蔽的来源）：两条几何路径都要画。
+    // 相机深度 pass（屏幕空间遮蔽的来源）：三条几何路径都要画。
     let aoReady = false;
     if (this.sceneDepth) {
       const deviceWidth = Math.max(1, Math.round(frame.viewport.width * this.dpr));
@@ -392,6 +395,26 @@ export class WebGL2RendererBackend implements ICERendererBackend {
           gl.TRIANGLES,
           geometry.triangleCount,
           draw.batch.geometry.indices instanceof Uint16Array
+            ? gl.UNSIGNED_SHORT
+            : gl.UNSIGNED_INT,
+          0,
+        );
+      }
+      // 第三条路径：没进任何批次的单体网格。漏掉这里，它们在深度图上不存在，
+      // 于是既不挡住后面的像素、也不会被墙角压暗——表现就是「只有一部分设备有接触阴影」。
+      for (const renderable of standalone) {
+        if (isTransparentColor(renderable.mesh.material.color)) continue;
+        world.elements.set(renderable.worldMatrix);
+        mvp.elements.set(viewProjection.elements);
+        mvp.multiply(world);
+        this.sceneDepth.setMatrix(mvp.elements);
+        const geometry = this.geometryCache.retain(gl, renderable.mesh.geometry);
+        gl.bindVertexArray(geometry.vertexArray);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.triangleIndexBuffer);
+        gl.drawElements(
+          gl.TRIANGLES,
+          geometry.triangleCount,
+          renderable.mesh.geometry.indices instanceof Uint16Array
             ? gl.UNSIGNED_SHORT
             : gl.UNSIGNED_INT,
           0,
