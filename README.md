@@ -6,72 +6,65 @@
 >
 > Owner: ICE3 Engine maintainers
 
-ICE3 Engine 是面向工业应用的可编程 3D Runtime。它优先处理 Geometry、空间组织、
-确定性生命周期、稳定设备 identity 和共享 2D/3D 交互，而不是电影化光照。
+[![npm](https://img.shields.io/npm/v/ice3?label=ice3)](https://www.npmjs.com/package/ice3)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-## 1. 能力
-
-| 领域 | 当前能力 |
-|---|---|
-| Scene | 类型化场景树、Node 所有权、变换、序列化和释放 |
-| 渲染 | WebGL2/WebGPU Geometry、自动后端选择、Selection Mask、Render Bundle、alpha blending 和可选 GPU 优化层 |
-| Material | 6/8 位 CSS hexadecimal color、可选 edge color、directional/flat/water shading 和 water surface effect |
-| 组合 | 覆盖在 3D 内容之上或与其并排的有序 Canvas2D layers |
-| 输入 | 共享 pointer/keyboard 路由、orbit、pan、zoom 和 picking |
-| Asset | ICE3 Prepared GLB Profile reader 和 Scene builder |
-| 流式加载 | OGC 3D Tiles 1.1 加载、相机工作集、预取和驱逐 |
-| LOD | 基于屏幕空间误差的选择，并保持稳定的父级覆盖 |
-| Batch | 静态 prepared batches、instancing 和可选 Worker 生成 batches |
-| 诊断 | 稳定 error code、帧指标、GPU residency 和 Tileset 统计 |
-
-消费方只从公开的 `ice3` package 导入。`@ice3/*` 下的 package 是实现边界，不是公开
-import path。
-
-## 2. 快速开始
-
-运行要求：
-
-- Node.js 24.22.1 LTS
-- npm 11 或更高版本
-- 支持 WebGL2 的浏览器；WebGPU 为显式启用的实验性后端
-
-```bash
-git clone https://github.com/ice-3d/ice3-engine.git
-cd ice3-engine
-nvm use
-npm install
-npm run dev:example:m1
-```
-
-打开 `http://127.0.0.1:8104/`。默认示例会增量加载自带的 hierarchical Tileset fixture；
-真实污水处理厂由 Studio 导出并由 Agent Console 持有。使用
-`http://127.0.0.1:8103/` 查看最小 M0 Scene，使用
-`http://127.0.0.1:8104/?demo=adaptive` 查看空闲时 Worker batching。
-
-运行 `npm run dev:example:m2` 后访问 `http://127.0.0.1:8115/`，可查看 glTF Prepared
-GLB 的 Profile、语义 Node 和 GPU 画面验证结果。
-
-## 3. npm package
-
-公开 Engine package 为 `ice3`：
+**面向工业现场的可编程 3D Runtime。** 打开一个厂区，几百台设备，能点、能查、能改，
+六十帧不掉。它优先解决几何、空间组织、确定性生命周期和稳定设备 identity，而不是电影化光照。
 
 ```bash
 npm install ice3
 ```
 
-应用只从 `ice3` 导入。仓库内的 `@ice3/*` package 是实现边界，不单独发布；npm
-发行产物会把它们打入 `ice3`。
+```ts
+import { ICE3, ICEScene, ICEPerspectiveCamera } from 'ice3';
 
-## 4. 最小 Scene
+const engine = new ICE3().init(document.querySelector('#stage'));
+engine.setScene(new ICEScene({ id: 'main' })).setCamera(camera).start();
+```
+
+一个自包含、零依赖的包。`@ice3/*` 是仓库内部的实现边界，不单独发布，也不需要安装。
+
+---
+
+## 1. 能做什么
+
+| 领域 | 能力 |
+|---|---|
+| **Scene** | 类型化场景树、Node 所有权、变换、序列化与释放 |
+| **渲染** | WebGL2（默认）/ WebGPU（实验性）、instancing、静态批次、alpha blending |
+| **材质** | CSS 颜色、edge overlay、directional / flat / water shading；**底色贴图、法线贴图、ORM 打包图**（R 遮蔽 / G 粗糙度 / B 金属度），米制盒投影 UV |
+| **屏幕空间效果** | 环境遮蔽（三圈采样，默认开）、方向光阴影（视锥按场景包围盒拟合，默认开） |
+| **组合** | Canvas2D 图层叠在 3D 之上或并排，共享输入路由 |
+| **输入** | pointer / keyboard 路由、orbit、pan、zoom、精确 picking |
+| **Asset** | ICE3 Prepared GLB Profile reader、Scene builder |
+| **流式加载** | OGC 3D Tiles 1.1、相机工作集、预取与驱逐、屏幕空间误差选层 |
+| **诊断** | 稳定 error code、帧阶段耗时、GPU residency、Tileset 统计 |
+
+## 2. 快速开始
+
+需要 Node.js `^24 || >=26`、npm 11+、支持 WebGL2 的浏览器。
+
+```bash
+git clone https://github.com/ice-3d/ice3-engine.git
+cd ice3-engine
+nvm use && npm install
+npm run dev:example:m1     # → http://127.0.0.1:8104/
+```
+
+三个示例各有用途：
+
+| 命令 | 地址 | 看什么 |
+|---|---|---|
+| `npm run dev:example` | `:8103` | 最小 Scene、Selection、HUD 图层 |
+| `npm run dev:example:m1` | `:8104` | 分层 Tileset、LOD、增量加载（`?demo=adaptive` 看 Worker batching） |
+| `npm run dev:example:m2` | `:8115` | Prepared GLB 的 profile、语义 Node、贴图与材质 |
+
+## 3. 最小 Scene
 
 ```ts
 import {
-  ICE3,
-  ICEBasicMaterial,
-  ICEBoxGeometry,
-  ICEMesh,
-  ICEPerspectiveCamera,
-  ICEScene,
+  ICE3, ICEBasicMaterial, ICEBoxGeometry, ICEMesh, ICEPerspectiveCamera, ICEScene,
 } from 'ice3';
 
 const host = document.querySelector<HTMLElement>('#stage');
@@ -80,119 +73,119 @@ if (!host) throw new Error('stage element is required');
 const engine = new ICE3().init(host);
 const scene = new ICEScene({ id: 'main' });
 const camera = new ICEPerspectiveCamera({
-  id: 'camera',
-  position: [3, 2, 4],
-  target: [0, 0, 0],
+  id: 'camera', position: [3, 2, 4], target: [0, 0, 0],
 });
 
 scene.addChild(new ICEMesh({
-  id: 'sample-device',
+  id: 'pump-01',
   geometry: new ICEBoxGeometry({ width: 1, height: 1, depth: 1 }),
-  material: new ICEBasicMaterial({ color: '#2f81f7' }),
+  material: new ICEBasicMaterial({
+    color: '#2f81f7',
+    roughness: 0.4,
+    ormMap: { url: 'textures/pump-orm.png' },   // 可选：遮蔽/粗糙度/金属度
+  }),
 }));
 
 engine.setScene(scene).setCamera(camera).start();
 
-// Release DOM listeners, scene ownership, and GPU resources when finished.
+// 用完释放 DOM 监听、场景所有权与 GPU 资源
 engine.destroy();
 ```
 
-默认使用 WebGL2。WebGPU 目前是实验性能力，必须显式设置
-`renderer: 'webgpu'` 并使用 `await initAsync()`；初始化失败会报错，不会静默回退。
-`auto` 保留为兼容别名，同样选择 WebGL2。
+- **默认 WebGL2。** WebGPU 必须显式 `renderer: 'webgpu'` + `await initAsync()`，初始化
+  失败会抛错，不静默回退（ADR-004）。
+- **拾取是异步的**：`await engine.pick({ x, y })` / `await engine.pickItem({ x, y })`。
+- **贴图没有 UV 顶点通道**：UV 由法线主导轴做米制盒投影，所以资产不需要展开 UV。
 
-精确拾取是异步 API：
+## 4. 渲染开关
 
-```ts
-const node = await engine.pick({ x: 120, y: 80 });
-const { item } = await engine.pickItem({ x: 120, y: 80 });
-void node;
-void item;
+屏幕空间效果默认开启；调试和降级都走同一个入口：
+
+| 入口 | 作用 |
+|---|---|
+| `?ao=off` | 关环境遮蔽；`?ao=2.5,0.30` 指定半径与强度 |
+| `?shadows=0` | 关方向光阴影（默认开，多一次全场景深度 pass） |
+| `?shadowdebug=1` / `=2` | 输出遮蔽判定 / 阴影深度图 |
+
+代码里对应 `initialize({ shadows: false })`。调参走地址栏而不是改常量重编译——这是
+[SPEC-007](docs/specs/2026-11-04-screen-space-occlusion-notes.md) 和
+[SPEC-008](docs/specs/2026-11-04-directional-light-shadows.md) 里记下来的教训。
+
+## 5. Asset 从哪来
+
+Runtime 只吃 **ICE3 Prepared GLB Profile v1**。源格式解析、转换、减面、分块、LOD、
+Tileset 生成都在 [ICE3 Studio](https://github.com/ice-3d/ice3-studio/blob/main/README.md) 里做，浏览器不干这些：
+
+- 格式：glTF / GLB、OBJ、STEP、IFC、FBX、USD、JT
+- 产物：fine/coarse 分块、render batch、edge overlay、设备绑定清单
+- 契约：[Asset Preparation Contract v1](https://github.com/ice-3d/ice3-doc/blob/main/docs/contracts/asset-preparation-contract-v1.md)
+
+## 6. 命令
+
+| 命令 | 用途 |
+|---|---|
+| `npm run verify` | 文档 + 架构 + 类型 + 单测 + 构建 + 两套浏览器测试，提交前跑这个 |
+| `npm test` | 单元测试（Node test runner） |
+| `npm run test:e2e` | Playwright：chromium + webkit |
+| `npm run typecheck` | `tsc -b` 全量类型检查（示例工程单独用 `typecheck:example`） |
+| `npm run docs:check` | 文档索引、链接与 front-matter 校验 |
+| `npm run benchmark:renderers` | 同场景强制跑 WebGL2 / WebGPU，输出 JSON + Markdown 到 `output/benchmarks/` |
+| `npm run release:check` | 打出 `ice3-<version>.tgz` 并在临时目录安装验证 |
+
+## 7. 仓库结构
+
+```
+packages/
+  ice3/        公开门面：唯一对外 import 入口
+  core/        Scene、数学、几何、材质
+  renderer/    WebGL2 / WebGPU backend、着色器、拾取
+  runtime/     引擎生命周期、输入路由、帧循环
+  assets/      Prepared GLB / Tileset reader 与 profile 校验
+docs/          README（索引）、architecture、api、guides、specs、decisions、plans
+examples/      m0 / m1 / m2 三个可直接运行的示例
+tests/         单元测试、架构检查、e2e、release 契约
 ```
 
-## 5. Asset 工作流
+## 8. 边界（明确不做）
 
-Runtime 只接受 ICE3 Prepared GLB Profile v1 Asset。通用 source parsing、conversion、
-simplification 和 partitioning 属于
-[`ice3-studio`](https://github.com/ice-3d/ice3-studio/blob/main/README.md)。
-从 GLB 切分、粗模生成、Tileset 发布到 `ICETilesetLoader` 接入的完整步骤见
-[Studio 入门指南](https://github.com/ice-3d/ice3-studio/blob/main/docs/guides/getting-started.md)。
+- 浏览器里不做通用源格式解析与减面，那是 Studio 的活。
+- Profile 不含 animation、skins、morph targets；材质只有基础 PBR 参数 + 三张贴图。
+- 不做隐式 tiling、外部 Tileset 递归加载、运行时网格简化。
+- 不含业务规则、工作流引擎、Agent policy。
 
-### 5.1 配套建模工具
+## 9. 给 AI Agent 的约定
 
-如果模型还不是 ICE3 Prepared GLB，请使用配套的
-[ICE3 Studio](https://github.com/ice-3d/ice3-studio/blob/main/README.md)。
-它负责 glTF、STEP、IFC、FBX、USD、OBJ 和 JT 的离线转换、验证、partition、LOD、
-render batching 与 Tileset 生成；Engine 不在浏览器中执行这些工作。
+这一节是给自动改代码的 Agent 看的硬约束，不是宣传语。
 
-- [Studio 能力清单](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/capabilities.md)
-- [Studio 大场景资产指南](https://github.com/ice-3d/ice3-studio/blob/main/docs/guides/large-industrial-fixture.md)
-- [Studio CLI 参考](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/capabilities.md#6-cli-命令)
+**必须遵守**
 
-共享格式和兼容规则由权威
-[Asset Preparation Contract v1](https://github.com/ice-3d/ice3-doc/blob/main/docs/contracts/asset-preparation-contract-v1.md)
-定义。
+1. 只从 `ice3` 导入。新增导出要经过 `packages/ice3/src/index.ts`，不能让消费方深引
+   `@ice3/*`（ADR-001）。当前公开导出 21 个，改动就要同步本文与 `docs/api/`。
+2. **版本号只有一个来源**：`packages/ice3/package.json`。发布脚本与测试都读它，
+   不要在任何地方手抄版本。
+3. 改渲染行为先写 SPEC（`docs/specs/`），再改代码，最后回填实测数字。现有两份
+   SPEC 里记着"看起来对但其实错"的案例——先读，别重犯。
+4. 声称"完成"之前跑 `npm run verify`。只跑单测不算完。
+5. 新增/删除文档必须同步 `docs/README.md` 索引，否则 `docs:check` 会失败。
 
-## 6. 仓库中的 Asset
+**找东西的最短路径**
 
-仓库不再内置旧版污水处理厂参考资产。Studio 的当前工程保存在
-`ice3-studio/projects/wastewater-plant/`，由 Studio 原生参数化组件生成；大型资产的
-来源、切片与绑定规则仍由 Asset Preparation Contract v1 定义。
+| 想知道 | 去哪 |
+|---|---|
+| 公开 API 有哪些 | `packages/ice3/src/index.ts` → 再查 `docs/api/m0.md`、`m1.md` |
+| 某个效果为什么这么做 | `docs/specs/`（每份都带实测数据与失败记录） |
+| 渲染器内部结构 | `packages/renderer/src/`；入口 `WebGL2RendererBackend.ts` |
+| 帧耗时怎么测 | `scripts/` 与 `npm run benchmark:renderers` |
+| 架构边界 | `docs/architecture.md`、`docs/decisions/` |
 
-## 7. 验证
+## 10. 文档
 
-```bash
-npm run docs:check
-npm run test:architecture
-npm run typecheck
-npm run typecheck:example
-npm test
-npm run test:e2e
-npm run verify
-npm run benchmark:renderers
-```
-
-`verify` 依次运行文档门禁、架构检查、类型检查、单元测试、构建，以及两套浏览器
-项目测试。
-
-`benchmark:renderers` 在相同 Scene 上强制运行 WebGL2 和 WebGPU，重复测量 CPU
-阶段、Pick、Draw 和 GPU byte 数据，并将 JSON/Markdown 输出到
-`output/benchmarks/`。GPU timestamp 不可用时报告 `n/a` 和原因，不伪造零值。
-
-WebGPU 优化按 `baseline`、`storage` 和 `gpu-driven` 分级启用。当前固定硬件测量未使
-Storage 或 Compute/Indirect 达到默认启用门槛，因此它们保留为可测试路径，不替代稳定
-baseline。规模化复测可使用：
-
-```bash
-npm run benchmark:renderers -- --scenarios culling-20k,instanced-50k --repetitions 5
-```
-
-## 8. 边界
-
-- 浏览器中不提供通用 source format 兼容。
-- 当前 profile 不支持 animation、skins、morph targets、textures 或复杂 Material。
-- 不执行隐式 tiling、外部 Tileset 加载或 runtime Mesh simplification。
-- Engine 不包含业务规则、workflow engine 或 Agent policy。
-- Lighting 和 Material 保持基础能力，但支持 directional daylight、flat rendering、
-  alpha blending 和声明式 water shading；复杂 PBR 和 texture 仍不在当前 profile。
-
-## 9. 文档
-
-- [文档索引](docs/README.md)
-- [Runtime 架构](docs/architecture.md)
-- [快速开始](docs/guides/getting-started.md)
-- [Asset 加载](docs/guides/asset-loading.md)
-- [开发与故障处理](docs/guides/development-and-troubleshooting.md)
-- [跨格式 Conformance 示例](docs/guides/conformance-example.md)
-- [M0 API](docs/api/m0.md)
-- [M1 Asset API](docs/api/m1.md)
-- [Diagnostic](docs/diagnostics.md)
-- [架构决策](docs/decisions/README.md)
-
-## 10. AI 辅助开发
-
-本项目在设计和实现过程中大量使用了 AI 辅助开发。
+- [文档索引](docs/README.md) · [Runtime 架构](docs/architecture.md)
+- 指南：[快速开始](docs/guides/getting-started.md) · [Asset 加载](docs/guides/asset-loading.md) · [开发与故障处理](docs/guides/development-and-troubleshooting.md)
+- 规格：[视口贴图采样](docs/specs/2026-11-04-viewport-texture-sampling-design.md) · [屏幕空间遮蔽](docs/specs/2026-11-04-screen-space-occlusion-notes.md) · [方向光阴影](docs/specs/2026-11-04-directional-light-shadows.md) · [ORM 打包](docs/specs/2026-11-04-orm-packing.md)
+- API：[M0](docs/api/m0.md) · [M1 Asset](docs/api/m1.md) · [Diagnostic](docs/diagnostics.md)
+- 决策：[ADR 索引](docs/decisions/README.md)
 
 ## 11. 许可证
 
-本项目采用 [MIT License](LICENSE) 许可。
+[MIT](LICENSE)
