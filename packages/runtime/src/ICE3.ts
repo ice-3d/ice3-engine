@@ -142,6 +142,7 @@ export class ICE3 extends ICEEventDispatcher {
   private generatedOverlayCanvas = false;
   private scene: ICEScene | null = null;
   private camera: ICEPerspectiveCamera | null = null;
+  private clipPlane: readonly [number, number, number, number] = [0, 0, 0, 0];
   private viewport: ICEViewport = { x: 0, y: 0, width: 1, height: 1 };
   private dpr = 1;
   private frameId = 0;
@@ -322,6 +323,20 @@ export class ICE3 extends ICEEventDispatcher {
     this.assertActive();
     this.backend.setBackgroundColor?.(color);
     this.requestRender('background-color');
+    return this;
+  }
+
+  /**
+   * Section plane `[nx, ny, nz, d]`: fragments with `dot(world, n) + d < 0`
+   * are discarded. `null` (or a zero plane) disables clipping.
+   */
+  setClipPlane(plane: readonly [number, number, number, number] | null): this {
+    this.assertActive();
+    this.clipPlane = plane
+      ? [plane[0], plane[1], plane[2], plane[3]]
+      : [0, 0, 0, 0];
+    this.backend.setClipPlane?.(this.clipPlane);
+    this.requestRender('clip-plane');
     return this;
   }
 

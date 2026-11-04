@@ -67,6 +67,7 @@ void main() {
 const FRAGMENT_SOURCE = `#version 300 es
 precision highp float;
 uniform vec4 u_color;
+uniform vec4 u_clipPlane;
 uniform float u_pickMode;
 uniform float u_useVertexColor;
 uniform float u_useDirectionalShading;
@@ -80,6 +81,11 @@ in vec3 v_worldPosition;
 out vec4 outputColor;
 
 void main() {
+  // Section plane: discard the half-space on the negative side. A zero plane
+  // (0,0,0,0) evaluates to 0 and keeps everything, so it doubles as "off".
+  if (dot(v_worldPosition, u_clipPlane.xyz) + u_clipPlane.w < 0.0) {
+    discard;
+  }
   if (u_pickMode > 0.5) {
     outputColor = u_color;
     return;
@@ -200,6 +206,7 @@ export class WebGL2Program {
   private readonly shadowEnabledLocation: WebGLUniformLocation | null;
   private readonly instancingLocation: WebGLUniformLocation;
   private readonly pickModeLocation: WebGLUniformLocation;
+  private readonly clipPlaneLocation: WebGLUniformLocation | null;
 
   constructor(private readonly gl: WebGL2RenderingContext) {
     const program = this.createProgram(VERTEX_SOURCE, FRAGMENT_SOURCE);
@@ -215,6 +222,7 @@ export class WebGL2Program {
     const cameraPositionLocation = gl.getUniformLocation(program, 'u_cameraPosition');
     const instancingLocation = gl.getUniformLocation(program, 'u_useInstancing');
     const pickModeLocation = gl.getUniformLocation(program, 'u_pickMode');
+    const clipPlaneLocation = gl.getUniformLocation(program, 'u_clipPlane');
     const shadowMapLocation = gl.getUniformLocation(program, 'u_shadowMap');
     const lightMatrixLocation = gl.getUniformLocation(program, 'u_lightViewProjection');
     const shadowEnabledLocation = gl.getUniformLocation(program, 'u_shadowEnabled');
@@ -251,6 +259,11 @@ export class WebGL2Program {
     this.shadowEnabledLocation = shadowEnabledLocation;
     this.instancingLocation = instancingLocation;
     this.pickModeLocation = pickModeLocation;
+    this.clipPlaneLocation = clipPlaneLocation;
+    if (clipPlaneLocation) {
+      gl.useProgram(program);
+      gl.uniform4f(clipPlaneLocation, 0, 0, 0, 0);
+    }
     if (shadowMapLocation) {
       gl.useProgram(program);
       gl.uniform1i(shadowMapLocation, 3);
@@ -271,6 +284,11 @@ export class WebGL2Program {
 
   setClipOffset(x: number, y: number): void {
     this.gl.uniform2f(this.clipOffsetLocation, x, y);
+  }
+
+  setClipPlane(plane: readonly [number, number, number, number]): void {
+    if (!this.clipPlaneLocation) return;
+    this.gl.uniform4f(this.clipPlaneLocation, plane[0], plane[1], plane[2], plane[3]);
   }
 
   setVertexColors(enabled: boolean): void {

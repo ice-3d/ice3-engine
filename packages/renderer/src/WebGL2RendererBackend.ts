@@ -66,6 +66,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private onContextLost: (() => void) | undefined;
   private onContextRestored: (() => void) | undefined;
   private program: WebGL2Program | null = null;
+  private clipPlane: readonly [number, number, number, number] = [0, 0, 0, 0];
   private shadowMap: WebGL2ShadowMap | null = null;
   // 阴影采样开关。定位掉深度偏差之前保持关闭，避免把错误的明暗关系画出来。
   private readonly shadowEnabled = false;
@@ -212,6 +213,12 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.geometryCache?.unpin(geometry);
   }
 
+  setClipPlane(plane: readonly [number, number, number, number] | null): void {
+    this.clipPlane = plane
+      ? [plane[0], plane[1], plane[2], plane[3]]
+      : [0, 0, 0, 0];
+  }
+
   render(frame: ICEFrame): void {
     if (
       !this.gl
@@ -240,6 +247,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     };
 
     this.program.use();
+    this.program.setClipPlane(this.clipPlane);
     this.program.setClipOffset(0, 0);
     this.program.setDirectionalShading(false);
     this.program.setWaterShading(false);

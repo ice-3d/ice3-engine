@@ -69,6 +69,8 @@ export interface ICERendererBackend {
   }): void;
   resize(viewport: ICEViewport, dpr: number): void;
   setBackgroundColor?(color: string): void;
+  /** Clip plane `[nx, ny, nz, d]`: fragments with `dot(world, n) + d < 0` are discarded; `null` disables. */
+  setClipPlane?(plane: readonly [number, number, number, number] | null): void;
   prepareBatchGeometry?(geometry: ICEGeometry): void;
   releaseBatchGeometry?(geometry: ICEGeometry): void;
   prepareGeometry?(
