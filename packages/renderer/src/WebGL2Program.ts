@@ -38,11 +38,14 @@ in vec4 a_instanceColumn0;
 in vec4 a_instanceColumn1;
 in vec4 a_instanceColumn2;
 in vec4 a_instanceColumn3;
+in float a_instanceOpacity;
 uniform mat4 u_worldViewProjection;
 uniform vec2 u_clipOffset;
 uniform float u_useInstancing;
+uniform float u_opacity;
 out vec3 v_color;
 out vec3 v_worldPosition;
+out float v_opacity;
 
 void main() {
   mat4 instanceMatrix = mat4(
@@ -61,6 +64,8 @@ void main() {
   gl_Position.xy += u_clipOffset * gl_Position.w;
   v_color = a_color;
   v_worldPosition = position.xyz;
+  // Instanced meshes each carry their own fade; a lone mesh uses the uniform.
+  v_opacity = mix(u_opacity, a_instanceOpacity, u_useInstancing);
 }
 `;
 
@@ -100,6 +105,7 @@ uniform float u_aoRadius;
 uniform float u_aoStrength;
 in vec3 v_color;
 in vec3 v_worldPosition;
+in float v_opacity;
 out vec4 outputColor;
 
 // 由屏幕 UV 与深度缓冲重建视空间坐标（与 WebGL2DepthMath 的换算一致）。
@@ -368,7 +374,7 @@ void main() {
   // 不做的话线性 0.017 会当作 sRGB 0.017 显示，深色材质全部塌成黑色。
   outputColor = vec4(
     pow(max(lit, vec3(0.0)), vec3(1.0 / 2.2)),
-    u_color.a
+    u_color.a * v_opacity
   );
 }
 `;
@@ -405,6 +411,7 @@ export class WebGL2Program {
   static readonly COLOR_ATTRIBUTE = 1;
   static readonly INSTANCE_MATRIX_ATTRIBUTE = 3;
   static readonly INSTANCE_SEMANTIC_ATTRIBUTE = 7;
+  static readonly INSTANCE_OPACITY_ATTRIBUTE = 8;
   readonly program: WebGLProgram;
   private readonly matrixLocation: WebGLUniformLocation;
   private readonly colorLocation: WebGLUniformLocation;
@@ -419,6 +426,7 @@ export class WebGL2Program {
   private readonly shadowNormalOffsetLocation: WebGLUniformLocation | null;
   private readonly shadowDebugLocation: WebGLUniformLocation | null;
   private readonly instancingLocation: WebGLUniformLocation;
+  private readonly opacityLocation: WebGLUniformLocation;
   private readonly pickModeLocation: WebGLUniformLocation;
   private readonly clipPlaneLocation: WebGLUniformLocation | null;
   private readonly baseColorMapLocation: WebGLUniformLocation | null;
@@ -455,6 +463,7 @@ export class WebGL2Program {
     const waterShadingLocation = gl.getUniformLocation(program, 'u_waterShading');
     const cameraPositionLocation = gl.getUniformLocation(program, 'u_cameraPosition');
     const instancingLocation = gl.getUniformLocation(program, 'u_useInstancing');
+    const opacityLocation = gl.getUniformLocation(program, 'u_opacity');
     const pickModeLocation = gl.getUniformLocation(program, 'u_pickMode');
     const clipPlaneLocation = gl.getUniformLocation(program, 'u_clipPlane');
     const baseColorMapLocation = gl.getUniformLocation(program, 'u_baseColorMap');
@@ -491,6 +500,7 @@ export class WebGL2Program {
       || !waterShadingLocation
       || !cameraPositionLocation
       || !instancingLocation
+      || !opacityLocation
       || !pickModeLocation
     ) {
       gl.deleteProgram(program);
@@ -513,6 +523,7 @@ export class WebGL2Program {
     this.shadowNormalOffsetLocation = shadowNormalOffsetLocation;
     this.shadowDebugLocation = shadowDebugLocation;
     this.instancingLocation = instancingLocation;
+    this.opacityLocation = opacityLocation;
     this.pickModeLocation = pickModeLocation;
     this.clipPlaneLocation = clipPlaneLocation;
     this.baseColorMapLocation = baseColorMapLocation;
@@ -766,6 +777,11 @@ export class WebGL2Program {
     this.gl.uniform1f(this.instancingLocation, enabled ? 1 : 0);
   }
 
+  /** Opacity for the non-instanced path; instanced meshes carry their own. */
+  setOpacity(value: number): void {
+    this.gl.uniform1f(this.opacityLocation, value);
+  }
+
   setPickMode(enabled: boolean): void {
     this.gl.uniform1f(this.pickModeLocation, enabled ? 1 : 0);
   }
@@ -799,6 +815,20 @@ export class WebGL2Program {
         `a_instanceColumn${column}`,
       );
     }
+    // Every attribute the VAOs bind has to be pinned here. The renderer addresses
+    // attributes by fixed index, so one the linker is free to place lands on a
+    // slot nobody fills — which reads as zero. That is invisible for a colour and
+    // fatal for an opacity: the batch still draws, it just blends to nothing.
+    gl.bindAttribLocation(
+      program,
+      WebGL2Program.INSTANCE_SEMANTIC_ATTRIBUTE,
+      'a_instanceSemantic',
+    );
+    gl.bindAttribLocation(
+      program,
+      WebGL2Program.INSTANCE_OPACITY_ATTRIBUTE,
+      'a_instanceOpacity',
+    );
     gl.linkProgram(program);
     gl.deleteShader(vertex);
     gl.deleteShader(fragment);

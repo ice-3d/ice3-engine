@@ -4,6 +4,8 @@ export interface ICEGeometryRenderable {
   readonly id: string;
   readonly mesh: ICEMesh;
   readonly worldMatrix: Float32Array;
+  /** 0..1, read from the mesh each frame so a fade needs no re-collection. */
+  readonly opacity: number;
 }
 
 const visit = (
@@ -17,6 +19,7 @@ const visit = (
       id: node.id,
       mesh: node,
       worldMatrix: node.updateWorldMatrix().elements,
+      opacity: node.opacity,
     });
   }
   for (const child of node.children) {

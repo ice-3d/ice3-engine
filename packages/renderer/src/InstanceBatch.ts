@@ -9,6 +9,8 @@ export interface ICEInstanceBatch {
   readonly geometry: ICEGeometry;
   readonly material: ICEBasicMaterial;
   readonly instanceMatrices: Float32Array;
+  /** 0..1 per instance, in the same order as `meshIds`. */
+  readonly instanceOpacity: Float32Array;
   readonly semanticIds: readonly string[];
   readonly semanticIndices: Uint32Array;
   readonly meshIds: readonly string[];
@@ -36,9 +38,11 @@ export function collectInstanceBatches(
     for (const [material, group] of byMaterial) {
       if (group.length < 2) continue;
       const instanceMatrices = new Float32Array(group.length * 16);
+      const instanceOpacity = new Float32Array(group.length);
       const semanticIndices = new Uint32Array(group.length);
       for (let index = 0; index < group.length; index += 1) {
         instanceMatrices.set(group[index]!.worldMatrix, index * 16);
+        instanceOpacity[index] = group[index]!.opacity;
         semanticIndices[index] = index;
       }
       output.push({
@@ -46,6 +50,7 @@ export function collectInstanceBatches(
         geometry,
         material,
         instanceMatrices,
+        instanceOpacity,
         semanticIds: group.map((renderable) => renderable.mesh.selectionId),
         semanticIndices,
         meshIds: group.map((renderable) => renderable.id),

@@ -137,3 +137,35 @@ test('a lone mesh carries the same matrix through the standalone path', () => {
   expect(read()[13]).toBe(1);
   expect(read()[14]).toBe(-2);
 });
+
+test('opacity is per instance, so fading one mesh does not split the batch', () => {
+  const { scene, plots } = sceneWithPlots(3);
+
+  const batches = collectInstanceBatches(collectRenderables(scene));
+  expect(batches).toHaveLength(1);
+  expect([...batches[0]!.instanceOpacity]).toEqual([1, 1, 1]);
+
+  // Fading used to require a material, and a material is part of the batching
+  // key: one fading mesh would have turned one draw call into three.
+  plots[1]!.opacity = 0.35;
+  const faded = collectInstanceBatches(collectRenderables(scene));
+  expect(faded).toHaveLength(1);
+  expect(faded[0]!.meshIds).toEqual(['plot-0', 'plot-1', 'plot-2']);
+  expect(faded[0]!.instanceOpacity[1]).toBeCloseTo(0.35, 5);
+  expect(faded[0]!.instanceOpacity[0]).toBe(1);
+});
+
+test('opacity is clamped to 0..1', () => {
+  const scene = new ICEScene({ id: 'city' });
+  const material = new ICEBasicMaterial({ color: '#3f6fb5' });
+  const geometry = new ICEBoxGeometry({ width: 1, height: 1, depth: 1 });
+  const high = new ICEMesh({ id: 'high', geometry, material, opacity: 4 });
+  const low = new ICEMesh({ id: 'low', geometry, material, opacity: -2 });
+  const nan = new ICEMesh({ id: 'nan', geometry, material, opacity: Number.NaN });
+  scene.addChild(high);
+  scene.addChild(low);
+  scene.addChild(nan);
+
+  expect([...collectInstanceBatches(collectRenderables(scene))[0]!.instanceOpacity])
+    .toEqual([1, 0, 1]);
+});

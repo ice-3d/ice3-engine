@@ -13,7 +13,7 @@ import {
   relative,
   sep,
 } from 'node:path';
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -90,17 +90,6 @@ export function rewriteDeclarationImports(source, filePath, distRoot) {
   );
 }
 
-async function removeJavaScriptFiles(directory) {
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) {
-      await removeJavaScriptFiles(path);
-    } else if (!entry.name.endsWith('.d.ts')) {
-      await rm(path);
-    }
-  }
-}
-
 async function rewriteDeclarations(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
@@ -133,9 +122,16 @@ export async function buildReleasePackage() {
     await cp(
       join(root, 'packages', name, 'dist'),
       destination,
-      { recursive: true },
+      {
+        recursive: true,
+        // Declarations only: the runtime ships as one bundled entry, so copying
+        // every package's JS here just to delete it again was pure I/O — and it
+        // meant thousands of individual deletes on every release build.
+        filter: (source) => (
+          statSync(source).isDirectory() || source.endsWith('.d.ts')
+        ),
+      },
     );
-    await removeJavaScriptFiles(destination);
   }
   await cp(
     join(packageRoot, 'dist', 'index.d.ts'),

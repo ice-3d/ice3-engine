@@ -141,6 +141,7 @@ test('updates the cached instance count when a group changes size', () => {
     geometry,
     material,
     instanceMatrices: new Float32Array(semanticIds.length * 16),
+    instanceOpacity: new Float32Array(semanticIds.length).fill(1),
     semanticIds,
     semanticIndices: Uint32Array.from(
       { length: semanticIds.length },
@@ -160,6 +161,8 @@ test('updates the cached instance count when a group changes size', () => {
     'device-0',
     'device-1',
   ]))?.instanceCount).toBe(2);
+  // The per-instance opacity buffer is part of the batch's GPU footprint.
+  expect(cache.totalBytes).toBe(2 * 16 * 4 + 2 * 4 + 2 * 4);
 });
 
 function fakeWebGL2(): WebGL2RenderingContext {

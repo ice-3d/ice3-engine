@@ -17,13 +17,15 @@ export {
 export interface WebGL2InstanceEntry {
   readonly vertexArray: WebGLVertexArrayObject;
   readonly matrixBuffer: WebGLBuffer;
+  readonly opacityBuffer: WebGLBuffer;
   readonly semanticBuffer: WebGLBuffer;
   readonly triangleIndexBuffer: WebGLBuffer;
   readonly edgeIndexBuffer: WebGLBuffer | null;
   readonly triangleCount: number;
   readonly edgeCount: number;
   instanceCount: number;
-  readonly bytes: number;
+  /** Upload footprint; changes with the instance count, so not readonly. */
+  bytes: number;
 }
 
 export class WebGL2InstanceCache {
@@ -48,6 +50,12 @@ export class WebGL2InstanceCache {
         batch.instanceMatrices,
         gl.DYNAMIC_DRAW,
       );
+      gl.bindBuffer(gl.ARRAY_BUFFER, existing.opacityBuffer);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        batch.instanceOpacity,
+        gl.DYNAMIC_DRAW,
+      );
       gl.bindBuffer(gl.ARRAY_BUFFER, existing.semanticBuffer);
       gl.bufferData(
         gl.ARRAY_BUFFER,
@@ -56,15 +64,20 @@ export class WebGL2InstanceCache {
       );
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
       existing.instanceCount = batch.semanticIds.length;
+      existing.bytes = batch.instanceMatrices.byteLength
+        + batch.instanceOpacity.byteLength
+        + batch.semanticIndices.byteLength;
       return existing;
     }
 
     const vertexArray = gl.createVertexArray();
     const matrixBuffer = gl.createBuffer();
+    const opacityBuffer = gl.createBuffer();
     const semanticBuffer = gl.createBuffer();
-    if (!vertexArray || !matrixBuffer || !semanticBuffer) {
+    if (!vertexArray || !matrixBuffer || !opacityBuffer || !semanticBuffer) {
       gl.deleteVertexArray(vertexArray);
       gl.deleteBuffer(matrixBuffer);
+      gl.deleteBuffer(opacityBuffer);
       gl.deleteBuffer(semanticBuffer);
       this.fallbacks += 1;
       return undefined;
@@ -109,6 +122,18 @@ export class WebGL2InstanceCache {
       );
       gl.vertexAttribDivisor(location, 1);
     }
+    gl.bindBuffer(gl.ARRAY_BUFFER, opacityBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, batch.instanceOpacity, gl.DYNAMIC_DRAW);
+    gl.enableVertexAttribArray(WebGL2Program.INSTANCE_OPACITY_ATTRIBUTE);
+    gl.vertexAttribPointer(
+      WebGL2Program.INSTANCE_OPACITY_ATTRIBUTE,
+      1,
+      gl.FLOAT,
+      false,
+      0,
+      0,
+    );
+    gl.vertexAttribDivisor(WebGL2Program.INSTANCE_OPACITY_ATTRIBUTE, 1);
     gl.bindBuffer(gl.ARRAY_BUFFER, semanticBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, batch.semanticIndices, gl.DYNAMIC_DRAW);
     gl.enableVertexAttribArray(WebGL2Program.INSTANCE_SEMANTIC_ATTRIBUTE);
@@ -127,6 +152,7 @@ export class WebGL2InstanceCache {
     const entry: WebGL2InstanceEntry = {
       vertexArray,
       matrixBuffer,
+      opacityBuffer,
       semanticBuffer,
       triangleIndexBuffer: geometry.triangleIndexBuffer,
       edgeIndexBuffer: geometry.edgeIndexBuffer,
@@ -134,6 +160,7 @@ export class WebGL2InstanceCache {
       edgeCount: geometry.edgeCount,
       instanceCount: batch.semanticIds.length,
       bytes: batch.instanceMatrices.byteLength
+        + batch.instanceOpacity.byteLength
         + batch.semanticIndices.byteLength,
     };
     this.entries.set(batch.id, entry);
@@ -181,6 +208,7 @@ export class WebGL2InstanceCache {
   private deleteEntry(entry: WebGL2InstanceEntry): void {
     if (!this.gl) return;
     this.gl.deleteBuffer(entry.matrixBuffer);
+    this.gl.deleteBuffer(entry.opacityBuffer);
     this.gl.deleteBuffer(entry.semanticBuffer);
     this.gl.deleteVertexArray(entry.vertexArray);
   }

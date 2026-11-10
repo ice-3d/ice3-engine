@@ -56,6 +56,18 @@ function isTransparentColor(color: string): boolean {
   return colorToRgba(color)[3] < 0.999;
 }
 
+/** Any instance fading below full opacity makes the whole batch a blended pass. */
+function hasTransparency(opacity: Float32Array): boolean {
+  for (let index = 0; index < opacity.length; index += 1) {
+    if (opacity[index]! < 0.999) return true;
+  }
+  return false;
+}
+
+const batchIsTransparent = (batch: ICEInstanceBatch): boolean => (
+  isTransparentColor(batch.material.color) || hasTransparency(batch.instanceOpacity)
+);
+
 export { colorToRgba } from './Color.js';
 
 export class WebGL2RendererBackend implements ICERendererBackend {
@@ -410,7 +422,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.sceneDepth.begin(viewProjection.elements, deviceWidth, deviceHeight);
       this.sceneDepth.setInstancing(true);
       for (const batch of instances) {
-        if (isTransparentColor(batch.material.color)) continue;
+        if (batchIsTransparent(batch)) continue;
         const instance = this.instanceCache!.retain(gl, this.geometryCache, batch);
         if (!instance) continue;
         gl.bindVertexArray(instance.vertexArray);
@@ -480,7 +492,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     if (this.shadowEnabled && this.shadowMap?.begin()) {
       const lightViewProjection = this.shadowMap.matrix;
       for (const batch of instances) {
-        if (isTransparentColor(batch.material.color)) continue;
+        if (batchIsTransparent(batch)) continue;
         const instance = this.instanceCache!.retain(gl, this.geometryCache, batch);
         if (!instance) continue;
         gl.bindVertexArray(instance.vertexArray);
@@ -577,7 +589,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       this.program.setInstancing(true);
       this.profiler.mark('prepareAndUpload');
       for (const batch of instances) {
-        if (isTransparentColor(batch.material.color) !== transparentPass) continue;
+        if (batchIsTransparent(batch) !== transparentPass) continue;
       const instance = this.instanceCache!.retain(
         gl,
         this.geometryCache,
@@ -587,6 +599,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       for (const id of batch.meshIds) this.instancedMeshIds.add(id);
       mvp.elements.set(viewProjection.elements);
       this.program.setMatrix(mvp);
+      this.program.setOpacity(1);
       this.applyMaterial(batch.material);
       this.program.setVertexColors(Boolean(batch.geometry.colors));
       this.program.setDirectionalShading(
@@ -639,6 +652,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       world.elements.set(draw.worldMatrix);
       mvp.multiply(world);
       this.program.setMatrix(mvp);
+      this.program.setOpacity(1);
       this.applyMaterial(draw.batch.material);
       const geometry = this.geometryCache.retain(gl, draw.batch.geometry);
       this.program.setVertexColors(Boolean(draw.batch.geometry.colors));
@@ -683,7 +697,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     }
       for (const renderable of renderables) {
         if (
-          isTransparentColor(renderable.mesh.material.color)
+          (isTransparentColor(renderable.mesh.material.color)
+            || renderable.opacity < 0.999)
           !== transparentPass
         ) continue;
       if (this.instancedMeshIds.has(renderable.id)) continue;
@@ -692,6 +707,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       world.elements.set(renderable.worldMatrix);
       mvp.multiply(world);
       this.program.setMatrix(mvp);
+      this.program.setOpacity(renderable.opacity);
       this.applyMaterial(renderable.mesh.material);
       const geometry = this.geometryCache.retain(gl, renderable.mesh.geometry);
       this.program.setVertexColors(Boolean(renderable.mesh.geometry.colors));

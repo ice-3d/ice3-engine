@@ -7,6 +7,8 @@ import { ICENode, type ICENodeOptions, type ICESerializedNode } from './ICENode.
 export interface ICEMeshOptions extends ICENodeOptions {
   readonly geometry: ICEGeometry;
   readonly material: ICEBasicMaterial;
+  /** 0..1, default 1. Set at runtime to fade a mesh in or out. */
+  readonly opacity?: number;
 }
 
 export class ICEMesh extends ICENode {
@@ -15,12 +17,22 @@ export class ICEMesh extends ICENode {
   readonly geometry: ICEGeometry;
   readonly material: ICEBasicMaterial;
   override readonly selectionId: string;
+  /**
+   * Per-mesh opacity, 0..1.
+   *
+   * It is a per-instance attribute rather than a material property on purpose:
+   * a material is part of the batching key, so fading one mesh by giving it its
+   * own material would take the whole batch with it and turn one draw call into
+   * one per object. Changing this number costs nothing and affects only this mesh.
+   */
+  opacity: number;
 
   constructor(options: ICEMeshOptions) {
     super(options);
     this.geometry = options.geometry;
     this.material = options.material;
     this.selectionId = options.selectionId?.trim() || options.id;
+    this.opacity = clampOpacity(options.opacity ?? 1);
   }
 
   override get typeId(): string {
@@ -72,3 +84,7 @@ export class ICEMesh extends ICENode {
     });
   }
 }
+
+const clampOpacity = (value: number): number => (
+  Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 1
+);
