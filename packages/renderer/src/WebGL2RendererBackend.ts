@@ -103,7 +103,6 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   private readonly renderablesScratch: ICEGeometryRenderable[] = [];
   private readonly batchesScratch: ICERenderBatchDraw[] = [];
   private readonly instancesScratch: ICEInstanceBatch[] = [];
-  private readonly instancedMeshIds = new Set<string>();
   private readonly profiler = new RendererProfiler();
   private lastFrameProfile: ICEFrameStageProfile | null = null;
   private backgroundRgba: readonly [number, number, number, number] = [
@@ -397,7 +396,6 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.program.setCameraPosition(cameraPosition);
     this.geometryCache.beginFrame();
     this.instanceCache!.beginFrame();
-    this.instancedMeshIds.clear();
     const world = this.worldScratch;
     const clipPixelX = 2 / Math.max(1, frame.viewport.width * frame.dpr);
     const clipPixelY = 2 / Math.max(1, frame.viewport.height * frame.dpr);
@@ -596,7 +594,6 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         batch,
       );
       if (!instance) continue;
-      for (const id of batch.meshIds) this.instancedMeshIds.add(id);
       mvp.elements.set(viewProjection.elements);
       this.program.setMatrix(mvp);
       this.program.setOpacity(1);
@@ -695,13 +692,12 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         }
       }
     }
-      for (const renderable of renderables) {
+      for (const renderable of standalone) {
         if (
           (isTransparentColor(renderable.mesh.material.color)
             || renderable.opacity < 0.999)
           !== transparentPass
         ) continue;
-      if (this.instancedMeshIds.has(renderable.id)) continue;
       this.program.setClipOffset(0, 0);
       mvp.elements.set(viewProjection.elements);
       world.elements.set(renderable.worldMatrix);
@@ -769,8 +765,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         SELECTION_RGBA[2],
         SELECTION_TINT_ALPHA,
       ]);
-      for (const renderable of renderables) {
-        if (this.instancedMeshIds.has(renderable.id)) continue;
+      for (const renderable of standalone) {
         if (!selected.has(selectionIdentity(renderable.mesh))) continue;
         mvp.elements.set(viewProjection.elements);
         world.elements.set(renderable.worldMatrix);
@@ -795,8 +790,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         SELECTION_RGBA[2],
         1,
       ]);
-      for (const renderable of renderables) {
-        if (this.instancedMeshIds.has(renderable.id)) continue;
+      for (const renderable of standalone) {
         if (!selected.has(selectionIdentity(renderable.mesh))) continue;
         const geometry = this.geometryCache.retain(gl, renderable.mesh.geometry);
         if (!geometry.edgeIndexBuffer || !renderable.mesh.geometry.edgeIndices) {
