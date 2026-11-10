@@ -73,6 +73,7 @@ export type ICEEngineDiagnostics = {
   readonly contextLossCount: number;
   readonly renderer: Readonly<{
     drawCalls: number;
+    renderedInstances: number;
     renderedMeshes: number;
     renderedBatches: number;
     instancingFallbacks: number;
@@ -530,6 +531,7 @@ export class ICE3 extends ICEEventDispatcher {
       contextLossCount: this.contextLossCount,
       renderer: this.backend.stats ?? {
         drawCalls: 0,
+        renderedInstances: 0,
         renderedMeshes: 0,
         renderedBatches: 0,
         instancingFallbacks: 0,

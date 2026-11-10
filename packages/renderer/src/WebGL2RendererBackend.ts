@@ -102,6 +102,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
   ];
   private frameStats = {
     drawCalls: 0,
+    renderedInstances: 0,
     renderedMeshes: 0,
     renderedBatches: 0,
     instancingFallbacks: 0,
@@ -366,6 +367,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     const mvp = this.mvpScratch;
     this.frameStats = {
       drawCalls: 0,
+      renderedInstances: 0,
       renderedMeshes: 0,
       renderedBatches: 0,
       instancingFallbacks: 0,
@@ -603,6 +605,7 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         instance.instanceCount,
       );
       this.frameStats.drawCalls += 1;
+      this.frameStats.renderedInstances += instance.instanceCount;
       if (batch.material.edgeColor && instance.edgeCount > 0) {
         this.program.setVertexColors(false);
         this.program.setDirectionalShading(false);

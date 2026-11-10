@@ -145,6 +145,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
   ];
   private frameStats = {
     drawCalls: 0,
+    renderedInstances: 0,
     renderedMeshes: 0,
     renderedBatches: 0,
     instancingFallbacks: 0,
@@ -452,6 +453,7 @@ export class WebGPURendererBackend implements ICERendererBackend {
     }
     this.frameStats = {
       drawCalls: 0,
+      renderedInstances: 0,
       renderedMeshes: 0,
       renderedBatches: 0,
       instancingFallbacks: 0,
@@ -1029,6 +1031,12 @@ export class WebGPURendererBackend implements ICERendererBackend {
       encodeDraws(pass);
     }
     this.frameStats.drawCalls += drawList.length;
+    // 实例化之后 draw call 数与网格数脱钩，独立记一份实例总数（边线叠加不算网格）。
+    for (const draw of drawList) {
+      if (draw.useInstancing && !draw.edge) {
+        this.frameStats.renderedInstances += draw.instanceCount;
+      }
+    }
     pass.end();
     if (timestampProfiler) {
       timestampProfiler.resolveFrame(encoder, frame.frameId);

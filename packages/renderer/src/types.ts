@@ -50,6 +50,13 @@ export interface ICERendererCapabilities {
 
 export interface ICERendererStats {
   readonly drawCalls: number;
+  /**
+   * 实例化通道本帧提交的实例总数，不含单体通道与边线叠加。
+   *
+   * 存在的理由：实例化之后 `drawCalls` 与实际画了多少个网格脱钩，加一个网格可能
+   * 一个 draw call 都不多。没有这个计数，调用方无法从诊断判断"改动到底画出来没有"。
+   */
+  readonly renderedInstances: number;
   readonly renderedMeshes: number;
   readonly renderedBatches: number;
   readonly instancingFallbacks: number;
