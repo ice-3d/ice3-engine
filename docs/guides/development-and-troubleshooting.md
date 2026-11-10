@@ -53,6 +53,14 @@ server。
   比较路径，并用同一硬件、相同参数重复运行。
 - Refine Tileset 时保留原 visible coverage。
 - 不得引入 Runtime source conversion 来绕过 Asset failure。
+- **`drawCalls` 不能用来判断「这次改动画出来了没有」。** 几何与材质共享的网格走实例化
+  路径，加减一两个实例不增加 draw call。证明运行期改动生效，只有两条路：断言渲染输入
+  （`collectRenderables`/`collectInstanceBatches` 产出的世界矩阵），或读像素。
+  `packages/renderer/tests/SceneMutation.test.ts` 锁住前者的契约。
+- **像素级断言只能在 headed 下做。** 同一相机、同一场景、连续两帧：真实 GPU 逐字节
+  相同（差异 0 像素），headless Chromium 的软件光栅器实测有约 2.5 万像素差异（1024×768，
+  MSAA 4×，最大通道差 158）。软件路径下这个抖动量级大于「移动一个格子」的真实变化，
+  任何像素比较都会被淹掉。headless 适合断言「不空白/不报错」，不适合断言「变了多少」。
 
 ## 5. 关联文档
 
