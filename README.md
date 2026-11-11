@@ -97,6 +97,9 @@ engine.destroy();
   失败会抛错，不静默回退（ADR-004）。
 - **拾取是异步的**：`await engine.pick({ x, y })` / `await engine.pickItem({ x, y })`。
 - **贴图没有 UV 顶点通道**：UV 由法线主导轴做米制盒投影，所以资产不需要展开 UV。
+- **实例上传是增量的**：`renderer.instanceUploads` / `instanceUploadBytes` 报告本帧
+  实际提交的实例范围。静态批次首帧后为 0，动态批次只上传变化的 matrix、opacity 或
+  semantic 范围。
 
 ## 4. 渲染开关
 

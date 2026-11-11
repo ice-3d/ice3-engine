@@ -80,6 +80,8 @@ export type ICEEngineDiagnostics = {
     gpuUploads: number;
     gpuEvictions: number;
     gpuBytes: number;
+    instanceUploads: number;
+    instanceUploadBytes: number;
   }>;
   readonly selectionCount: number;
   readonly lastPickTimeMs: number;
@@ -529,15 +531,17 @@ export class ICE3 extends ICEEventDispatcher {
       },
       viewport: { ...this.viewport },
       contextLossCount: this.contextLossCount,
-      renderer: this.backend.stats ?? {
-        drawCalls: 0,
-        renderedInstances: 0,
-        renderedMeshes: 0,
-        renderedBatches: 0,
-        instancingFallbacks: 0,
-        gpuUploads: 0,
-        gpuEvictions: 0,
-        gpuBytes: 0,
+      renderer: {
+        drawCalls: this.backend.stats?.drawCalls ?? 0,
+        renderedInstances: this.backend.stats?.renderedInstances ?? 0,
+        renderedMeshes: this.backend.stats?.renderedMeshes ?? 0,
+        renderedBatches: this.backend.stats?.renderedBatches ?? 0,
+        instancingFallbacks: this.backend.stats?.instancingFallbacks ?? 0,
+        gpuUploads: this.backend.stats?.gpuUploads ?? 0,
+        gpuEvictions: this.backend.stats?.gpuEvictions ?? 0,
+        gpuBytes: this.backend.stats?.gpuBytes ?? 0,
+        instanceUploads: this.backend.stats?.instanceUploads ?? 0,
+        instanceUploadBytes: this.backend.stats?.instanceUploadBytes ?? 0,
       },
       selectionCount: this.interaction.getSelection().length,
       lastPickTimeMs: this.lastPickTimeMs,
