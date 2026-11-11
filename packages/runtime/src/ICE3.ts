@@ -334,6 +334,13 @@ export class ICE3 extends ICEEventDispatcher {
     return this;
   }
 
+  setShadows(enabled: boolean): this {
+    this.assertActive();
+    this.backend.setShadows?.(enabled);
+    this.requestRender('shadows');
+    return this;
+  }
+
   /**
    * Section plane `[nx, ny, nz, d]`: fragments with `dot(world, n) + d < 0`
    * are discarded. `null` (or a zero plane) disables clipping.

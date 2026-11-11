@@ -161,6 +161,16 @@ it('passes a configured background color to the renderer', () => {
   engine.destroy();
 });
 
+it('toggles shadows without replacing the renderer backend', () => {
+  const backend = new FakeRendererBackend();
+  const engine = new ICE3({ backend });
+
+  engine.setShadows(false);
+  expect(backend.lastShadowsEnabled).toBe(false);
+  engine.setShadows(true);
+  expect(backend.lastShadowsEnabled).toBe(true);
+});
+
 it('reports renderer metrics alongside engine frame metrics', () => {
   const engine = new ICE3({
     backend: new FakeRendererBackend({

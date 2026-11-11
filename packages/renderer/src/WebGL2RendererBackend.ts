@@ -998,6 +998,10 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     return this.dpr;
   }
 
+  setShadows(enabled: boolean): void {
+    this.shadowEnabled = enabled;
+  }
+
   get stats(): Readonly<typeof this.frameStats> {
     return this.frameStats;
   }

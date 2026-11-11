@@ -13,6 +13,7 @@ export class FakeRendererBackend implements ICERendererBackend {
   readonly frames: ICEFrame[] = [];
   lastViewport: ICEViewport = { x: 0, y: 0, width: 1, height: 1 };
   lastBackgroundColor = '#09111f';
+  lastShadowsEnabled = true;
   pickResult: string | undefined;
   pickError: Error | undefined;
   private disposed = false;
@@ -41,7 +42,13 @@ export class FakeRendererBackend implements ICERendererBackend {
     };
   }
 
-  initialize(): void {}
+  initialize(options: { readonly shadows?: boolean } = {}): void {
+    this.lastShadowsEnabled = options.shadows ?? true;
+  }
+
+  setShadows(enabled: boolean): void {
+    this.lastShadowsEnabled = enabled;
+  }
 
   resize(viewport: ICEViewport): void {
     this.assertActive();
