@@ -152,6 +152,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
     gpuUploads: 0,
     gpuEvictions: 0,
     gpuBytes: 0,
+    instanceUploads: 0,
+    instanceUploadBytes: 0,
   };
   private lastFrame: ICEFrame | null = null;
   private captureRequest: {
@@ -460,6 +462,8 @@ export class WebGPURendererBackend implements ICERendererBackend {
       gpuUploads: 0,
       gpuEvictions: 0,
       gpuBytes: 0,
+      instanceUploads: 0,
+      instanceUploadBytes: 0,
     };
     cache.beginFrame();
     instanceCache.beginFrame();

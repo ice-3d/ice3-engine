@@ -120,6 +120,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     gpuUploads: 0,
     gpuEvictions: 0,
     gpuBytes: 0,
+    instanceUploads: 0,
+    instanceUploadBytes: 0,
   };
   private textures: WebGL2TextureCache | null = null;
   private sceneDepth: WebGL2SceneDepth | null = null;
@@ -385,6 +387,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
       gpuUploads: 0,
       gpuEvictions: 0,
       gpuBytes: 0,
+      instanceUploads: 0,
+      instanceUploadBytes: 0,
     };
 
     this.program.use();
@@ -896,6 +900,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.frameStats.gpuEvictions = this.geometryCache.evictionCount;
     this.frameStats.gpuBytes = this.geometryCache.totalBytes
       + this.instanceCache!.totalBytes;
+    this.frameStats.instanceUploads = this.instanceCache!.uploadStats.calls;
+    this.frameStats.instanceUploadBytes = this.instanceCache!.uploadStats.bytes;
     this.profiler.mark('encode');
     this.profiler.mark('submit');
     this.lastFrameProfile = this.profiler.end();

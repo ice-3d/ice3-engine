@@ -80,6 +80,8 @@ export type ICEEngineDiagnostics = {
     gpuUploads: number;
     gpuEvictions: number;
     gpuBytes: number;
+    instanceUploads: number;
+    instanceUploadBytes: number;
   }>;
   readonly selectionCount: number;
   readonly lastPickTimeMs: number;
@@ -538,6 +540,8 @@ export class ICE3 extends ICEEventDispatcher {
         gpuUploads: 0,
         gpuEvictions: 0,
         gpuBytes: 0,
+        instanceUploads: 0,
+        instanceUploadBytes: 0,
       },
       selectionCount: this.interaction.getSelection().length,
       lastPickTimeMs: this.lastPickTimeMs,

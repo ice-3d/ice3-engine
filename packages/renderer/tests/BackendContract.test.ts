@@ -11,6 +11,8 @@ it('records frames without exposing GPU objects', () => {
   expect(backend.stats).toMatchObject({
     gpuUploads: 0,
     gpuEvictions: 0,
+    instanceUploads: 0,
+    instanceUploadBytes: 0,
   });
   backend.resize({ x: 0, y: 0, width: 320, height: 180 }, 2);
   backend.render({

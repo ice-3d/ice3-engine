@@ -172,6 +172,8 @@ it('reports renderer metrics alongside engine frame metrics', () => {
         gpuUploads: 0,
         gpuEvictions: 0,
         gpuBytes: 2048,
+        instanceUploads: 2,
+        instanceUploadBytes: 1024,
       },
     }),
   });
@@ -184,6 +186,8 @@ it('reports renderer metrics alongside engine frame metrics', () => {
     gpuUploads: 0,
     gpuEvictions: 0,
     gpuBytes: 2048,
+    instanceUploads: 2,
+    instanceUploadBytes: 1024,
   });
 });
 
@@ -197,6 +201,8 @@ it('reports instancing fallback once while it remains active', () => {
       gpuUploads: 0,
       gpuEvictions: 0,
       gpuBytes: 512,
+      instanceUploads: 0,
+      instanceUploadBytes: 0,
     },
   });
   const callbacks: FrameRequestCallback[] = [];
