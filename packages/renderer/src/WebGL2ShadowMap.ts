@@ -28,7 +28,17 @@ void main() {
 /** 光源方向（与主着色器的 diffuse 保持同一方向）。 */
 export { SHADOW_LIGHT_DIRECTION as LIGHT_DIRECTION } from './ShadowFrustum.js';
 
-const SHADOW_SIZE = 2048;
+const MAX_SHADOW_SIZE = 4096;
+const DEFAULT_SHADOW_SIZE = 2048;
+
+/** 在 GPU 上限内选择不超过 4096 的最高 2 次幂分辨率。 */
+export function resolveShadowMapSize(maxTextureSize: number): number {
+  if (!Number.isFinite(maxTextureSize) || maxTextureSize < 1) {
+    return DEFAULT_SHADOW_SIZE;
+  }
+  const capped = Math.min(MAX_SHADOW_SIZE, Math.floor(maxTextureSize));
+  return 2 ** Math.floor(Math.log2(capped));
+}
 
 export class WebGL2ShadowMap {
   /** 最近一次着色器编译/链接失败的原因，供诊断读取。 */
@@ -40,8 +50,13 @@ export class WebGL2ShadowMap {
   private instancingLocation: WebGLUniformLocation | null = null;
   private matrixScratch = new Float32Array(16);
   private texelWorldValue = 1;
+  readonly size: number;
 
-  constructor(private readonly gl: WebGL2RenderingContext) {
+  constructor(
+    private readonly gl: WebGL2RenderingContext,
+    maxTextureSize = DEFAULT_SHADOW_SIZE,
+  ) {
+    this.size = resolveShadowMapSize(maxTextureSize);
     this.createResources();
   }
 
@@ -59,12 +74,16 @@ export class WebGL2ShadowMap {
     return this.texelWorldValue;
   }
 
+  get texelUv(): number {
+    return 1 / this.size;
+  }
+
   /**
    * 按场景包围盒拟合视锥。每帧调用没有意义——场景内容不变时矩阵也不会变，
    * 所以由调用方决定何时重算（包围盒变化或首帧）。
    */
   setBounds(bounds: ICEBounds | null): void {
-    const frustum = shadowFrustum(bounds, SHADOW_SIZE);
+    const frustum = shadowFrustum(bounds, this.size);
     this.matrixScratch.set(frustum.matrix);
     this.texelWorldValue = frustum.texelWorld;
   }
@@ -74,7 +93,7 @@ export class WebGL2ShadowMap {
     const gl = this.gl;
     if (!this.framebuffer || !this.program) return false;
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
-    gl.viewport(0, 0, SHADOW_SIZE, SHADOW_SIZE);
+    gl.viewport(0, 0, this.size, this.size);
     // 阴影 pass 必须关掉多边形偏移：主 pass 为了避免共面闪烁开了 offset(2, 4)，
     // 那是按屏幕空间深度斜率加权的，在深度 pass 里会把投影深度推后，阴影直接消失。
     gl.disable(gl.POLYGON_OFFSET_FILL);
@@ -131,8 +150,8 @@ export class WebGL2ShadowMap {
       gl.TEXTURE_2D,
       0,
       gl.DEPTH_COMPONENT24,
-      SHADOW_SIZE,
-      SHADOW_SIZE,
+      this.size,
+      this.size,
       0,
       gl.DEPTH_COMPONENT,
       gl.UNSIGNED_INT,
