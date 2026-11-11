@@ -63,8 +63,8 @@ export interface ICERendererStats {
   readonly gpuUploads: number;
   readonly gpuEvictions: number;
   readonly gpuBytes: number;
-  readonly instanceUploads: number;
-  readonly instanceUploadBytes: number;
+  readonly instanceUploads?: number;
+  readonly instanceUploadBytes?: number;
 }
 
 export interface ICERendererBackend {

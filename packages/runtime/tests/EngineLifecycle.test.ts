@@ -180,6 +180,7 @@ it('reports renderer metrics alongside engine frame metrics', () => {
 
   expect(engine.getDiagnostics().renderer).toEqual({
     drawCalls: 3,
+    renderedInstances: 0,
     renderedMeshes: 1,
     renderedBatches: 0,
     instancingFallbacks: 0,
@@ -188,6 +189,30 @@ it('reports renderer metrics alongside engine frame metrics', () => {
     gpuBytes: 2048,
     instanceUploads: 2,
     instanceUploadBytes: 1024,
+  });
+});
+
+it('normalizes optional instance upload diagnostics from custom backends', () => {
+  const engine = new ICE3({
+    backend: new FakeRendererBackend({
+      stats: {
+        drawCalls: 1,
+        renderedInstances: 2,
+        renderedMeshes: 0,
+        renderedBatches: 0,
+        instancingFallbacks: 0,
+        gpuUploads: 0,
+        gpuEvictions: 0,
+        gpuBytes: 0,
+      } as never,
+    }),
+  });
+
+  expect(engine.getDiagnostics().renderer).toMatchObject({
+    drawCalls: 1,
+    renderedInstances: 2,
+    instanceUploads: 0,
+    instanceUploadBytes: 0,
   });
 });
 
