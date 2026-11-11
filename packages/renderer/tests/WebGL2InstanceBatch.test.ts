@@ -165,6 +165,210 @@ test('updates the cached instance count when a group changes size', () => {
   expect(cache.totalBytes).toBe(2 * 16 * 4 + 2 * 4 + 2 * 4);
 });
 
+test('skips all uploads when an instance batch is unchanged', () => {
+  const geometry = triangleGeometry('cache-static');
+  const material = new ICEBasicMaterial({ color: '#ffb000' });
+  const calls: UploadCall[] = [];
+  const gl = recordingWebGL2(calls);
+  const cache = new WebGL2InstanceCache();
+  const batch = instanceBatch(geometry, material, [0, 4]);
+
+  cache.retain(gl, fakeGeometryCache(geometry), batch);
+  const afterFirst = calls.length;
+  cache.beginFrame();
+  cache.retain(gl, fakeGeometryCache(geometry), batch);
+
+  expect(calls.length).toBe(afterFirst);
+  expect(cache.uploadStats.skippedBatches).toBe(1);
+  expect(cache.uploadStats.bytes).toBe(0);
+});
+
+test('uploads only the changed matrix span', () => {
+  const geometry = triangleGeometry('cache-range');
+  const material = new ICEBasicMaterial({ color: '#ffb000' });
+  const calls: UploadCall[] = [];
+  const gl = recordingWebGL2(calls);
+  const cache = new WebGL2InstanceCache();
+  const first = instanceBatch(geometry, material, [0, 4, 8]);
+  const second = instanceBatch(geometry, material, [0, 4, 8]);
+  second.instanceMatrices[17] = 3;
+
+  cache.retain(gl, fakeGeometryCache(geometry), first);
+  cache.beginFrame();
+  calls.length = 0;
+  cache.retain(gl, fakeGeometryCache(geometry), second);
+
+  expect(calls).toEqual([{
+    kind: 'subdata',
+    byteOffset: 17 * 4,
+    bytes: 4,
+  }]);
+  expect(cache.uploadStats.bytes).toBe(4);
+});
+
+test('full uploads when the instance count changes', () => {
+  const geometry = triangleGeometry('cache-resize');
+  const material = new ICEBasicMaterial({ color: '#ffb000' });
+  const calls: UploadCall[] = [];
+  const gl = recordingWebGL2(calls);
+  const cache = new WebGL2InstanceCache();
+  cache.retain(gl, fakeGeometryCache(geometry), instanceBatch(geometry, material, [0, 4]));
+  cache.beginFrame();
+  calls.length = 0;
+  cache.retain(gl, fakeGeometryCache(geometry), instanceBatch(geometry, material, [0]));
+
+  expect(calls.some((call) => call.kind === 'data')).toBe(true);
+  expect(cache.uploadStats.fullUploads).toBe(1);
+});
+
+test('uploads only opacity when opacity changes', () => {
+  const geometry = triangleGeometry('cache-opacity');
+  const material = new ICEBasicMaterial({ color: '#ffb000' });
+  const calls: UploadCall[] = [];
+  const gl = recordingWebGL2(calls);
+  const cache = new WebGL2InstanceCache();
+  cache.retain(
+    gl,
+    fakeGeometryCache(geometry),
+    instanceBatch(geometry, material, [0, 4]),
+  );
+  const changed = instanceBatch(geometry, material, [0, 4]);
+  changed.instanceOpacity[1] = 0.5;
+  cache.beginFrame();
+  calls.length = 0;
+  cache.retain(gl, fakeGeometryCache(geometry), changed);
+
+  expect(calls).toEqual([{
+    kind: 'subdata',
+    byteOffset: 4,
+    bytes: 4,
+  }]);
+});
+
+test('uploads only semantic indices when selection changes', () => {
+  const geometry = triangleGeometry('cache-semantic');
+  const material = new ICEBasicMaterial({ color: '#ffb000' });
+  const calls: UploadCall[] = [];
+  const gl = recordingWebGL2(calls);
+  const cache = new WebGL2InstanceCache();
+  cache.retain(
+    gl,
+    fakeGeometryCache(geometry),
+    instanceBatch(geometry, material, [0, 4]),
+  );
+  const changed = instanceBatch(geometry, material, [0, 4]);
+  changed.semanticIndices[1] = 9;
+  cache.beginFrame();
+  calls.length = 0;
+  cache.retain(gl, fakeGeometryCache(geometry), changed);
+
+  expect(calls).toEqual([{
+    kind: 'subdata',
+    byteOffset: 4,
+    bytes: 4,
+  }]);
+});
+
+type UploadCall =
+  | { readonly kind: 'data'; readonly bytes: number }
+  | {
+    readonly kind: 'subdata';
+    readonly byteOffset: number;
+    readonly bytes: number;
+  };
+
+function recordingWebGL2(calls: UploadCall[]): WebGL2RenderingContext {
+  return {
+    ARRAY_BUFFER: 0x8892,
+    ELEMENT_ARRAY_BUFFER: 0x8893,
+    FLOAT: 0x1406,
+    UNSIGNED_INT: 0x1405,
+    DYNAMIC_DRAW: 0x88e8,
+    createVertexArray: () => ({}),
+    createBuffer: () => ({}),
+    deleteVertexArray: () => undefined,
+    deleteBuffer: () => undefined,
+    bindVertexArray: () => undefined,
+    bindBuffer: () => undefined,
+    bufferData: (_target, data) => {
+      calls.push({
+        kind: 'data',
+        bytes: data.byteLength,
+      });
+    },
+    bufferSubData: (_target, byteOffset, data) => {
+      calls.push({
+        kind: 'subdata',
+        byteOffset,
+        bytes: data.byteLength,
+      });
+    },
+    enableVertexAttribArray: () => undefined,
+    vertexAttribPointer: () => undefined,
+    vertexAttribDivisor: () => undefined,
+  } as unknown as WebGL2RenderingContext;
+}
+
+function triangleGeometry(id: string): ICEIndexedGeometry {
+  return new ICEIndexedGeometry({
+    id,
+    positions: new Float32Array([
+      0, 0, 0,
+      1, 0, 0,
+      0, 1, 0,
+    ]),
+    indices: new Uint16Array([0, 1, 2]),
+  });
+}
+
+function fakeGeometryCache(
+  geometry: ICEIndexedGeometry,
+): import('../src/WebGL2GeometryCache.js').WebGL2GeometryCache {
+  return {
+    retain: () => ({
+      vertexArray: {} as WebGLVertexArrayObject,
+      positionBuffer: {} as WebGLBuffer,
+      triangleIndexBuffer: {} as WebGLBuffer,
+      edgeIndexBuffer: null,
+      colorBuffer: null,
+      semanticBuffer: null,
+      triangleCount: geometry.indices.length,
+      edgeCount: 0,
+      bytes: 0,
+    }),
+  } as unknown as import('../src/WebGL2GeometryCache.js').WebGL2GeometryCache;
+}
+
+function instanceBatch(
+  geometry: ICEIndexedGeometry,
+  material: ICEBasicMaterial,
+  translations: readonly number[],
+): ICEInstanceBatch {
+  const instanceMatrices = new Float32Array(translations.length * 16);
+  translations.forEach((translation, index) => {
+    const offset = index * 16;
+    instanceMatrices[offset] = 1;
+    instanceMatrices[offset + 5] = 1;
+    instanceMatrices[offset + 10] = 1;
+    instanceMatrices[offset + 12] = translation;
+    instanceMatrices[offset + 15] = 1;
+  });
+  return {
+    id: `instance:${geometry.id}`,
+    geometry,
+    material,
+    instanceMatrices,
+    instanceOpacity: new Float32Array(translations.length).fill(1),
+    semanticIds: translations.map((_value, index) => `selection-${index}`),
+    semanticIndices: Uint32Array.from(
+      { length: translations.length },
+      (_value, index) => index,
+    ),
+    meshIds: translations.map((_value, index) => `mesh-${index}`),
+    materialKey: material.color,
+  };
+}
+
 function fakeWebGL2(): WebGL2RenderingContext {
   return {
     ARRAY_BUFFER: 0x8892,

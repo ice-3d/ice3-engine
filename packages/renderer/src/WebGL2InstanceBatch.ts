@@ -26,6 +26,45 @@ export interface WebGL2InstanceEntry {
   instanceCount: number;
   /** Upload footprint; changes with the instance count, so not readonly. */
   bytes: number;
+  matrixSnapshot: Float32Array;
+  opacitySnapshot: Float32Array;
+  semanticSnapshot: Uint32Array;
+}
+
+export type WebGL2InstanceUploadStats = {
+  readonly calls: number;
+  readonly bytes: number;
+  readonly skippedBatches: number;
+  readonly fullUploads: number;
+  readonly rangedUploads: number;
+};
+
+function changedFloatRange(
+  previous: Float32Array,
+  next: Float32Array,
+): readonly [number, number] | null {
+  let first = -1;
+  let last = -1;
+  for (let index = 0; index < next.length; index += 1) {
+    if (previous[index] === next[index]) continue;
+    if (first < 0) first = index;
+    last = index;
+  }
+  return first < 0 ? null : [first, last + 1];
+}
+
+function changedUintRange(
+  previous: Uint32Array,
+  next: Uint32Array,
+): readonly [number, number] | null {
+  let first = -1;
+  let last = -1;
+  for (let index = 0; index < next.length; index += 1) {
+    if (previous[index] === next[index]) continue;
+    if (first < 0) first = index;
+    last = index;
+  }
+  return first < 0 ? null : [first, last + 1];
 }
 
 export class WebGL2InstanceCache {
@@ -33,6 +72,13 @@ export class WebGL2InstanceCache {
   private active = new Set<string>();
   private gl: WebGL2RenderingContext | null = null;
   private fallbacks = 0;
+  private stats = {
+    calls: 0,
+    bytes: 0,
+    skippedBatches: 0,
+    fullUploads: 0,
+    rangedUploads: 0,
+  };
 
   retain(
     gl: WebGL2RenderingContext,
@@ -44,29 +90,60 @@ export class WebGL2InstanceCache {
     const geometry = geometryCache.retain(gl, batch.geometry);
     const existing = this.entries.get(batch.id);
     if (existing) {
-      gl.bindBuffer(gl.ARRAY_BUFFER, existing.matrixBuffer);
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
+      const instanceCount = batch.semanticIds.length;
+      if (existing.instanceCount !== instanceCount) {
+        this.uploadAll(gl, existing, batch);
+        return existing;
+      }
+
+      const matrixRange = changedFloatRange(
+        existing.matrixSnapshot,
         batch.instanceMatrices,
-        gl.DYNAMIC_DRAW,
       );
-      gl.bindBuffer(gl.ARRAY_BUFFER, existing.opacityBuffer);
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
+      const opacityRange = changedFloatRange(
+        existing.opacitySnapshot,
         batch.instanceOpacity,
-        gl.DYNAMIC_DRAW,
       );
-      gl.bindBuffer(gl.ARRAY_BUFFER, existing.semanticBuffer);
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
+      const semanticRange = changedUintRange(
+        existing.semanticSnapshot,
         batch.semanticIndices,
-        gl.DYNAMIC_DRAW,
       );
+      if (!matrixRange && !opacityRange && !semanticRange) {
+        this.stats.skippedBatches += 1;
+        return existing;
+      }
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, existing.matrixBuffer);
+      if (matrixRange) {
+        this.uploadRange(
+          gl,
+          existing.matrixBuffer,
+          batch.instanceMatrices,
+          matrixRange,
+        );
+        existing.matrixSnapshot = batch.instanceMatrices.slice();
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, existing.opacityBuffer);
+      if (opacityRange) {
+        this.uploadRange(
+          gl,
+          existing.opacityBuffer,
+          batch.instanceOpacity,
+          opacityRange,
+        );
+        existing.opacitySnapshot = batch.instanceOpacity.slice();
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, existing.semanticBuffer);
+      if (semanticRange) {
+        this.uploadRange(
+          gl,
+          existing.semanticBuffer,
+          batch.semanticIndices,
+          semanticRange,
+        );
+        existing.semanticSnapshot = batch.semanticIndices.slice();
+      }
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
-      existing.instanceCount = batch.semanticIds.length;
-      existing.bytes = batch.instanceMatrices.byteLength
-        + batch.instanceOpacity.byteLength
-        + batch.semanticIndices.byteLength;
       return existing;
     }
 
@@ -162,14 +239,27 @@ export class WebGL2InstanceCache {
       bytes: batch.instanceMatrices.byteLength
         + batch.instanceOpacity.byteLength
         + batch.semanticIndices.byteLength,
+      matrixSnapshot: batch.instanceMatrices.slice(),
+      opacitySnapshot: batch.instanceOpacity.slice(),
+      semanticSnapshot: batch.semanticIndices.slice(),
     };
     this.entries.set(batch.id, entry);
+    this.stats.calls += 3;
+    this.stats.bytes += entry.bytes;
+    this.stats.fullUploads += 1;
     return entry;
   }
 
   beginFrame(): void {
     this.active = new Set();
     this.fallbacks = 0;
+    this.stats = {
+      calls: 0,
+      bytes: 0,
+      skippedBatches: 0,
+      fullUploads: 0,
+      rangedUploads: 0,
+    };
   }
 
   endFrame(): void {
@@ -203,6 +293,48 @@ export class WebGL2InstanceCache {
   get totalBytes(): number {
     return [...this.entries.values()]
       .reduce((sum, entry) => sum + entry.bytes, 0);
+  }
+
+  get uploadStats(): Readonly<WebGL2InstanceUploadStats> {
+    return this.stats;
+  }
+
+  private uploadRange(
+    gl: WebGL2RenderingContext,
+    buffer: WebGLBuffer,
+    data: Float32Array | Uint32Array,
+    range: readonly [number, number],
+  ): void {
+    const byteOffset = range[0] * data.BYTES_PER_ELEMENT;
+    const view = data.subarray(range[0], range[1]);
+    gl.bufferSubData(gl.ARRAY_BUFFER, byteOffset, view);
+    this.stats.calls += 1;
+    this.stats.bytes += view.byteLength;
+    this.stats.rangedUploads += 1;
+  }
+
+  private uploadAll(
+    gl: WebGL2RenderingContext,
+    entry: WebGL2InstanceEntry,
+    batch: ICEInstanceBatch,
+  ): void {
+    gl.bindBuffer(gl.ARRAY_BUFFER, entry.matrixBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, batch.instanceMatrices, gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, entry.opacityBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, batch.instanceOpacity, gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, entry.semanticBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, batch.semanticIndices, gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    entry.instanceCount = batch.semanticIds.length;
+    entry.bytes = batch.instanceMatrices.byteLength
+      + batch.instanceOpacity.byteLength
+      + batch.semanticIndices.byteLength;
+    entry.matrixSnapshot = batch.instanceMatrices.slice();
+    entry.opacitySnapshot = batch.instanceOpacity.slice();
+    entry.semanticSnapshot = batch.semanticIndices.slice();
+    this.stats.calls += 3;
+    this.stats.bytes += entry.bytes;
+    this.stats.fullUploads += 1;
   }
 
   private deleteEntry(entry: WebGL2InstanceEntry): void {
