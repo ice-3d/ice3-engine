@@ -564,6 +564,8 @@ export class WebGL2RendererBackend implements ICERendererBackend {
         this.shadowMap.matrix,
         // 1.5 个纹素：够把平躺在光里的面抬离自身深度，又不会让影子明显离开物体。
         this.shadowMap.texelWorld * 1.5,
+        3,
+        this.shadowMap.texelUv,
       );
       this.program.setShadowDebug(this.shadowDebug);
     }
@@ -1009,6 +1011,6 @@ export class WebGL2RendererBackend implements ICERendererBackend {
     this.instanceCache = new WebGL2InstanceCache();
     this.picker = new WebGL2Picker(gl);
     // 阴影贴图必须在这里建：它和主程序同生命周期，上下文丢失后一起重建。
-    this.shadowMap = new WebGL2ShadowMap(gl);
+    this.shadowMap = new WebGL2ShadowMap(gl, this.capabilities.maxTextureSize);
   }
 }

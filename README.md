@@ -35,7 +35,7 @@ engine.setScene(new ICEScene({ id: 'main' })).setCamera(camera).start();
 | **Scene** | 类型化场景树、Node 所有权、变换、序列化与释放 |
 | **渲染** | WebGL2（默认）/ WebGPU（实验性）、instancing、静态批次、alpha blending |
 | **材质** | CSS 颜色、edge overlay、directional / flat / water shading；**底色贴图、法线贴图、ORM 打包图**（R 遮蔽 / G 粗糙度 / B 金属度），米制盒投影 UV |
-| **屏幕空间效果** | 环境遮蔽（三圈采样，默认开）、方向光阴影（视锥按场景包围盒拟合，默认开） |
+| **屏幕空间效果** | 环境遮蔽（三圈采样，默认开）、方向光阴影（视锥按场景包围盒拟合，最高 4096 阴影图，默认开） |
 | **组合** | Canvas2D 图层叠在 3D 之上或并排，共享输入路由 |
 | **输入** | pointer / keyboard 路由、orbit、pan、zoom、精确 picking |
 | **Asset** | ICE3 Prepared GLB Profile reader、Scene builder |

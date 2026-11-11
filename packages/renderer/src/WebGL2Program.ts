@@ -82,6 +82,7 @@ uniform sampler2D u_shadowMap;
 uniform mat4 u_lightViewProjection;
 uniform float u_shadowEnabled;
 uniform float u_shadowNormalOffset;
+uniform float u_shadowTexelSize;
 uniform float u_shadowDebug;
 uniform sampler2D u_baseColorMap;
 uniform float u_useBaseColorMap;
@@ -348,7 +349,7 @@ void main() {
       float ndlShadow = max(dot(normal, lightDirection), 0.0);
       float bias = 0.0006 + 0.0012 * (1.0 - ndlShadow);
       float lit2 = 0.0;
-      vec2 texel = vec2(1.0 / 2048.0);
+      vec2 texel = vec2(u_shadowTexelSize);
       for (int dx = -1; dx <= 1; dx++) {
         for (int dy = -1; dy <= 1; dy++) {
           float depth = texture(u_shadowMap, projected.xy + vec2(float(dx), float(dy)) * texel).r;
@@ -424,6 +425,7 @@ export class WebGL2Program {
   private readonly lightMatrixLocation: WebGLUniformLocation | null;
   private readonly shadowEnabledLocation: WebGLUniformLocation | null;
   private readonly shadowNormalOffsetLocation: WebGLUniformLocation | null;
+  private readonly shadowTexelSizeLocation: WebGLUniformLocation | null;
   private readonly shadowDebugLocation: WebGLUniformLocation | null;
   private readonly instancingLocation: WebGLUniformLocation;
   private readonly opacityLocation: WebGLUniformLocation;
@@ -490,6 +492,7 @@ export class WebGL2Program {
     const lightMatrixLocation = gl.getUniformLocation(program, 'u_lightViewProjection');
     const shadowEnabledLocation = gl.getUniformLocation(program, 'u_shadowEnabled');
     const shadowNormalOffsetLocation = gl.getUniformLocation(program, 'u_shadowNormalOffset');
+    const shadowTexelSizeLocation = gl.getUniformLocation(program, 'u_shadowTexelSize');
     const shadowDebugLocation = gl.getUniformLocation(program, 'u_shadowDebug');
     if (
       !matrixLocation
@@ -521,6 +524,7 @@ export class WebGL2Program {
     this.lightMatrixLocation = lightMatrixLocation;
     this.shadowEnabledLocation = shadowEnabledLocation;
     this.shadowNormalOffsetLocation = shadowNormalOffsetLocation;
+    this.shadowTexelSizeLocation = shadowTexelSizeLocation;
     this.shadowDebugLocation = shadowDebugLocation;
     this.instancingLocation = instancingLocation;
     this.opacityLocation = opacityLocation;
@@ -738,6 +742,7 @@ export class WebGL2Program {
     matrix: Float32Array | null,
     normalOffset = 0,
     unit = 3,
+    texelUv = 1 / 2048,
   ): void {
     const gl = this.gl;
     gl.uniform1f(this.shadowEnabledLocation, enabled && texture && matrix ? 1 : 0);
@@ -748,6 +753,9 @@ export class WebGL2Program {
     if (this.lightMatrixLocation) gl.uniformMatrix4fv(this.lightMatrixLocation, false, matrix);
     if (this.shadowNormalOffsetLocation) {
       gl.uniform1f(this.shadowNormalOffsetLocation, normalOffset);
+    }
+    if (this.shadowTexelSizeLocation) {
+      gl.uniform1f(this.shadowTexelSizeLocation, texelUv);
     }
     gl.activeTexture(gl.TEXTURE0);
   }
