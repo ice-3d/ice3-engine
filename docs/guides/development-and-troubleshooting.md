@@ -43,6 +43,9 @@ server。
 - 使用公开 API 复现行为，不通过私有 source import 测试。
 - 使用稳定 Diagnostic code，不依赖 message text。
 - 调整 residency budget 前检查 GPU upload 和 eviction counter。
+- 检查实例数据是否重复上传时读取 `renderer.instanceUploads` 与
+  `renderer.instanceUploadBytes`。静态批次首帧后应为 0；变化的批次只应提交变化范围。
+  零上传不代表零 draw call，也不能代替 Scene revision 或像素验证。
 - WebGPU 和 WebGL2 性能比较使用 `npm run benchmark:renderers`；不要以单机结果声明通用性能结论。
 - Benchmark 的 `Collect`、`Prepare`、`Encode` 和 `Submit` 列分别表示 Scene 收集、
   上传准备、命令编码和队列提交；以中位数和 p95 一起判断回归。
