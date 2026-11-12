@@ -139,6 +139,18 @@ describe('scene ownership', () => {
     expect([first.selectionId, second.selectionId])
       .toEqual(['motor-4', 'motor-4']);
   });
+
+  it('adds large scenes without rescanning every existing node', () => {
+    const scene = new ICEScene({ id: 'large-scene' });
+    const started = performance.now();
+
+    for (let index = 0; index < 10_000; index += 1) {
+      scene.addChild(new ICENode({ id: `node-${index}` }));
+    }
+
+    expect(performance.now() - started).toBeLessThan(300);
+    expect(scene.children).toHaveLength(10_000);
+  });
 });
 
 describe('scene revision', () => {

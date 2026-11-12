@@ -52,6 +52,8 @@ export class ICENode extends ICEEventDispatcher {
   private localMatrixOverride: Float32Array | null = null;
   private _visible = true;
   private _revision = 0;
+  /** Root-owned ID index; child nodes reach it through getRoot(). */
+  private idIndex: Map<string, ICENode> | null = null;
 
   constructor(options: ICENodeOptions) {
     super();
@@ -105,9 +107,11 @@ export class ICENode extends ICEEventDispatcher {
     }
 
     const root = this.getRoot();
-    for (const id of collectIDs(node)) {
-      const duplicate = root.findByID(id);
-      if (duplicate && duplicate !== node.findByID(id)) {
+    const index = root.ensureIDIndex();
+    const incoming = collectNodes(node);
+    for (const [id, incomingNode] of incoming) {
+      const duplicate = index.get(id);
+      if (duplicate && duplicate !== incomingNode) {
         throw new ICEEngineError(
           'ICE3_DUPLICATE_OBJECT_ID',
           `Duplicate ICE node ID: ${id}`,
@@ -121,6 +125,7 @@ export class ICENode extends ICEEventDispatcher {
     }
     node._parent = this;
     this._children.push(node);
+    for (const [id, incomingNode] of incoming) index.set(id, incomingNode);
     this.markSceneChanged();
     return this;
   }
@@ -130,8 +135,14 @@ export class ICENode extends ICEEventDispatcher {
     if (index < 0) {
       return this;
     }
+    const root = this.getRoot();
     this._children.splice(index, 1);
     node._parent = null;
+    if (root.idIndex) {
+      for (const [id, indexed] of collectNodes(node)) {
+        if (root.idIndex.get(id) === indexed) root.idIndex.delete(id);
+      }
+    }
     this.markSceneChanged();
     if (options?.dispose) {
       node.dispose();
@@ -142,6 +153,9 @@ export class ICENode extends ICEEventDispatcher {
   findByID(id: string): ICENode | undefined {
     if (this.id === id) {
       return this;
+    }
+    if (!this._parent && this.idIndex) {
+      return this.idIndex.get(id);
     }
     for (const child of this._children) {
       const found = child.findByID(id);
@@ -217,6 +231,14 @@ export class ICENode extends ICEEventDispatcher {
     return current;
   }
 
+  private ensureIDIndex(): Map<string, ICENode> {
+    if (this.idIndex) return this.idIndex;
+    const index = new Map<string, ICENode>();
+    for (const [id, node] of collectNodes(this)) index.set(id, node);
+    this.idIndex = index;
+    return index;
+  }
+
   private markSceneChanged(): void {
     this.getRoot()._revision += 1;
   }
@@ -268,7 +290,20 @@ export class ICENode extends ICEEventDispatcher {
   }
 }
 
-const collectIDs = (node: ICENode): string[] => [
-  node.id,
-  ...node.children.flatMap((child) => collectIDs(child)),
-];
+const collectNodes = (node: ICENode): Map<string, ICENode> => {
+  const nodes = new Map<string, ICENode>();
+  const visit = (current: ICENode): void => {
+    const duplicate = nodes.get(current.id);
+    if (duplicate) {
+      throw new ICEEngineError(
+        'ICE3_DUPLICATE_OBJECT_ID',
+        `Duplicate ICE node ID: ${current.id}`,
+        { id: current.id },
+      );
+    }
+    nodes.set(current.id, current);
+    for (const child of current.children) visit(child);
+  };
+  visit(node);
+  return nodes;
+};
