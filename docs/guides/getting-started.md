@@ -42,7 +42,8 @@ npm run dev:example:m1
 ## 4. 预期结果
 
 - M0 显示平光 cube，并呈现清晰 Geometry edge。
-- 鼠标拖拽旋转，wheel 缩放，WASD 或 arrow key 平移。
+- 鼠标拖拽旋转，wheel 缩放，WASD 或 arrow key 平移；需要固定应用手感时，可在
+  `ICEOrbitController` 构造时设置距离、旋转、缩放和拖拽阈值。
 - M1 先显示可访问 loading state，再显示 tiled 污水处理厂。
 - M1 点击选择 equipment unit，拖拽不会选中。
 - 选中 unit 显示醒目黄色 highlight 和 information panel。

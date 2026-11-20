@@ -35,6 +35,7 @@ server。
 | `ICE3_WEBGPU_UNAVAILABLE` | 仅显式 WebGPU 会触发；检查 Device 或 Pipeline 初始化条件 |
 | `ICE3_RENDERER_ASYNC_REQUIRED` | 将同步 `init()` 改为 `await initAsync()` |
 | `ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE` | 可选 Storage、Bundle 或 Compute 层已降级；功能仍可用，按性能目标检查 warning details |
+| `ICE3_ORBIT_OPTIONS_INVALID` | 检查 `minDistance`、`maxDistance`、旋转/缩放速度和拖拽阈值是否合法；`maxDistance` 不得小于当前 camera-target 距离 |
 | Context loss 后反复空白帧 | 等待 context restoration，并检查 Renderer Diagnostic |
 | 本地缺少大型 M1 Asset | 使用 Studio `export tileset` 或 `partition` 生成；source 和 prepared intermediate 已被忽略 |
 
@@ -43,6 +44,10 @@ server。
 - 使用公开 API 复现行为，不通过私有 source import 测试。
 - 使用稳定 Diagnostic code，不依赖 message text。
 - 调整 residency budget 前检查 GPU upload 和 eviction counter。
+- Camera focus 动画结束并重建 `ICEOrbitController` 时，复用同一组显式 distance 和速度
+  参数；不要依赖新 camera pose 推导新的缩放范围。检查拖拽问题时，同时区分
+  `dragThresholdPixels`、`rotationRadiansPerPixel` 和 Renderer 的 selection click
+  threshold，它们服务不同阶段，不能互相替代。
 - 检查实例数据是否重复上传时读取 `renderer.instanceUploads` 与
   `renderer.instanceUploadBytes`。静态批次首帧后应为 0；变化的批次只应提交变化范围。
   零上传不代表零 draw call，也不能代替 Scene revision 或像素验证。
