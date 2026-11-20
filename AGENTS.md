@@ -6,6 +6,12 @@
 >
 > Owner: ICE3 Engine maintainers
 
+## 执行方式
+
+- 默认使用 Native 方式在当前会话直接执行，由主 Agent 完成分析、实现、测试和收尾。
+- 不得主动启用或派生子 Agent；只有用户明确允许启用子 Agent 时，才可以使用委派或并行
+  子 Agent。
+
 ## 架构
 
 - 公开消费方只从 `ice3` 导入。
