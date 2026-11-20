@@ -47,12 +47,14 @@ test('renders the example with a consistent flat material hue', async ({ page })
       );
       return [...pixel];
     };
+    // Keep the samples inside the projected front face. Larger offsets cross
+    // the cube edge and correctly sample a differently shaded face.
     return [
       read(0, 0),
-      read(-60, 0),
-      read(60, 0),
-      read(0, -60),
-      read(0, 60),
+      read(-20, 0),
+      read(20, 0),
+      read(0, -20),
+      read(0, 20),
     ];
   });
 

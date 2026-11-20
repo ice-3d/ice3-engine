@@ -180,13 +180,18 @@ test('activates one adaptive generation only after idle', async ({ page }) => {
   )).toBe(0);
 
   for (let index = 0; index < 12; index += 1) {
+    const beforeFrame = await page.evaluate(
+      () => window.__ice3M1.diagnostics().frameId,
+    );
     await page.evaluate((offset) => {
       window.__ice3M1.setCameraPose(
         [offset * 0.2, 0.2, 5],
         [0, 0, 0],
       );
     }, index % 2 === 0 ? 1 : -1);
-    await page.waitForTimeout(30);
+    await expect.poll(
+      () => page.evaluate(() => window.__ice3M1.diagnostics().frameId),
+    ).toBeGreaterThan(beforeFrame);
     const stats = await page.evaluate(() => window.__ice3M1.adaptiveStats());
     expect(stats).toMatchObject({
       activeGeneration: 2,

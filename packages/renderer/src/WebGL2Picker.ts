@@ -65,6 +65,12 @@ export class WebGL2Picker {
     gl.viewport(0, 0, this.width, this.height);
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    // The pick target was the most recently bound texture when it was
+    // allocated. The pick shader's default sampler unit is 0, so leaving that
+    // binding active creates a framebuffer/texture feedback loop and makes
+    // every draw fail with GL_INVALID_OPERATION.
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, null);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.disable(gl.BLEND);
@@ -256,6 +262,7 @@ export class WebGL2Picker {
       colorTexture,
       0,
     );
+    gl.bindTexture(gl.TEXTURE_2D, null);
     gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
     gl.renderbufferStorage(
       gl.RENDERBUFFER,
