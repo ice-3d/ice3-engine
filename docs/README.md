@@ -65,6 +65,7 @@
 | `ICE3-ENG-PLAN-003` | [设备 Selection](plans/2026-10-27-equipment-selection.md) | Implemented | 设备 Selection 实施记录 |
 | `ICE3-ENG-PLAN-004` | [WebGPU Renderer](plans/2026-10-29-webgpu-renderer.md) | Historical | WebGPU backend、fallback 和基准的实施记录 |
 | `ICE3-ENG-PLAN-005` | [WebGPU 性能优化](plans/2026-10-29-webgpu-performance.md) | Historical | WebGPU 测量、Selection、Storage、Bundle 和 Compute 的实施记录 |
+| `ICE3-ENG-PLAN-006` | [实例上传缓存](superpowers/plans/2026-11-11-instance-upload-cache.md) | Implemented | 静态批次上传抑制、范围更新和诊断的实施记录 |
 
 ## 7. 状态说明
 
