@@ -9,7 +9,8 @@
 > **历史状态：** 本文保留 WebGPU Renderer 的实施记录；当前能力和 opt-in 规则以
 > [Engine API](../api/m0.md) 与 [文档索引](../README.md) 为准。
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **历史计划，请勿直接执行：** 本文件只记录原始实施过程。
+> 当前代码和执行规则以 [AGENTS.md](../../AGENTS.md) 为准；默认 Native，只有用户明确允许时才启用子 Agent。
 
 **Goal:** 增加与 WebGL2 功能等价的 WebGPU Renderer、可靠的运行时后端选择与 fallback，以及可重复的 WebGL2/WebGPU 性能比较报告。
 
@@ -65,7 +66,7 @@
 - Consumes: `ICERendererBackend.pick(frame, point)` from the current renderer contract.
 - Produces: `pick?(frame, point): Promise<string | undefined>`, `ICE3.pick(point): Promise<ICENode | undefined>`, `ICE3.pickItem(point): Promise<{ readonly item?: ICESceneItem }>`.
 
-- [ ] **Step 1: Write the failing async API test**
+- **Step 1: Write the failing async API test**
 
 ```ts
 // packages/runtime/tests/AsyncPick.test.ts
@@ -133,7 +134,7 @@ export function createHost(): HTMLElement {
 }
 ```
 
-- [ ] **Step 2: Run the test and verify RED**
+- **Step 2: Run the test and verify RED**
 
 Run:
 
@@ -143,7 +144,7 @@ npm test -- packages/runtime/tests/AsyncPick.test.ts
 
 Expected: FAIL because `pick()` and `pickItem()` return Scene values directly instead of Promises.
 
-- [ ] **Step 3: Implement the Promise contract**
+- **Step 3: Implement the Promise contract**
 
 Change the renderer interface to:
 
@@ -186,7 +187,7 @@ async pick(frame: ICEFrame, point: ICEScreenPoint): Promise<string | undefined> 
 
 In `ICE3`, change `pick()`, `pickItem()`, and `samplePick()` to async. Update direct picking tests to use `await`.
 
-- [ ] **Step 4: Add the pointer race test**
+- **Step 4: Add the pointer race test**
 
 ```ts
 it('commits only the latest pointer click when picks finish out of order', async () => {
@@ -259,7 +260,7 @@ The public Pick calls may return their own result; pointer-driven selection must
 monotonic `pickGeneration`. Increment it in `resolveSceneClick()`, and only call
 `setSelection()` when the completed generation is still current and state is active.
 
-- [ ] **Step 5: Run the focused and runtime suites**
+- **Step 5: Run the focused and runtime suites**
 
 Run:
 
@@ -270,7 +271,7 @@ npm test
 
 Expected: all tests pass.
 
-- [ ] **Step 6: Commit**
+- **Step 6: Commit**
 
 ```bash
 git add packages/renderer/src/types.ts packages/renderer/src/FakeRendererBackend.ts packages/renderer/src/WebGL2RendererBackend.ts packages/runtime/src/ICE3.ts packages/runtime/tests/Projection.test.ts packages/runtime/tests/RenderBatchPicking.test.ts packages/runtime/tests/AsyncPick.test.ts tests/test-dom.ts
@@ -297,7 +298,7 @@ git commit -m "feat: make exact picking asynchronous"
 - Consumes: `ICEScene`, `ICEMesh`, `ICEBasicMaterial` and `ICEGeometry` from `@ice3/core`.
 - Produces: `collectRenderables()`, `collectRenderBatches()`, `collectInstanceBatches()` and their input types without any WebGL names.
 
-- [ ] **Step 1: Write the failing neutral-module test**
+- **Step 1: Write the failing neutral-module test**
 
 ```ts
 import { it } from 'node:test';
@@ -329,7 +330,7 @@ it('collects renderables and instances without a graphics API', () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -339,7 +340,7 @@ npm test -- packages/renderer/tests/RendererBatchInputs.test.ts
 
 Expected: FAIL because the neutral collection entry points do not exist.
 
-- [ ] **Step 3: Move generic collection code**
+- **Step 3: Move generic collection code**
 
 Move `collectRenderables`, `selectionIdentity` and `ICEGeometryRenderable` into
 `Renderables.ts`. Move `ICERenderBatchNode`, `ICERenderBatchDraw` and
@@ -349,7 +350,7 @@ Move `collectRenderables`, `selectionIdentity` and `ICEGeometryRenderable` into
 Keep compatibility re-exports from the existing `WebGL2*` files and export the neutral
 names from `packages/renderer/src/index.ts`.
 
-- [ ] **Step 4: Verify refactor**
+- **Step 4: Verify refactor**
 
 Run:
 
@@ -361,7 +362,7 @@ npm run typecheck
 
 Expected: new test passes and existing Renderer behavior remains unchanged.
 
-- [ ] **Step 5: Commit**
+- **Step 5: Commit**
 
 ```bash
 git add packages/renderer/src/Renderables.ts packages/renderer/src/RenderBatch.ts packages/renderer/src/InstanceBatch.ts packages/renderer/src/WebGL2GeometryBatch.ts packages/renderer/src/WebGL2RenderBatch.ts packages/renderer/src/WebGL2InstanceBatch.ts packages/renderer/src/index.ts packages/renderer/tests/RendererBatchInputs.test.ts
@@ -420,7 +421,7 @@ export function probeWebGPU(options?: {
 }): Promise<ICEWebGPUProbeResult>;
 ```
 
-- [ ] **Step 1: Add the type dependency**
+- **Step 1: Add the type dependency**
 
 Run:
 
@@ -430,7 +431,7 @@ npm install --save-dev @webgpu/types@0.1.74
 
 Add `"types": ["@webgpu/types"]` to `tsconfig.base.json` compiler options.
 
-- [ ] **Step 2: Write the probe failure tests**
+- **Step 2: Write the probe failure tests**
 
 ```ts
 it('reports api-unavailable without navigator.gpu', async () => {
@@ -548,7 +549,7 @@ Also test: null Adapter, overdue `requestAdapter`, failed `requestDevice`, null 
 Context, immediately rejected `device.lost`, and a successful result containing the same
 Adapter/Device instance returned by the fakes.
 
-- [ ] **Step 3: Verify RED**
+- **Step 3: Verify RED**
 
 Run:
 
@@ -558,7 +559,7 @@ npm test -- packages/renderer/tests/WebGPUProbe.test.ts
 
 Expected: FAIL because `probeWebGPU` does not exist.
 
-- [ ] **Step 4: Implement the probe**
+- **Step 4: Implement the probe**
 
 Use `globalThis.navigator?.gpu` when `options.gpu` is not supplied. Compare every required
 limit before requesting a Device. Race only the Adapter request against the timeout:
@@ -586,7 +587,7 @@ Cache failures only while their Promise is pending; delete rejected/failed entri
 explicit initialization can retry. Tests using different fake GPU objects therefore never
 share a Device.
 
-- [ ] **Step 5: Run probe tests**
+- **Step 5: Run probe tests**
 
 Run:
 
@@ -597,7 +598,7 @@ npm run typecheck
 
 Expected: all probe branches pass and WebGPU types compile.
 
-- [ ] **Step 6: Commit**
+- **Step 6: Commit**
 
 ```bash
 git add package.json package-lock.json tsconfig.base.json packages/renderer/src/WebGPUProbe.ts packages/renderer/src/index.ts packages/renderer/tests/WebGPUProbe.test.ts packages/renderer/tests/fake-webgpu.ts
@@ -659,7 +660,7 @@ object whose `getContext('webgpu')` returns `fake.context`; `fake.context` conta
 `configure(configuration)`, `unconfigure()`, `currentTexture`, and the recorded
 `configuration` value.
 
-- [ ] **Step 1: Write the failing interleaving and disposal test**
+- **Step 1: Write the failing interleaving and disposal test**
 
 ```ts
 it('uploads position and color into one aligned vertex buffer', () => {
@@ -692,7 +693,7 @@ Write a second test that constructs entries with `maxBytes: 100`, retains two di
 entries, calls `beginFrame()`/`endFrame()` across the configured grace period, and asserts the
 older unpinned entry is destroyed while the pinned entry remains.
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -702,7 +703,7 @@ npm test -- packages/renderer/tests/WebGPUGeometryCache.test.ts
 
 Expected: FAIL because the cache and interleaving behavior do not exist.
 
-- [ ] **Step 3: Implement geometry residency**
+- **Step 3: Implement geometry residency**
 
 Interleave every vertex as six float values: `position.xyz` and `color.rgb`. If
 `geometry.colors` is absent, fill color with `1, 1, 1`.
@@ -717,7 +718,7 @@ Align every allocated byte length to a multiple of 4. Map `Uint16Array` to `uint
 `Uint32Array` to `uint32`. Use one `queue.writeBuffer()` per resource. On allocation failure,
 destroy resources created so far and throw `ICE3_GPU_RESOURCE_FAILED`.
 
-- [ ] **Step 4: Write the failing instance cache test**
+- **Step 4: Write the failing instance cache test**
 
 ```ts
 it('writes aligned instance matrices and semantic indices', () => {
@@ -741,7 +742,7 @@ it('writes aligned instance matrices and semantic indices', () => {
 });
 ```
 
-- [ ] **Step 5: Verify RED, implement, and verify GREEN**
+- **Step 5: Verify RED, implement, and verify GREEN**
 
 Run:
 
@@ -762,7 +763,7 @@ npm run typecheck
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- **Step 6: Commit**
 
 ```bash
 git add packages/renderer/src/WebGPUResources.ts packages/renderer/src/WebGPUGeometryCache.ts packages/renderer/src/WebGPUInstanceCache.ts packages/renderer/src/index.ts packages/renderer/tests/WebGPUGeometryCache.test.ts packages/renderer/tests/WebGPUInstanceCache.test.ts
@@ -809,7 +810,7 @@ class WebGPURendererBackend implements ICERendererBackend {
 }
 ```
 
-- [ ] **Step 1: Write the failing backend initialization test**
+- **Step 1: Write the failing backend initialization test**
 
 ```ts
 it('configures the canvas and renders a clear frame', async () => {
@@ -871,7 +872,7 @@ export async function readyBackend(
 }
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -881,7 +882,7 @@ npm test -- packages/renderer/tests/WebGPURendererBackend.test.ts
 
 Expected: FAIL because `WebGPURendererBackend` does not exist.
 
-- [ ] **Step 3: Implement the mandatory WGSL and pipelines**
+- **Step 3: Implement the mandatory WGSL and pipelines**
 
 Create one shader module containing a vertex shader that accepts:
 
@@ -941,7 +942,7 @@ and line-list with the same vertex layout, depth comparison `less-equal`, depth 
 enabled, and the Canvas format. Use a 256-byte dynamic uniform-buffer stride so one submit
 can draw many objects with different matrices.
 
-- [ ] **Step 4: Implement resize and basic Mesh draw**
+- **Step 4: Implement resize and basic Mesh draw**
 
 `resize()` updates the Canvas pixel size, creates a depth texture using the selected DPR and
 viewport dimensions, and releases the previous depth texture. `render()` traverses shared
@@ -955,7 +956,7 @@ asynchronous backend factory completes.
 Convert the existing `colorToRgba()` helper to a neutral color module only if WebGPU cannot
 import it without loading WebGL implementation code. Preserve its output exactly.
 
-- [ ] **Step 5: Verify backend tests**
+- **Step 5: Verify backend tests**
 
 Run:
 
@@ -966,7 +967,7 @@ npm run typecheck
 
 Expected: PASS; clear-only and one-mesh frames record the expected pass, draw and stats.
 
-- [ ] **Step 6: Commit**
+- **Step 6: Commit**
 
 ```bash
 git add packages/renderer/src/WebGPURenderPipeline.ts packages/renderer/src/WebGPURendererBackend.ts packages/renderer/src/types.ts packages/renderer/src/index.ts packages/renderer/tests/WebGPURendererBackend.test.ts
@@ -990,7 +991,7 @@ git commit -m "feat: add WebGPU mesh renderer"
 - Consumes: shared renderables, instance batches, static batches, `WebGPUInstanceCache`, `WebGPUGeometryCache`.
 - Produces: complete non-Pick WebGPU render path and consistent `ICERendererStats`.
 
-- [ ] **Step 1: Write failing frame coverage tests**
+- **Step 1: Write failing frame coverage tests**
 
 ```ts
 it('renders one instanced draw for repeated geometry', async () => {
@@ -1101,7 +1102,7 @@ const sharedBoxGeometry = new ICEBoxGeometry({
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -1111,7 +1112,7 @@ npm test -- packages/renderer/tests/WebGPUFrames.test.ts
 
 Expected: FAIL because the basic backend draws only ordinary meshes.
 
-- [ ] **Step 3: Implement instance and batch draws**
+- **Step 3: Implement instance and batch draws**
 
 Bind the instance matrix and semantic buffers with `stepMode: 'instance'`. Use
 `drawIndexed(instanceCount)` for instance batches. Use the same static/adaptive render batch
@@ -1120,7 +1121,7 @@ collection as WebGL2 and update counters exactly once per submission.
 For non-instanced draws, bind a one-element identity instance record and use the same pipeline
 layout. This keeps the WGSL single-path and makes `useInstancing` a uniform branch.
 
-- [ ] **Step 4: Implement selection overlay**
+- **Step 4: Implement selection overlay**
 
 Render selected uninstanced meshes with a separate blend pipeline using
 `SELECTION_RGBA` and alpha `0.65`. Render selected edges with alpha `1`. For semantic
@@ -1128,7 +1129,7 @@ batch/instance highlights, draw only vertices whose semantic index equals the se
 Use five pixel-offset line submissions to match the current edge emphasis. Keep depth writes
 disabled for tint and restore the main depth pipeline before the next frame.
 
-- [ ] **Step 5: Verify frame coverage**
+- **Step 5: Verify frame coverage**
 
 Run:
 
@@ -1139,7 +1140,7 @@ npm test -- packages/runtime/tests/RenderBatchPicking.test.ts
 
 Expected: PASS; stats and selection draw counts match fixture-derived values.
 
-- [ ] **Step 6: Commit**
+- **Step 6: Commit**
 
 ```bash
 git add packages/renderer/src/WebGPURendererBackend.ts packages/renderer/src/WebGPURenderPipeline.ts packages/renderer/tests/WebGPUInstanceCache.test.ts packages/renderer/tests/WebGPURendererBackend.test.ts packages/renderer/tests/WebGPUFrames.test.ts
@@ -1177,7 +1178,7 @@ class WebGPUPicker {
 }
 ```
 
-- [ ] **Step 1: Write failing Readback tests**
+- **Step 1: Write failing Readback tests**
 
 ```ts
 it('resolves a visible pick ID after async buffer mapping', async () => {
@@ -1240,7 +1241,7 @@ function pickFrame(
 }
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -1250,7 +1251,7 @@ npm test -- packages/renderer/tests/WebGPUPicker.test.ts
 
 Expected: FAIL because `WebGPUPicker` does not exist.
 
-- [ ] **Step 3: Implement identity rendering and aligned Readback**
+- **Step 3: Implement identity rendering and aligned Readback**
 
 Create an RGBA8 identity texture with `RENDER_ATTACHMENT | COPY_SRC` and a depth texture.
 Clamp the picked point into the Canvas pixel bounds. Copy one pixel to a 256-byte buffer with
@@ -1260,13 +1261,13 @@ four bytes, and always unmap/destroy the staging buffer in `finally`.
 Use top-left pixel origin for WebGPU. Encode IDs with the existing stable RGBA codec; keep
 the first ID above `0` so a cleared pixel remains an empty pick.
 
-- [ ] **Step 4: Wire backend Pick**
+- **Step 4: Wire backend Pick**
 
 Wire the Picker into `WebGPURendererBackend.pick()`. Track uninstanced, instanced and batch
 semantic identities exactly as WebGL2. If Readback allocation, mapping or copy fails, throw
 `ICEEngineError('ICE3_WEBGPU_PICK_UNAVAILABLE', detail, { cause })`.
 
-- [ ] **Step 5: Verify both backend Pick paths**
+- **Step 5: Verify both backend Pick paths**
 
 Run:
 
@@ -1277,7 +1278,7 @@ npm run typecheck
 
 Expected: PASS; delayed mapping resolves to the same stable Selection ID used by WebGL2.
 
-- [ ] **Step 6: Commit**
+- **Step 6: Commit**
 
 ```bash
 git add packages/renderer/src/WebGPUPicker.ts packages/renderer/src/WebGPURendererBackend.ts packages/renderer/src/WebGPURenderPipeline.ts packages/renderer/src/index.ts packages/renderer/tests/WebGPUPicker.test.ts packages/runtime/tests/RenderBatchPicking.test.ts
@@ -1299,7 +1300,7 @@ git commit -m "feat: add exact WebGPU picking"
 - Consumes: initialized WebGPU backend and its Canvas/Device lifecycle.
 - Produces: `capture(): Promise<Blob>`, resize-safe textures, Device Lost callbacks and full backend `dispose()`.
 
-- [ ] **Step 1: Write failing lifecycle tests**
+- **Step 1: Write failing lifecycle tests**
 
 ```ts
 it('replaces the depth texture after resize without leaking the old texture', async () => {
@@ -1350,7 +1351,7 @@ it('captures the presented texture before resolving its Blob', async () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -1360,14 +1361,14 @@ npm test -- packages/renderer/tests/WebGPULifecycle.test.ts
 
 Expected: FAIL because lifecycle, capture and Device Lost handling are incomplete.
 
-- [ ] **Step 3: Implement resize, capture and disposal**
+- **Step 3: Implement resize, capture and disposal**
 
 Configure WebGPU Canvas textures with `RENDER_ATTACHMENT | COPY_SRC`. For `capture()`, copy
 the presented current texture into a row-aligned RGBA/BGRA buffer, map it, copy bytes into a
 new `Uint8Array`, and return a PNG Blob through `OffscreenCanvas.convertToBlob()` or a
 DOM Canvas fallback. Clear all buffers, textures, caches and bind groups during dispose.
 
-- [ ] **Step 4: Implement Device Lost recovery**
+- **Step 4: Implement Device Lost recovery**
 
 Register `device.lost.then(info => ...)`. Ignore reason `'destroyed'` only when this backend
 is already disposing. Otherwise clear GPU resources, call `onContextLost()`, request a
@@ -1375,7 +1376,7 @@ replacement Device from the retained Adapter, recreate pipelines/caches, configu
 Canvas, call `onContextRestored()`, and keep the backend on WebGPU. A failed replacement
 reports `ICE3_WEBGPU_DEVICE_LOST`; it must not switch APIs.
 
-- [ ] **Step 5: Verify lifecycle**
+- **Step 5: Verify lifecycle**
 
 Run:
 
@@ -1387,7 +1388,7 @@ npm run typecheck
 
 Expected: PASS with no retained old-size texture or callback after dispose.
 
-- [ ] **Step 6: Commit**
+- **Step 6: Commit**
 
 ```bash
 git add packages/renderer/src/WebGPURendererBackend.ts packages/renderer/tests/fake-webgpu.ts packages/renderer/tests/WebGPULifecycle.test.ts
@@ -1426,7 +1427,7 @@ export type ICE3RendererSelection = Readonly<{
 }>;
 ```
 
-- [ ] **Step 1: Write the failing preference tests**
+- **Step 1: Write the failing preference tests**
 
 ```ts
 it('uses WebGPU for auto when the WebGPU factory succeeds', async () => {
@@ -1469,7 +1470,7 @@ it('does not fall back when WebGPU is explicitly requested', async () => {
 The fake's `capabilities.backend` makes `selected: 'fake'`; production tests use a typed
 backend stub with `'webgpu'` or `'webgl2'` capability.
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -1479,7 +1480,7 @@ npm test -- packages/renderer/tests/RendererSelection.test.ts
 
 Expected: FAIL because the selector does not exist.
 
-- [ ] **Step 3: Implement the selector**
+- **Step 3: Implement the selector**
 
 Production `createWebGPU` must call `probeWebGPU()`, convert a failed probe to
 `ICEEngineError('ICE3_WEBGPU_UNAVAILABLE', detail, { details: { reason } })`, and otherwise
@@ -1488,7 +1489,7 @@ Production `createWebGPU` must call `probeWebGPU()`, convert a failed probe to
 
 `createWebGL2` returns `new WebGL2RendererBackend()`.
 
-- [ ] **Step 4: Write the failing Runtime API tests**
+- **Step 4: Write the failing Runtime API tests**
 
 ```ts
 it('initAsync initializes an injected backend', async () => {
@@ -1518,7 +1519,7 @@ it('rejects backend injection combined with renderer preference', () => {
 });
 ```
 
-- [ ] **Step 5: Implement Runtime initialization**
+- **Step 5: Implement Runtime initialization**
 
 Store injected backend and preference separately. Extract current init body into
 `initializeWithBackend(target, backend)`. `init()` accepts only injected backend or WebGL2.
@@ -1529,7 +1530,7 @@ Canvases through the existing cleanup path.
 Add `rendererSelection` to `ICEEngineDiagnostics`. Export the renderer preference and selection
 types through the public facade without exporting WebGPU resource types.
 
-- [ ] **Step 6: Verify Runtime behavior**
+- **Step 6: Verify Runtime behavior**
 
 Run:
 
@@ -1541,7 +1542,7 @@ npm run typecheck
 
 Expected: PASS; auto fallback and forced failure have distinct observable behavior.
 
-- [ ] **Step 7: Commit**
+- **Step 7: Commit**
 
 ```bash
 git add packages/renderer/src/RendererSelection.ts packages/renderer/src/types.ts packages/renderer/src/index.ts packages/runtime/src/ICE3.ts packages/runtime/src/index.ts packages/ice3/src/index.ts packages/renderer/tests/RendererSelection.test.ts packages/runtime/tests/AsyncInitialization.test.ts
@@ -1566,7 +1567,7 @@ git commit -m "feat: select WebGPU renderer at runtime"
 - Consumes: `initAsync()`, `rendererSelection`, async `pick()`.
 - Produces: real-browser coverage of WebGPU selection, WebGL2 fallback, rendering and Pick.
 
-- [ ] **Step 1: Write the failing browser test**
+- **Step 1: Write the failing browser test**
 
 ```ts
 test('auto selects the strongest available renderer', async ({ page }) => {
@@ -1609,7 +1610,7 @@ test('auto falls back when navigator.gpu is unavailable', async ({ page }) => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -1619,7 +1620,7 @@ npm run test:e2e -- --project=chromium tests/e2e/renderer-selection.spec.ts
 
 Expected: FAIL because examples do not expose selection configuration and M1 still uses sync `init()`.
 
-- [ ] **Step 3: Migrate examples**
+- **Step 3: Migrate examples**
 
 Keep M0 and M2 explicitly on WebGL2 because their context-loss and pixel-read test hooks call
 `getContext('webgl2')`. M1 reads `?renderer=` and uses:
@@ -1635,13 +1636,13 @@ engine = await new ICE3({ renderer }).initAsync(stage);
 Export diagnostics and the async Pick through `window.__ice3M1` so tests consume public
 behavior. Do not access a WebGPU Device or raw resource.
 
-- [ ] **Step 4: Update existing tests**
+- **Step 4: Update existing tests**
 
 Any E2E helper calling `pick` must `await` it. The M1 default should use `auto`; M0/M2 should
 pass `renderer: 'webgl2'`. Existing WebGPU-capable Chromium runs then exercise WebGPU, while
 WebKit falls back when unavailable.
 
-- [ ] **Step 5: Verify browser integration**
+- **Step 5: Verify browser integration**
 
 Run:
 
@@ -1654,7 +1655,7 @@ npx playwright test tests/e2e/m1.spec.ts tests/e2e/selection-dpr.spec.ts
 
 Expected: auto, forced WebGL2 and both available browser projects pass without page errors.
 
-- [ ] **Step 6: Commit**
+- **Step 6: Commit**
 
 ```bash
 git add examples/m0/main.ts examples/m1/main.ts examples/m2/main.ts examples/m1/global.d.ts tests/e2e/m1.spec.ts tests/e2e/renderer-selection.spec.ts
@@ -1701,7 +1702,7 @@ export function summarizeSamples(samples: readonly number[]): {
 export function improvementPercent(webgl2: number, webgpu: number): number;
 ```
 
-- [ ] **Step 1: Write failing statistics tests**
+- **Step 1: Write failing statistics tests**
 
 ```ts
 it('uses nearest-rank percentiles on unsorted samples', () => {
@@ -1721,7 +1722,7 @@ it('reports WebGPU improvement as a percentage reduction', () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -1731,7 +1732,7 @@ node --import tsx --test benchmarks/core/statistics.test.ts
 
 Expected: FAIL because the benchmark statistics module does not exist.
 
-- [ ] **Step 3: Implement statistics**
+- **Step 3: Implement statistics**
 
 Sort a copy of samples. Use zero-based nearest-rank index:
 
@@ -1744,7 +1745,7 @@ const index = Math.min(
 
 Reject empty samples and non-finite values. Keep `improvementPercent()` unrounded.
 
-- [ ] **Step 4: Write failing scenario-shape tests**
+- **Step 4: Write failing scenario-shape tests**
 
 ```ts
 it('builds the declared fixed workload sizes', () => {
@@ -1755,7 +1756,7 @@ it('builds the declared fixed workload sizes', () => {
 });
 ```
 
-- [ ] **Step 5: Implement scenarios**
+- **Step 5: Implement scenarios**
 
 Create deterministic geometry and transforms for:
 
@@ -1768,7 +1769,7 @@ Create deterministic geometry and transforms for:
 
 Use fixed camera position and target. Do not call the network for synthetic scenarios.
 
-- [ ] **Step 6: Include benchmark tests and verify**
+- **Step 6: Include benchmark tests and verify**
 
 Modify `scripts/run-tests.mjs` to collect `benchmarks/**/*.test.ts` as a third root after
 `packages` and `tests`. It must still skip `tests/e2e`.
@@ -1782,7 +1783,7 @@ npm run typecheck
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- **Step 7: Commit**
 
 ```bash
 git add benchmarks/core/statistics.ts benchmarks/core/statistics.test.ts benchmarks/core/scenarios.ts benchmarks/core/scenarios.test.ts benchmarks/core/types.ts scripts/run-tests.mjs
@@ -1853,7 +1854,7 @@ export function createBenchmarkReport(input: {
 };
 ```
 
-- [ ] **Step 1: Write failing report tests**
+- **Step 1: Write failing report tests**
 
 ```ts
 it('writes null GPU timing and an explicit reason when timers are unavailable', () => {
@@ -1884,7 +1885,7 @@ it('does not divide by zero when comparing an empty pick sample', () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -1894,7 +1895,7 @@ node --import tsx --test benchmarks/report.test.ts
 
 Expected: FAIL because the report module does not exist.
 
-- [ ] **Step 3: Implement the browser lab**
+- **Step 3: Implement the browser lab**
 
 Parse `backend`, `scenario`, `warmup`, and `frames` from URL search parameters. Instantiate the
 forced backend directly. Use one fixed `1280 x 720` Canvas and DPR `1`. Collect renderer CPU
@@ -1905,7 +1906,7 @@ GPU samples to `null` and record the exact reason.
 Expose the same benchmark runner on `window.__ice3Benchmark`; no WebGPU or WebGL handles may
 be returned.
 
-- [ ] **Step 4: Implement the Node runner**
+- **Step 4: Implement the Node runner**
 
 `benchmarks/run-renderers.mjs` must:
 
@@ -1921,14 +1922,14 @@ be returned.
 The Markdown columns are `scenario`, `backend`, `cpu median`, `cpu p95`, `gpu median`,
 `draw calls`, `GPU bytes`, and `improvement vs WebGL2`.
 
-- [ ] **Step 5: Add package scripts**
+- **Step 5: Add package scripts**
 
 ```json
 "benchmark:renderers": "node benchmarks/run-renderers.mjs",
 "benchmark:renderers:headless": "node benchmarks/run-renderers.mjs --headless"
 ```
 
-- [ ] **Step 6: Verify report and supported benchmark path**
+- **Step 6: Verify report and supported benchmark path**
 
 Run:
 
@@ -1941,7 +1942,7 @@ Expected: JSON and Markdown are created; every requested Scenario has WebGL2 and
 or the command exits non-zero with `WEBGPU_UNSUPPORTED`. No `NaN`, Infinity or zero-filled
 missing GPU timing.
 
-- [ ] **Step 7: Commit**
+- **Step 7: Commit**
 
 ```bash
 git add benchmarks/web/index.html benchmarks/web/main.ts benchmarks/web/styles.css benchmarks/web/global.d.ts benchmarks/webpack.config.cjs benchmarks/run-renderers.mjs benchmarks/report.ts benchmarks/report.test.ts package.json
@@ -1975,7 +1976,7 @@ git commit -m "feat: benchmark WebGL2 against WebGPU"
 - Consumes: completed Engine APIs and browser behavior.
 - Produces: published API documentation, version `0.2.0`, and the Console using `auto` without direct GPU access.
 
-- [ ] **Step 1: Write the failing release contract test**
+- **Step 1: Write the failing release contract test**
 
 Add to `tests/release/package.test.ts`:
 
@@ -1987,7 +1988,7 @@ it('publishes WebGPU renderer API in ice3 0.2.0', async () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -1997,7 +1998,7 @@ npm test -- tests/release/package.test.ts
 
 Expected: FAIL because the release manifest still declares `0.1.1` and has no WebGPU keyword.
 
-- [ ] **Step 3: Update documentation and release metadata**
+- **Step 3: Update documentation and release metadata**
 
 Document synchronous compatibility behavior, `initAsync()`, Renderer preferences, fallback
 Diagnostics, async `pick()` migration, Device Lost behavior, benchmark commands and result
@@ -2007,7 +2008,7 @@ interpretation. Add the WebGPU keyword and set the source package and release ma
 Do not document a single machine's benchmark as a permanent performance guarantee. Link the
 benchmark workflow and explain that `improvementPercent > 0` means WebGPU used less time.
 
-- [ ] **Step 4: Update the Console adapter**
+- **Step 4: Update the Console adapter**
 
 Find the current Engine construction in `ice3-agent-console/src/engine.ts` and change it to the
 following production behavior:
@@ -2020,7 +2021,7 @@ Expose the selected backend only through Engine Diagnostics. Update the Console'
 dependency and any mocked Engine API to return Promises from Pick. Add a test asserting that
 Console initialization passes `renderer: 'auto'` and awaits `initAsync`.
 
-- [ ] **Step 5: Run documentation and package gates**
+- **Step 5: Run documentation and package gates**
 
 Run in Engine:
 
@@ -2042,7 +2043,7 @@ npm run build
 
 Expected: all commands pass.
 
-- [ ] **Step 6: Run full browser and benchmark verification**
+- **Step 6: Run full browser and benchmark verification**
 
 Run in Engine:
 
@@ -2054,7 +2055,7 @@ npm run benchmark:renderers
 Expected: Chromium and WebKit E2E pass; benchmark outputs all supported Scenario comparisons
 and records any unavailable timer without fabricated values.
 
-- [ ] **Step 7: Run the complete Engine gate**
+- **Step 7: Run the complete Engine gate**
 
 Run:
 
@@ -2068,7 +2069,7 @@ git status --short
 Expected: all gates pass; only intended tracked files are modified and
 `output/benchmarks/` remains ignored.
 
-- [ ] **Step 8: Commit**
+- **Step 8: Commit**
 
 ```bash
 git add README.md docs/README.md docs/architecture.md docs/diagnostics.md docs/api/m0.md docs/guides/getting-started.md docs/guides/development-and-troubleshooting.md packages/ice3/README.md packages/ice3/package.json scripts/build-release-package.mjs package-lock.json tests/release/package.test.ts
@@ -2086,13 +2087,13 @@ git -C ../ice3-agent-console commit -m "feat: use automatic WebGPU renderer"
 
 ## 3. Final Completion Gate
 
-- [ ] Engine and Console branches contain only intended changes.
-- [ ] `npm run verify` and `npm run release:check` pass in Engine.
-- [ ] Console `npm run typecheck`, `npm test`, and `npm run build` pass.
-- [ ] Chromium `auto` selects WebGPU when available.
-- [ ] Simulated unavailable WebGPU selects and renders WebGL2 in `auto`.
-- [ ] Forced unavailable WebGPU throws `ICE3_WEBGPU_UNAVAILABLE`.
-- [ ] Mesh、vertex color、instances、static/adaptive batches、selection、edges and Pick pass on both backends.
-- [ ] Device Lost and resize tests leave no retained invalid resource.
-- [ ] Benchmark JSON and Markdown contain real timing distributions and explicit null reasons.
-- [ ] No customer Asset, raw GPU object, absolute local result path or forbidden product name is committed.
+- Engine and Console branches contain only intended changes.
+- `npm run verify` and `npm run release:check` pass in Engine.
+- Console `npm run typecheck`, `npm test`, and `npm run build` pass.
+- Chromium `auto` selects WebGPU when available.
+- Simulated unavailable WebGPU selects and renders WebGL2 in `auto`.
+- Forced unavailable WebGPU throws `ICE3_WEBGPU_UNAVAILABLE`.
+- Mesh、vertex color、instances、static/adaptive batches、selection、edges and Pick pass on both backends.
+- Device Lost and resize tests leave no retained invalid resource.
+- Benchmark JSON and Markdown contain real timing distributions and explicit null reasons.
+- No customer Asset, raw GPU object, absolute local result path or forbidden product name is committed.

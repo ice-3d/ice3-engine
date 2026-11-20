@@ -6,7 +6,8 @@
 >
 > Owner: ICE3 Engine maintainers
 
-> **面向代理工作者的说明：** 必需子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 按任务逐项实施本计划。使用复选框（`- [ ]`）跟踪进度。
+> **历史计划，请勿直接执行：** 本文件只记录原始实施过程。
+> 当前代码和执行规则以 [AGENTS.md](../../AGENTS.md) 为准；默认 Native，只有用户明确允许时才启用子 Agent。
 
 **目标：** 添加精确的整件设备单选，包含 GPU 拾取、青色渲染高亮和跟随设备的名称标签。
 
@@ -86,7 +87,7 @@
 - 消费：现有 `ICENodeOptions`、`ICEMeshOptions` 和序列化辅助函数。
 - 产出：`ICENodeOptions.displayName?: string`；`ICENode.displayName: string`；`ICEMeshOptions.selectionId?: string`；`ICEMesh.selectionId: string`。
 
-- [ ] **步骤 1：编写预期失败的元数据测试**
+- **步骤 1：编写预期失败的元数据测试**
 
 添加到 `packages/core/tests/Scene.test.ts`：
 
@@ -151,7 +152,7 @@ it('round-trips display and equipment selection names', () => {
 });
 ```
 
-- [ ] **步骤 2：验证测试因缺少 API 而失败**
+- **步骤 2：验证测试因缺少 API 而失败**
 
 运行：
 
@@ -161,7 +162,7 @@ npm test -- packages/core/tests/Scene.test.ts packages/core/tests/Serialization.
 
 预期：FAIL，因为 `displayName` 和 `selectionId` 不存在。
 
-- [ ] **步骤 3：实现 core 元数据和序列化**
+- **步骤 3：实现 core 元数据和序列化**
 
 在 `ICENode` 中添加：
 
@@ -242,7 +243,7 @@ static fromJSON(value: ICESerializedNode): ICEMesh {
 }
 ```
 
-- [ ] **步骤 4：运行测试以验证任务**
+- **步骤 4：运行测试以验证任务**
 
 运行：
 
@@ -252,7 +253,7 @@ npm test -- packages/core/tests/Scene.test.ts packages/core/tests/Serialization.
 
 预期：PASS。
 
-- [ ] **步骤 5：提交**
+- **步骤 5：提交**
 
 ```bash
 git add packages/core/src/scene/ICENode.ts packages/core/src/scene/ICEMesh.ts packages/core/tests/Scene.test.ts packages/core/tests/Serialization.test.ts
@@ -271,7 +272,7 @@ git commit -m "feat(core): add equipment selection metadata"
 - 消费：`ICEPreparedNode.name`、`ICEPreparedMesh.node`、`ICEMesh.selectionId`。
 - 产出：具有 `displayName = source.name` 的导入网格节点，以及所有源节点 primitive 共享 `selectionId = source.id`。
 
-- [ ] **步骤 1：编写预期失败的场景构建器测试**
+- **步骤 1：编写预期失败的场景构建器测试**
 
 添加：
 
@@ -304,7 +305,7 @@ it('keeps secondary primitives in the same equipment selection group', () => {
 });
 ```
 
-- [ ] **步骤 2：验证测试失败**
+- **步骤 2：验证测试失败**
 
 运行：
 
@@ -314,7 +315,7 @@ npm test -- packages/runtime/tests/AssetSceneBuilder.test.ts
 
 预期：FAIL，因为构建器忽略已准备名称，且未设置共享 selection 身份。
 
-- [ ] **步骤 3：实现传播**
+- **步骤 3：实现传播**
 
 对于节点上的第一个网格：
 
@@ -341,7 +342,7 @@ new ICEMesh({
 })
 ```
 
-- [ ] **步骤 4：验证任务测试和所有 runtime 测试**
+- **步骤 4：验证任务测试和所有 runtime 测试**
 
 运行：
 
@@ -352,7 +353,7 @@ npm test -- packages/runtime
 
 预期：PASS。
 
-- [ ] **步骤 5：提交**
+- **步骤 5：提交**
 
 ```bash
 git add packages/runtime/src/asset/ICEAssetSceneBuilder.ts packages/runtime/tests/AssetSceneBuilder.test.ts
@@ -378,7 +379,7 @@ git commit -m "feat(assets): group prepared primitives by equipment"
 - 产出：`ICERendererBackend.pick?(frame, point): string | undefined`。
 - 产出：`encodeSelectionIndex(index): readonly [number, number, number, 255]` 和 `decodeSelectionIndex(pixel): number | undefined`。
 
-- [ ] **步骤 1：编写预期失败的 codec 和契约测试**
+- **步骤 1：编写预期失败的 codec 和契约测试**
 
 创建 `packages/renderer/tests/PickCodec.test.ts`：
 
@@ -419,7 +420,7 @@ it('declares whether the backend supports exact picking', () => {
 
 为每个 fake 帧 fixture 更新 `selection: []`。
 
-- [ ] **步骤 2：验证 RED**
+- **步骤 2：验证 RED**
 
 运行：
 
@@ -429,7 +430,7 @@ npm test -- packages/renderer/tests/PickCodec.test.ts packages/renderer/tests/Ba
 
 预期：FAIL，因为 codec 和能力不存在。
 
-- [ ] **步骤 3：实现类型和 codec**
+- **步骤 3：实现类型和 codec**
 
 在 `types.ts` 中：
 
@@ -490,7 +491,7 @@ export function decodeSelectionIndex(
 
 在 fake 后端设置 `picking: false`，在 WebGL2 后端设置 `picking: true`。
 
-- [ ] **步骤 4：验证 GREEN**
+- **步骤 4：验证 GREEN**
 
 运行：
 
@@ -501,7 +502,7 @@ npm run typecheck
 
 运行前，在 `BackendContract.test.ts` 和 `ICE3.renderFrame()` 中用 `selection: []` 或实时 selection 数组更新帧 fixture。预期：PASS。
 
-- [ ] **步骤 5：提交**
+- **步骤 5：提交**
 
 ```bash
 git add packages/renderer/src/types.ts packages/renderer/src/FakeRendererBackend.ts packages/renderer/src/WebGL2RendererBackend.ts packages/renderer/src/WebGL2PickCodec.ts packages/renderer/tests/PickCodec.test.ts packages/renderer/tests/BackendContract.test.ts
@@ -523,7 +524,7 @@ git commit -m "feat(renderer): define pickup frame contract"
 - 消费：`WebGL2Program`、`WebGL2GeometryCache`、`collectRenderables`、`encodeSelectionIndex`、`decodeSelectionIndex`。
 - 产出：`ICEPickFrame`；`new WebGL2Picker(gl)`；`picker.pick(frame: ICEPickFrame, geometryCache, renderables): string | undefined`。
 
-- [ ] **步骤 1：添加预期失败的渲染器能力断言**
+- **步骤 1：添加预期失败的渲染器能力断言**
 
 扩展 `tests/e2e/m1.spec.ts`，添加一个检查真实后端是否声明支持 picking 的探测：
 
@@ -541,7 +542,7 @@ npm run test:e2e -- tests/e2e/m1.spec.ts --project=chromium --grep="prepared ind
 
 预期：FAIL，因为诊断尚未暴露 `picking`。
 
-- [ ] **步骤 2：实现 picker**
+- **步骤 2：实现 picker**
 
 创建具有以下确切职责的 `WebGL2Picker.ts`：
 
@@ -764,7 +765,7 @@ gl.pixelStorei(gl.PACK_ALIGNMENT, 1);
 
 释放 program 前，调用 `this.releaseTarget()`，且该调用位于 `dispose()` 内，确保资源恰好删除一次。
 
-- [ ] **步骤 3：委托后端拾取**
+- **步骤 3：委托后端拾取**
 
 在 `WebGL2RendererBackend` 中：
 
@@ -800,7 +801,7 @@ readonly backend: Readonly<{
 }>;
 ```
 
-- [ ] **步骤 4：验证渲染器测试**
+- **步骤 4：验证渲染器测试**
 
 运行：
 
@@ -811,7 +812,7 @@ npm run typecheck
 
 预期：PASS。在 runtime 诊断包含后端能力前，浏览器断言仍会失败。
 
-- [ ] **步骤 5：提交**
+- **步骤 5：提交**
 
 ```bash
 git add packages/renderer/src/WebGL2Picker.ts packages/renderer/src/WebGL2RendererBackend.ts packages/renderer/src/WebGL2Program.ts tests/e2e/m1.spec.ts
@@ -832,7 +833,7 @@ git commit -m "feat(renderer): add GPU equipment picking"
 - 消费：`ICEFrame.selection`、`ICEMesh.selectionId`。
 - 产出：`selectionIdentity(mesh: ICEMesh): string`。
 
-- [ ] **步骤 1：编写预期失败的 selection 身份测试**
+- **步骤 1：编写预期失败的 selection 身份测试**
 
 添加：
 
@@ -856,7 +857,7 @@ npm test -- packages/renderer/tests/WebGL2GeometryBatch.test.ts
 
 预期：FAIL，因为 `selectionIdentity` 不存在。
 
-- [ ] **步骤 2：实现高亮 pass**
+- **步骤 2：实现高亮 pass**
 
 从 `WebGL2GeometryBatch.ts` 导出：
 
@@ -921,7 +922,7 @@ if (frame.selection.length > 0) {
 
 将现有 `frame.selection` 传入 `ICE3` 中的渲染调用，使用 `this.interaction.getSelection()`。保持 `geometryCache.beginFrame()` 位于主循环之前，`geometryCache.endFrame()` 位于高亮 pass 之后。
 
-- [ ] **步骤 3：验证渲染器测试**
+- **步骤 3：验证渲染器测试**
 
 运行：
 
@@ -932,7 +933,7 @@ npm run typecheck
 
 预期：PASS。
 
-- [ ] **步骤 4：提交**
+- **步骤 4：提交**
 
 ```bash
 git add packages/renderer/src/WebGL2GeometryBatch.ts packages/renderer/src/WebGL2RendererBackend.ts packages/renderer/tests/WebGL2GeometryBatch.test.ts
@@ -958,7 +959,7 @@ git commit -m "feat(renderer): highlight selected equipment"
 - 产出：`SELECTION_CLICK_THRESHOLD_PX = 4`；`isSelectionClick(start, end): boolean`；`selectionForOutcome(outcome): readonly string[] | undefined`。
 - 产出诊断：`selectionCount`、`lastPickTimeMs`、`lastPickId`。
 
-- [ ] **步骤 1：编写预期失败的手势测试**
+- **步骤 1：编写预期失败的手势测试**
 
 创建 `packages/runtime/tests/SelectionGesture.test.ts`：
 
@@ -989,7 +990,7 @@ it('maps empty picks to a cleared selection and hits to one equipment ID', () =>
 
 更新 M0 拖动浏览器测试，使其移动超过阈值、返回起点、释放，并预期初始状态保持 `运行` 且 `selectedIds` 为空。
 
-- [ ] **步骤 2：验证 RED**
+- **步骤 2：验证 RED**
 
 运行：
 
@@ -1000,7 +1001,7 @@ npm run test:e2e -- tests/e2e/m0.spec.ts --project=chromium --grep="mouse drag"
 
 预期：手势模块缺失；当前拖动会选择 `demo-block`。
 
-- [ ] **步骤 3：实现点击选择**
+- **步骤 3：实现点击选择**
 
 创建：
 
@@ -1105,7 +1106,7 @@ pick(): string | undefined {
 
 默认保持能力 `picking: false`，以便现有 CPU picker 测试继续使用 `pickSceneNode`。
 
-- [ ] **步骤 4：通过 GPU 路由语义 `pick()`**
+- **步骤 4：通过 GPU 路由语义 `pick()`**
 
 添加诊断字段 `selectionCount`、`lastPickTimeMs`、`lastPickId`，然后实现：
 
@@ -1151,7 +1152,7 @@ private samplePick(point: ICEScreenPoint): ICEPickResult {
 
 `{ kind: 'error' }` 分支有意返回 `undefined`，由 `selectionForOutcome` 产生，因此 pointer-up 保持当前 selection 不变，同时 `samplePick` 记录 `ICE3_PICK_UNAVAILABLE`。
 
-- [ ] **步骤 5：验证 GREEN**
+- **步骤 5：验证 GREEN**
 
 运行：
 
@@ -1163,7 +1164,7 @@ npm run typecheck
 
 预期：PASS；拖动会旋转但不选择，常规点击仍可选择。
 
-- [ ] **步骤 6：提交**
+- **步骤 6：提交**
 
 ```bash
 git add packages/runtime/src/input/ICESelectionGesture.ts packages/runtime/src/ICE3.ts packages/runtime/src/index.ts packages/ice3/src/index.ts packages/renderer/src/FakeRendererBackend.ts packages/runtime/tests/SelectionGesture.test.ts packages/runtime/tests/Projection.test.ts tests/e2e/m0.spec.ts
@@ -1185,7 +1186,7 @@ git commit -m "feat(runtime): select equipment on click"
 - 产出：`ICELabel.setText(text: string): this`。
 - 产出：`window.__ice3M1.selectedLabelText(): string | undefined`。
 
-- [ ] **步骤 1：编写预期失败的标签测试**
+- **步骤 1：编写预期失败的标签测试**
 
 添加：
 
@@ -1206,7 +1207,7 @@ it('updates label text and remeasures without replacing the label', () => {
 });
 ```
 
-- [ ] **步骤 2：验证 RED**
+- **步骤 2：验证 RED**
 
 运行：
 
@@ -1216,7 +1217,7 @@ npm test -- packages/runtime/tests/LayerOrder.test.ts
 
 预期：FAIL，因为 `setText` 不存在。
 
-- [ ] **步骤 3：实现可变标签文本**
+- **步骤 3：实现可变标签文本**
 
 将公共 readonly 字段替换为：
 
@@ -1236,7 +1237,7 @@ setText(text: string): this {
 
 在调用宽度计算前，于构造函数中初始化 `currentText`。
 
-- [ ] **步骤 4：为 M1 示例添加 selection 标签**
+- **步骤 4：为 M1 示例添加 selection 标签**
 
 创建非交互式屏幕图层：
 
@@ -1282,7 +1283,7 @@ selectedLabelText: () => selectionLabel.visible
   : undefined,
 ```
 
-- [ ] **步骤 5：验证标签和 TypeScript**
+- **步骤 5：验证标签和 TypeScript**
 
 运行：
 
@@ -1293,7 +1294,7 @@ npm run typecheck:example
 
 预期：PASS。
 
-- [ ] **步骤 6：提交**
+- **步骤 6：提交**
 
 ```bash
 git add packages/runtime/src/layer/ICELabel.ts packages/runtime/tests/LayerOrder.test.ts examples/m1/main.ts examples/m1/global.d.ts
@@ -1317,7 +1318,7 @@ git commit -m "feat(example): label selected equipment"
 - 消费：`window.__ice3M1.selectedIds()`、`selectedLabelText()`、`scenePixelAtProjection()`、selection 诊断。
 - 产出：点击、高亮、标签、清除、拖动和 DPR 行为的浏览器证据。
 
-- [ ] **步骤 1：添加预期失败的端到端 selection 测试**
+- **步骤 1：添加预期失败的端到端 selection 测试**
 
 添加到 `tests/e2e/m1.spec.ts`：
 
@@ -1432,7 +1433,7 @@ test('GPU picking selects the nearest overlapping device', async ({ page }) => {
 
 扩展 M0 上下文丢失测试，在恢复后点击探测中心，并断言选中 `near-small`。这会检验 picker 重建。
 
-- [ ] **步骤 2：运行测试并验证行为不完整处的失败**
+- **步骤 2：运行测试并验证行为不完整处的失败**
 
 运行：
 
@@ -1442,7 +1443,7 @@ npm run test:e2e -- tests/e2e/m1.spec.ts --project=chromium --grep="selects one 
 
 最终接线前的预期：在标签、高亮、清除断言处 FAIL，并给出聚焦错误。应修复生产代码，不得削弱断言。
 
-- [ ] **步骤 3：记录公共行为**
+- **步骤 3：记录公共行为**
 
 添加到 `docs/api/m0.md`：
 
@@ -1464,7 +1465,7 @@ display name; clicking empty space clears the selection.
 
 在 M1 README 中添加一条说明，介绍精确的设备点击选择和非破坏性青色高亮。
 
-- [ ] **步骤 4：运行完整项目验证**
+- **步骤 4：运行完整项目验证**
 
 运行：
 
@@ -1481,7 +1482,7 @@ npm pack --workspaces --dry-run
 - 所有 Chromium 和 WebKit 测试通过
 - workspace 包 dry-run 排除客户资产和报告
 
-- [ ] **步骤 5：审计资产和名称**
+- **步骤 5：审计资产和名称**
 
 运行：
 
@@ -1494,7 +1495,7 @@ git status --short --ignored
 
 对照已批准的合成 fixture 审查已跟踪模型列表。对照 `AGENTS.md` 中的名称法律规则审查每个已更改的文档和代码文件。预期：没有已跟踪的客户资产、临时输出或受限名称。
 
-- [ ] **步骤 6：提交并合并**
+- **步骤 6：提交并合并**
 
 ```bash
 git add examples/m0/main.ts tests/e2e/m0.spec.ts tests/e2e/m1.spec.ts tests/e2e/selection-dpr.spec.ts docs/api/m0.md docs/api/m1.md README.md

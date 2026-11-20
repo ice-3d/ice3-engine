@@ -9,7 +9,8 @@
 > **历史状态：** 本文保留 WebGPU 性能优化的实施记录；当前能力和 opt-in 规则以
 > [Engine API](../api/m0.md) 与 [文档索引](../README.md) 为准。
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **历史计划，请勿直接执行：** 本文件只记录原始实施过程。
+> 当前代码和执行规则以 [AGENTS.md](../../AGENTS.md) 为准；默认 Native，只有用户明确允许时才启用子 Agent。
 
 **Goal:** 建立可信的 WebGPU 性能测量，并分阶段消除 Selection、上传和命令编码开销，最终在证明有效的大规模场景启用 Storage Buffer、Compute Visibility 和 Indirect Draw。
 
@@ -62,7 +63,7 @@
 - Consumes: existing `ICENode.addChild()`, `removeChild()`, `visible`, and `setLocalMatrix()`.
 - Produces: `ICENode.revision: number` and `ICEScene.revision: number`, both returning the root Scene's monotonically increasing revision.
 
-- [ ] **Step 1: Add failing revision tests**
+- **Step 1: Add failing revision tests**
 
 Append to `packages/core/tests/Scene.test.ts`:
 
@@ -117,7 +118,7 @@ describe('scene revision', () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -127,7 +128,7 @@ npm test -- packages/core/tests/Scene.test.ts
 
 Expected: FAIL because `ICENode` has no `revision` property.
 
-- [ ] **Step 3: Implement root revision propagation**
+- **Step 3: Implement root revision propagation**
 
 In `ICENode`, replace the public `visible = true` field with a setter and add
 the revision state:
@@ -175,7 +176,7 @@ export class ICEScene extends ICENode {
 }
 ```
 
-- [ ] **Step 4: Verify GREEN and regression**
+- **Step 4: Verify GREEN and regression**
 
 Run:
 
@@ -187,7 +188,7 @@ npm test -- packages/core
 Expected: revision tests pass and all Core tests pass. Serialization output must
 remain unchanged because revision is runtime state, not Scene data.
 
-- [ ] **Step 5: Commit**
+- **Step 5: Commit**
 
 ```bash
 git add packages/core/src/scene/ICENode.ts packages/core/src/scene/ICEScene.ts packages/core/tests/Scene.test.ts
@@ -224,7 +225,7 @@ export type ICEFrameStageProfile = Readonly<{
 }>;
 ```
 
-- [ ] **Step 1: Write the failing profiler test**
+- **Step 1: Write the failing profiler test**
 
 Create `packages/renderer/tests/RendererProfiler.test.ts`:
 
@@ -257,7 +258,7 @@ it('performs no profile work while disabled', () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -267,7 +268,7 @@ npm test -- packages/renderer/tests/RendererProfiler.test.ts
 
 Expected: FAIL because the profiler module does not exist.
 
-- [ ] **Step 3: Implement the profiler**
+- **Step 3: Implement the profiler**
 
 Create `RendererProfiler.ts` with:
 
@@ -325,7 +326,7 @@ export class RendererProfiler {
 
 Export the class and type from `packages/renderer/src/index.ts`.
 
-- [ ] **Step 4: Instrument both render backends**
+- **Step 4: Instrument both render backends**
 
 Add to each backend:
 
@@ -364,7 +365,7 @@ export type ICEBenchmarkCpuStageSamples = Readonly<{
 `benchmarks/web/main.ts` enables profiling once per backend and pushes the four
 `backend.frameProfile` fields after every measured `render()`.
 
-- [ ] **Step 5: Add report schema and failing report assertions**
+- **Step 5: Add report schema and failing report assertions**
 
 Extend `ICEBenchmarkRunInput.samples` with `cpuStages:
 ICEBenchmarkCpuStageSamples`. Extend report metrics with four summaries. Add to
@@ -410,14 +411,14 @@ npm test -- benchmarks/report.test.ts
 
 Expected: FAIL because stage samples are absent from the report schema.
 
-- [ ] **Step 6: Implement report summaries and Markdown columns**
+- **Step 6: Implement report summaries and Markdown columns**
 
 Summarize every stage with existing `summarizeSamples()`. Add Markdown columns
 named `Collect ms`, `Prepare ms`, `Encode ms`, and `Submit ms`. Keep total CPU
 median and p95 columns. The runner groups raw stage arrays with `flatMap`, using
 the same grouping as `cpuFrameMs`.
 
-- [ ] **Step 7: Verify GREEN**
+- **Step 7: Verify GREEN**
 
 Run:
 
@@ -431,7 +432,7 @@ npm run typecheck
 Expected: all pass. A normal backend render with profiling disabled continues
 to leave `frameProfile` equal to `null`.
 
-- [ ] **Step 8: Commit**
+- **Step 8: Commit**
 
 ```bash
 git add packages/renderer/src/RendererProfiler.ts packages/renderer/src/index.ts packages/renderer/src/WebGL2RendererBackend.ts packages/renderer/src/WebGPURendererBackend.ts packages/renderer/tests/RendererProfiler.test.ts benchmarks/core/types.ts benchmarks/web/main.ts benchmarks/report.ts benchmarks/report.test.ts
@@ -459,7 +460,7 @@ git commit -m "feat: profile renderer frame stages"
 - Produces: `ICEWebGPUProbeOptions.optionalFeatures`,
   `WebGPUTimestampProfiler.create()`, `resolveFrame()`, and `drain()`.
 
-- [ ] **Step 1: Extend the fake with query and optional-feature capture**
+- **Step 1: Extend the fake with query and optional-feature capture**
 
 Add to `fakeWebGPUDevice()`:
 
@@ -501,7 +502,7 @@ setTimestampValues(values: readonly number[]) {
 Record the descriptor passed to `adapter.requestDevice(descriptor)` in both
 probe and backend fake adapters.
 
-- [ ] **Step 2: Write failing query lifecycle tests**
+- **Step 2: Write failing query lifecycle tests**
 
 Create `packages/renderer/tests/WebGPUTimestampProfiler.test.ts`:
 
@@ -541,7 +542,7 @@ it('never overwrites an unresolved ring slot', () => {
 });
 ```
 
-- [ ] **Step 3: Verify RED**
+- **Step 3: Verify RED**
 
 Run:
 
@@ -551,7 +552,7 @@ npm test -- packages/renderer/tests/WebGPUTimestampProfiler.test.ts
 
 Expected: FAIL because `WebGPUTimestampProfiler` does not exist.
 
-- [ ] **Step 4: Add optional probe features**
+- **Step 4: Add optional probe features**
 
 Extend the probe options:
 
@@ -577,7 +578,7 @@ device = await adapter.requestDevice({
 Add `enabledFeatures: ReadonlySet<GPUFeatureName>` to the supported result and
 copy `device.features`. Never request an unsupported optional feature.
 
-- [ ] **Step 5: Implement a bounded query ring**
+- **Step 5: Implement a bounded query ring**
 
 Create `WebGPUTimestampProfiler.ts` with one Query Set and one Resolve Buffer per
 slot:
@@ -650,7 +651,7 @@ const timestampWrites = this.timestampProfiler
 Expose `currentQuerySet` only on the internal profiler. Do not add Query Set to
 Diagnostic or benchmark JSON.
 
-- [ ] **Step 6: Integrate timestamp collection into the benchmark**
+- **Step 6: Integrate timestamp collection into the benchmark**
 
 Create the benchmark WebGPU backend with:
 
@@ -670,7 +671,7 @@ appends durations in frame order. In a measurement batch of 30 frames, call
 `benchmarks/report.ts` must accept `gpuFrameMs: []` as unavailable and never
 compute GPU improvement without two non-empty valid summaries.
 
-- [ ] **Step 7: Verify GREEN**
+- **Step 7: Verify GREEN**
 
 Run:
 
@@ -684,7 +685,7 @@ npm run typecheck
 Expected: all pass. A zero, backwards, failed Map, or unavailable feature
 produces no synthetic GPU value.
 
-- [ ] **Step 8: Run the instrumented baseline**
+- **Step 8: Run the instrumented baseline**
 
 Run:
 
@@ -697,7 +698,7 @@ tracks total CPU time within measurement noise and existing scenarios retain
 `gpuFrameMs = null` when the browser does not expose a valid timer. Do not commit
 the generated files.
 
-- [ ] **Step 9: Commit**
+- **Step 9: Commit**
 
 ```bash
 git add packages/renderer/src/WebGPUProbe.ts packages/renderer/src/WebGPUTimestampProfiler.ts packages/renderer/src/WebGPURendererBackend.ts packages/renderer/src/index.ts packages/renderer/tests/WebGPUProbe.test.ts packages/renderer/tests/WebGPUTimestampProfiler.test.ts packages/renderer/tests/fake-webgpu.ts benchmarks/web/main.ts benchmarks/report.ts benchmarks/report.test.ts
@@ -724,7 +725,7 @@ git commit -m "feat: capture WebGPU timestamps"
 - Produces: `cloneBenchmarkScene(source, copies): ICEScene`,
   `culling-20k`, `instanced-50k`, `wastewater-1x|5x|20x`.
 
-- [ ] **Step 1: Write failing clone and scale tests**
+- **Step 1: Write failing clone and scale tests**
 
 Create `benchmarks/core/cloneScene.test.ts`:
 
@@ -774,7 +775,7 @@ it('declares scale and GPU-culling workloads', () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -784,7 +785,7 @@ npm test -- benchmarks/core
 
 Expected: FAIL because the clone helper and Scenario IDs do not exist.
 
-- [ ] **Step 3: Implement deterministic Scene cloning**
+- **Step 3: Implement deterministic Scene cloning**
 
 Define `ICEBenchmarkScene` additions:
 
@@ -878,7 +879,7 @@ export function cloneBenchmarkScene(
 For a copy count of `1`, benchmark loading still uses the source Scene directly
 so the real Asset baseline is not altered.
 
-- [ ] **Step 4: Add Scenario construction**
+- **Step 4: Add Scenario construction**
 
 Create `instanced-50k` with the existing shared Box and a deterministic
 200-by-250 grid. Create `culling-20k` with four groups of 5,000 instances:
@@ -908,7 +909,7 @@ Update the overlay scenario list and runner order to include:
 'wastewater-20x',
 ```
 
-- [ ] **Step 5: Verify GREEN**
+- **Step 5: Verify GREEN**
 
 Run:
 
@@ -924,7 +925,7 @@ If this device cannot complete 20x within the benchmark timeout, record the
 resource failure and reduce the default repetitions only through an explicit
 CLI argument, not by silently changing recorded sample counts.
 
-- [ ] **Step 6: Commit**
+- **Step 6: Commit**
 
 ```bash
 git add benchmarks/core/cloneScene.ts benchmarks/core/cloneScene.test.ts benchmarks/core/scenarios.ts benchmarks/core/scenarios.test.ts benchmarks/core/types.ts benchmarks/web/main.ts benchmarks/run-renderers.mjs
@@ -958,7 +959,7 @@ export type ICESelectionMaskLayout = Readonly<{
 }>;
 ```
 
-- [ ] **Step 1: Write failing pure Mask tests**
+- **Step 1: Write failing pure Mask tests**
 
 Create `packages/renderer/tests/WebGPUSelectionMask.test.ts`:
 
@@ -983,7 +984,7 @@ it('returns one aligned word for an empty selection', () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -993,7 +994,7 @@ npm test -- packages/renderer/tests/WebGPUSelectionMask.test.ts
 
 Expected: FAIL because `buildSelectionMask` does not exist.
 
-- [ ] **Step 3: Implement the Mask data and buffer**
+- **Step 3: Implement the Mask data and buffer**
 
 Use this implementation:
 
@@ -1025,7 +1026,7 @@ when `words` differ from the last upload. Expose `buffer`, `generation`, and
 `totalBytes`; increment `generation` only when the Buffer is replaced.
 `dispose()` is idempotent.
 
-- [ ] **Step 4: Add the Masked selection Shader path**
+- **Step 4: Add the Masked selection Shader path**
 
 `WebGPURenderPipeline.create()` accepts:
 
@@ -1056,7 +1057,7 @@ Use the same test in the selection Edge Pipeline so non-selected Edge vertices
 discard. Expand `WEBGPU_UNIFORM_BYTES` from 112 to 128 and use floats 28 and 29
 for `selectionBase` and `useSelectionMask`.
 
-- [ ] **Step 5: Integrate Mask ranges and fallback**
+- **Step 5: Integrate Mask ranges and fallback**
 
 For each Draw, collect its semantic IDs into a range and apply the returned
 base. Create one Mask Buffer per frame-resource generation. Bind it once per
@@ -1077,7 +1078,7 @@ If Masked pipeline creation or Mask Buffer allocation fails:
 4. Report `ICE3_RENDERER_OPTIMIZATION_UNAVAILABLE` once.
 5. Continue rendering without changing Selection IDs or Pick behavior.
 
-- [ ] **Step 6: Update frame and browser tests**
+- **Step 6: Update frame and browser tests**
 
 Replace the old 501-Draw expectation with:
 
@@ -1098,7 +1099,7 @@ Add an Edge Batch fixture with two selected semantics and expect one tint Draw
 plus one `selection:line` overlay. Add an E2E assertion that the wastewater
 selected device still renders yellow pixels and Pick returns the same ID.
 
-- [ ] **Step 7: Verify GREEN and benchmark**
+- **Step 7: Verify GREEN and benchmark**
 
 Run:
 
@@ -1113,7 +1114,7 @@ Expected: Selection Draw no longer scales with selected count. Compare
 `selection` and `wastewater-1x` with the Task 3 baseline. If wastewater-1x CPU
 median or p95 regresses by more than 10%, stop and profile before proceeding.
 
-- [ ] **Step 8: Commit**
+- **Step 8: Commit**
 
 ```bash
 git add packages/renderer/src/WebGPUSelectionMask.ts packages/renderer/src/WebGPURenderPipeline.ts packages/renderer/src/WebGPURendererBackend.ts packages/renderer/src/index.ts packages/renderer/tests/WebGPUSelectionMask.test.ts packages/renderer/tests/WebGPUFrames.test.ts packages/renderer/tests/fake-webgpu.ts tests/e2e/renderer-selection.spec.ts
@@ -1138,7 +1139,7 @@ git commit -m "perf: mask WebGPU selections"
 - Produces: `WebGPUDrawStorage.begin()`, `append()`, `uniformData`,
   `drawCount`, and incremental `WebGPUInstanceCache` writes.
 
-- [ ] **Step 1: Write failing incremental upload tests**
+- **Step 1: Write failing incremental upload tests**
 
 Append to `WebGPUInstanceCache.test.ts`:
 
@@ -1173,7 +1174,7 @@ it('rewrites matrices without rewriting unchanged semantics', () => {
 
 Add a local `instanceBatch()` helper with two aligned matrices and semantics.
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -1183,7 +1184,7 @@ npm test -- packages/renderer/tests/WebGPUInstanceCache.test.ts
 
 Expected: FAIL because every `retain()` currently rewrites both buffers.
 
-- [ ] **Step 3: Store content snapshots and write only changes**
+- **Step 3: Store content snapshots and write only changes**
 
 Add these private fields to each cached entry:
 
@@ -1198,7 +1199,7 @@ after a successful write. Buffer replacement resets both snapshots. Increment
 `generation` only when a Buffer is created or recreated; content writes do not
 invalidate Render Bundles.
 
-- [ ] **Step 4: Write the failing Draw Storage test**
+- **Step 4: Write the failing Draw Storage test**
 
 Create `WebGPUDrawStorage.test.ts`:
 
@@ -1234,7 +1235,7 @@ it('reuses typed storage when draw count stays within capacity', () => {
 });
 ```
 
-- [ ] **Step 5: Implement persistent Draw Storage**
+- **Step 5: Implement persistent Draw Storage**
 
 Allocate Uniform storage with:
 
@@ -1257,7 +1258,7 @@ Replace per-Draw `new Float32Array(matrix)` in the WebGPU backend with
 `new Set()`/new Draw List allocation on every frame. Keep Command Encoder
 creation per frame.
 
-- [ ] **Step 6: Verify GREEN and benchmark**
+- **Step 6: Verify GREEN and benchmark**
 
 Run:
 
@@ -1272,7 +1273,7 @@ Expected: unchanged Scene frames produce no Instance writes. Compare
 `instanced-grid`, `instanced-50k`, and `wastewater-1x`; no real-scene threshold
 may regress beyond the spec limit.
 
-- [ ] **Step 7: Commit**
+- **Step 7: Commit**
 
 ```bash
 git add packages/renderer/src/WebGPUDrawStorage.ts packages/renderer/src/WebGPUInstanceCache.ts packages/renderer/src/WebGPURendererBackend.ts packages/renderer/src/index.ts packages/renderer/tests/WebGPUDrawStorage.test.ts packages/renderer/tests/WebGPUInstanceCache.test.ts
@@ -1298,7 +1299,7 @@ git commit -m "perf: reuse WebGPU frame storage"
 - Produces: `WebGPURenderPlan` with stable arrays and
   `WebGPURenderPlanCache.get(scene)`.
 
-- [ ] **Step 1: Write failing cache tests**
+- **Step 1: Write failing cache tests**
 
 Create `WebGPURenderPlan.test.ts`:
 
@@ -1332,7 +1333,7 @@ it('reuses a plan until scene revision changes', () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -1342,7 +1343,7 @@ npm test -- packages/renderer/tests/WebGPURenderPlan.test.ts
 
 Expected: FAIL because the cached Plan does not exist.
 
-- [ ] **Step 3: Implement the Plan**
+- **Step 3: Implement the Plan**
 
 Use the existing collector scratch arrays inside one Plan:
 
@@ -1366,7 +1367,7 @@ Use the Plan in the renderer and Picker. Camera and Selection changes reuse the
 Plan. A different Scene object always rebuilds. `invalidate()` and `dispose()`
 clear the cached scene references and arrays.
 
-- [ ] **Step 4: Verify GREEN**
+- **Step 4: Verify GREEN**
 
 Run:
 
@@ -1378,7 +1379,7 @@ npm test -- packages/renderer
 Expected: Plan and all existing rendering/Pick tests pass. Changing a Node's
 `visible` or local matrix allocates a new Plan; Selection changes do not.
 
-- [ ] **Step 5: Commit**
+- **Step 5: Commit**
 
 ```bash
 git add packages/renderer/src/WebGPURenderPlan.ts packages/renderer/src/WebGPURendererBackend.ts packages/renderer/src/WebGPUPicker.ts packages/renderer/src/index.ts packages/renderer/tests/WebGPURenderPlan.test.ts
@@ -1415,7 +1416,7 @@ export type ICEWebGPUOptimizationFailureReason =
   | 'threshold-not-met';
 ```
 
-- [ ] **Step 1: Extend the fake Render Bundle API**
+- **Step 1: Extend the fake Render Bundle API**
 
 Add to the fake Command Encoder:
 
@@ -1438,7 +1439,7 @@ beginRenderBundleEncoder(description: GPURenderBundleEncoderDescriptor) {
 Add `executeBundles(bundles)` to fake Render Passes and record executed Bundles.
 Allow `bundleCreationFails` and `bundleExecutionFails` fake options.
 
-- [ ] **Step 2: Write failing reuse/fallback tests**
+- **Step 2: Write failing reuse/fallback tests**
 
 Create `WebGPUBundleCache.test.ts`:
 
@@ -1474,7 +1475,7 @@ Add a backend test where Scene revision or uniform Buffer generation changes
 and assert the Bundle recreates; changing Camera or Selection content only does
 not recreate it.
 
-- [ ] **Step 3: Verify RED**
+- **Step 3: Verify RED**
 
 Run:
 
@@ -1484,7 +1485,7 @@ npm test -- packages/renderer/tests/WebGPUBundleCache.test.ts
 
 Expected: FAIL because the Bundle Cache does not exist.
 
-- [ ] **Step 4: Implement Bundle creation and backend fallback**
+- **Step 4: Implement Bundle creation and backend fallback**
 
 `WebGPUBundleCache.get()` compares the exact key and returns the current Bundle.
 Otherwise it begins:
@@ -1534,7 +1535,7 @@ Pass this error through the backend's existing `onError`, which Runtime already
 maps to `lastDiagnostic` and `DIAGNOSTIC`. Add the code to
 `docs/diagnostics.md` in the Rendering table.
 
-- [ ] **Step 5: Verify GREEN**
+- **Step 5: Verify GREEN**
 
 Run:
 
@@ -1547,7 +1548,7 @@ npm run docs:check
 Expected: reused static frames execute the same Bundle; fallback draws are
 visible in the fake; warning count is one.
 
-- [ ] **Step 6: Commit**
+- **Step 6: Commit**
 
 ```bash
 git add packages/renderer/src/WebGPUBundleCache.ts packages/renderer/src/WebGPURendererBackend.ts packages/renderer/src/types.ts packages/renderer/tests/WebGPUBundleCache.test.ts packages/renderer/tests/WebGPUFrames.test.ts packages/renderer/tests/fake-webgpu.ts docs/diagnostics.md
@@ -1575,7 +1576,7 @@ git commit -m "perf: reuse WebGPU render bundles"
 - Produces: capability tier `storage`; a Storage Pipeline variant; 256-byte
   alignment constants; `ICEWebGPUOptimizationStats`; and fallback diagnostics.
 
-- [ ] **Step 1: Write failing capability and pagination tests**
+- **Step 1: Write failing capability and pagination tests**
 
 Create `WebGPUCapabilities.test.ts`:
 
@@ -1628,7 +1629,7 @@ it('splits records by storage binding and alignment limits', () => {
 });
 ```
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -1639,7 +1640,7 @@ npm test -- packages/renderer/tests/WebGPUCapabilities.test.ts packages/renderer
 Expected: FAIL because both modules do not exist. The fake `device.limits` does
 not yet include these values.
 
-- [ ] **Step 3: Implement capability detection and storage pages**
+- **Step 3: Implement capability detection and storage pages**
 
 Use Baseline limits when values are absent because the current fake represents
 old minimal devices. A device enters `storage` only when all are true:
@@ -1703,7 +1704,7 @@ export type ICEWebGPUOptimizationStats = Readonly<{
 
 No field contains a GPU object or raw Limit value.
 
-- [ ] **Step 4: Add Storage Pipeline variant**
+- **Step 4: Add Storage Pipeline variant**
 
 Add the following Bind Group entries to a dedicated Pipeline. Binding 1 remains
 the Selection Mask from Task 5:
@@ -1728,7 +1729,7 @@ selection, edge, and pick behavior.
 Create Storage and non-Storage pipelines as separate objects. A failed Storage
 Pipeline creation leaves the existing pipeline untouched.
 
-- [ ] **Step 5: Choose the path and test fallback**
+- **Step 5: Choose the path and test fallback**
 
 Use Storage only when:
 
@@ -1773,7 +1774,7 @@ it('falls back to vertex attributes when storage pipeline fails', async () => {
 });
 ```
 
-- [ ] **Step 6: Verify GREEN and compare paths**
+- **Step 6: Verify GREEN and compare paths**
 
 Run:
 
@@ -1790,7 +1791,7 @@ the 10% CPU benefit or exceeds the 5% GPU regression. Record the decision in
 the plan's execution notes, commit the resulting constant with its rationale,
 and do not claim a Storage benefit from API presence alone.
 
-- [ ] **Step 7: Commit**
+- **Step 7: Commit**
 
 ```bash
 git add packages/renderer/src/WebGPUCapabilities.ts packages/renderer/src/WebGPUInstanceStorage.ts packages/renderer/src/WebGPURenderPipeline.ts packages/renderer/src/WebGPURendererBackend.ts packages/renderer/src/index.ts packages/renderer/tests/WebGPUCapabilities.test.ts packages/renderer/tests/WebGPUInstanceStorage.test.ts packages/renderer/tests/WebGPURendererBackend.test.ts packages/renderer/tests/fake-webgpu.ts
@@ -1818,7 +1819,7 @@ git commit -m "perf: add WebGPU instance storage path"
   `WebGPUVisibilityEncoder`, compact visible Instance indices, and a Compute
   Pipeline.
 
-- [ ] **Step 1: Write failing CPU-reference tests**
+- **Step 1: Write failing CPU-reference tests**
 
 Create `WebGPUVisibility.test.ts`:
 
@@ -1841,7 +1842,7 @@ it('uses the batch threshold and never returns fractional instances', () => {
 Add a reference test with one Box visible in front of the Camera and one
 translated behind it. Use `isAabbVisible()` to assert `[true, false]`.
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -1851,7 +1852,7 @@ npm test -- packages/renderer/tests/WebGPUVisibility.test.ts
 
 Expected: FAIL because the visibility module does not exist.
 
-- [ ] **Step 3: Implement alignment and CPU reference**
+- **Step 3: Implement alignment and CPU reference**
 
 `createIndirectArguments()` accepts integer, non-negative values and creates:
 
@@ -1872,7 +1873,7 @@ when any corner lies in `-w <= clip.xyz <= w`, and checks all six frustum planes
 This CPU function is the correctness reference and explicit benchmark fallback,
 not an approximation used to replace computed results on production frames.
 
-- [ ] **Step 4: Add Compute and Indirect Pipeline support to the fake**
+- **Step 4: Add Compute and Indirect Pipeline support to the fake**
 
 Add `createComputePipelineAsync()`, `beginComputePass()`, `dispatchWorkgroups()`,
 `clearBuffer()`, `copyBufferToBuffer()`, and `drawIndexedIndirect()`.
@@ -1897,7 +1898,7 @@ Allow tests to set the value written into the indirect `instanceCount` field and
 simulate `computePipelineFails`, `indirectFails`, and
 `minStorageBufferOffsetAlignment`.
 
-- [ ] **Step 5: Implement the Compute Shader and visible list**
+- **Step 5: Implement the Compute Shader and visible list**
 
 Use one instance per invocation. The Compute Shader reads the instance matrix,
 local AABB, Camera matrix, and Indirect Buffer. If an AABB intersects the
@@ -1929,7 +1930,7 @@ For one Instance Batch with a normal Draw and an Edge Overlay, create one
 Indirect Buffer per encoded Draw and copy the resolved visible count into every
 subsequent Buffer after Compute and before the Render Pass.
 
-- [ ] **Step 6: Apply the threshold and test fallback**
+- **Step 6: Apply the threshold and test fallback**
 
 Apply `gpu-driven` only when:
 
@@ -1975,7 +1976,7 @@ it('renders from the plan when compute is unavailable', async () => {
 });
 ```
 
-- [ ] **Step 7: Add asynchronous debug counts**
+- **Step 7: Add asynchronous debug counts**
 
 Expose an internal `readVisibilityStats()` that copies counter data to a
 `COPY_DST | MAP_READ` Buffer and maps it asynchronously. It is called only by the
@@ -1984,7 +1985,7 @@ Benchmark debug path after measurement, never inside `render()`.
 The result reports `visibleInstances`, `culledInstances`, and `dispatchCount`.
 Do not block selection, capture, or normal frame submission on this result.
 
-- [ ] **Step 8: Verify GREEN and performance**
+- **Step 8: Verify GREEN and performance**
 
 Run:
 
@@ -2005,7 +2006,7 @@ report. Enable `gpu-driven` by default only if it meets:
 If any threshold fails, keep the implementation tests but default the path off,
 record the negative result, and continue to Task 11 with the measured fallback.
 
-- [ ] **Step 9: Commit**
+- **Step 9: Commit**
 
 ```bash
 git add packages/renderer/src/WebGPUVisibility.ts packages/renderer/src/WebGPURenderPipeline.ts packages/renderer/src/WebGPURendererBackend.ts packages/renderer/src/index.ts packages/renderer/tests/WebGPUVisibility.test.ts packages/renderer/tests/WebGPURendererBackend.test.ts packages/renderer/tests/fake-webgpu.ts
@@ -2034,7 +2035,7 @@ git commit -m "perf: add GPU visibility and indirect draws"
 - Produces: final default path selection, complete visual/lifecycle coverage,
   and a report that labels each backend tier and unavailable reason.
 
-- [ ] **Step 1: Add failing lifecycle tests**
+- **Step 1: Add failing lifecycle tests**
 
 Add to `WebGPULifecycle.test.ts`:
 
@@ -2073,7 +2074,7 @@ Update the Pick tests so a Picker after Mask/Storage/Compute resources exist
 still returns the exact same ID and never receives a GPU handle through its
 public input.
 
-- [ ] **Step 2: Verify RED**
+- **Step 2: Verify RED**
 
 Run:
 
@@ -2084,7 +2085,7 @@ npm test -- packages/renderer/tests/WebGPULifecycle.test.ts
 Expected: FAIL because new optional resources are not recreated or warnings
 repeat on each frame.
 
-- [ ] **Step 3: Fix resource ownership and one-time diagnostics**
+- **Step 3: Fix resource ownership and one-time diagnostics**
 
 Track each optional resource under the current Device generation. In
 `recoverDevice()`:
@@ -2100,7 +2101,7 @@ Track each optional resource under the current Device generation. In
 Keep a per-Device `Set<string>` named `optimizationWarnings`; insert the stable
 layer/reason key before calling `onError`.
 
-- [ ] **Step 4: Add E2E visual and frame-validity coverage**
+- **Step 4: Add E2E visual and frame-validity coverage**
 
 Create `tests/e2e/renderer-performance.spec.ts`:
 
@@ -2134,7 +2135,7 @@ Add a resize assertion that records a non-background pixel before and after
 changing the viewport, and a Selection assertion that remains yellow and still
 Picks the same equipment ID.
 
-- [ ] **Step 5: Produce the final report and default policy**
+- **Step 5: Produce the final report and default policy**
 
 Run each backend/path with the final implementation:
 
@@ -2166,7 +2167,7 @@ Replace each `false` only when the fixed-hardware report passes. Leave a short
 comment naming the scenario and measured reason for enabling it. If a path
 misses the threshold, keep `false`; do not delete its implementation or tests.
 
-- [ ] **Step 6: Update architecture and troubleshooting docs**
+- **Step 6: Update architecture and troubleshooting docs**
 
 Add to `docs/architecture.md`:
 
@@ -2186,14 +2187,15 @@ Add to the troubleshooting guide:
 Update both README files with the benchmark command and optimization overview.
 Do not add external product names or commit benchmark output.
 
-- [ ] **Step 7: Run complete verification**
+- **Step 7: Run complete verification**
 
 Run:
 
 ```bash
-PATH="/Users/felix/.nvm/versions/node/v24.22.1/bin:$PATH" npm run verify
-PATH="/Users/felix/.nvm/versions/node/v24.22.1/bin:$PATH" npm run release:check
-PATH="/Users/felix/.nvm/versions/node/v24.22.1/bin:$PATH" npm run benchmark:renderers
+nvm use
+npm run verify
+npm run release:check
+npm run benchmark:renderers
 npm pack --workspaces --dry-run
 ```
 
@@ -2207,7 +2209,7 @@ Expected:
 - no external GPU handles enter public declarations;
 - workspace Git status contains no generated benchmark files.
 
-- [ ] **Step 8: Commit final delivery**
+- **Step 8: Commit final delivery**
 
 ```bash
 git add packages/renderer benchmarks tests/e2e docs README.md

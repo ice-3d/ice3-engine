@@ -9,7 +9,8 @@
 > **历史状态：** 本文保留 M1 Asset Runtime 的交付过程记录，不代表当前预处理器依赖；
 > 当前 Asset 生产链见 [Studio Asset Pipeline](https://github.com/ice-3d/ice3-studio/blob/main/docs/reference/asset-pipeline.md)。
 
-> **面向代理工作者的说明：** 必需子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 按任务逐项实施本计划。使用复选框（`- [ ]`）跟踪进度。
+> **历史计划，请勿直接执行：** 本文件只记录原始实施过程。
+> 当前代码和执行规则以 [AGENTS.md](../../AGENTS.md) 为准；默认 Native，只有用户明确允许时才启用子 Agent。
 
 **目标：** 在浏览器中加载 ICE3 Prepared GLB Profile v1 资产，不经过源格式或几何转换管线，渲染已准备的三角形和边缓冲区，并安全释放其资源。
 
@@ -122,7 +123,7 @@ export class ICEIndexedGeometry implements ICEGeometry {
 }
 ```
 
-- [ ] **步骤 1：编写预期失败的索引几何测试**
+- **步骤 1：编写预期失败的索引几何测试**
 
 ```ts
 it('derives bounds and rejects invalid indices', () => {
@@ -144,17 +145,17 @@ it('derives bounds and rejects invalid indices', () => {
 });
 ```
 
-- [ ] **步骤 2：运行 RED**
+- **步骤 2：运行 RED**
 
 运行：`npm test -- packages/core/tests/IndexedGeometry.test.ts`
 
 预期：FAIL，因为 `ICEIndexedGeometry` 不存在。
 
-- [ ] **步骤 3：实现通用几何契约**
+- **步骤 3：实现通用几何契约**
 
 `ICEBoxGeometry` 实现 `ICEGeometry`，使用 `Float32Array`、`Uint16Array` 和由 `@ice3/core` 拥有的模块级共享边索引常量。`ICEMesh` 接受 `ICEGeometry`，而非 `ICEBoxGeometry`。
 
-- [ ] **步骤 4：更新场景和可渲染项测试**
+- **步骤 4：更新场景和可渲染项测试**
 
 添加一个测试：创建 `ICEMesh`，并使用 `ICEIndexedGeometry`。将旧的盒体批处理测试替换为：
 
@@ -168,7 +169,7 @@ it('collects both box and indexed geometry meshes', () => {
 });
 ```
 
-- [ ] **步骤 5：运行聚焦测试**
+- **步骤 5：运行聚焦测试**
 
 运行：
 
@@ -180,7 +181,7 @@ npm test -- packages/core/tests/IndexedGeometry.test.ts \
 
 预期：PASS。
 
-- [ ] **步骤 6：提交**
+- **步骤 6：提交**
 
 ```bash
 git add packages/core packages/renderer
@@ -216,7 +217,7 @@ setLocalMatrix(matrix: ICEMatrix4Tuple): this;
 clearLocalMatrix(): this;
 ```
 
-- [ ] **步骤 1：编写预期失败的矩阵变换测试**
+- **步骤 1：编写预期失败的矩阵变换测试**
 
 ```ts
 it('uses a supplied local matrix without decomposing it', () => {
@@ -235,23 +236,23 @@ it('uses a supplied local matrix without decomposing it', () => {
 });
 ```
 
-- [ ] **步骤 2：运行 RED**
+- **步骤 2：运行 RED**
 
 运行：`npm test -- packages/core/tests/Scene.test.ts`
 
 预期：FAIL，因为不支持 `matrix`。
 
-- [ ] **步骤 3：实现矩阵覆盖**
+- **步骤 3：实现矩阵覆盖**
 
 存储一个包含 16 个元素的 `Float32Array` 覆盖值。存在覆盖值时，`localMatrix()` 复制该值；否则使用现有 XYZ 欧拉组合。仅当覆盖值存在时，`toJSON()` 才包含 `matrix`。`setLocalMatrix` 验证全部 16 个有限值。
 
-- [ ] **步骤 4：更新序列化并运行 GREEN**
+- **步骤 4：更新序列化并运行 GREEN**
 
 运行：`npm test -- packages/core/tests/Scene.test.ts packages/core/tests/Serialization.test.ts`
 
 预期：PASS，并覆盖矩阵往返。
 
-- [ ] **步骤 5：提交**
+- **步骤 5：提交**
 
 ```bash
 git add packages/core/src/scene/ICENode.ts packages/core/tests
@@ -325,7 +326,7 @@ export interface ICEPreparedAssetSnapshot {
 export function readPreparedGLB(bytes: ArrayBuffer): ICEPreparedAssetSnapshot;
 ```
 
-- [ ] **步骤 1：编写预期失败的 profile 测试**
+- **步骤 1：编写预期失败的 profile 测试**
 
 ```ts
 it('reads a prepared triangle asset with zero-copy accessor views', () => {
@@ -354,25 +355,25 @@ it('rejects node TRS when the ICE3 profile requires matrix transforms', () => {
 });
 ```
 
-- [ ] **步骤 2：运行 RED**
+- **步骤 2：运行 RED**
 
 运行：`npm test -- packages/assets/tests/GLBReader.test.ts`
 
 预期：FAIL，因为 `@ice3/assets` 不存在。
 
-- [ ] **步骤 3：搭建并注册包**
+- **步骤 3：搭建并注册包**
 
 该包仅依赖 `@ice3/core`。将其添加到根 workspaces、TypeScript 引用和架构测试中，依赖方向为 `core ← assets ← runtime`。
 
-- [ ] **步骤 4：实现 GLB 分帧和 profile 验证**
+- **步骤 4：实现 GLB 分帧和 profile 验证**
 
 验证 magic、version、总长度、chunk 长度、chunk 顺序、JSON 解码、一个 BIN chunk、`asset.extras.ice3`、ID 唯一性、节点矩阵、accessor 布局、边界、triangle/line 模式以及禁止内容。拒绝任何 `extensionsRequired`。
 
-- [ ] **步骤 5：创建类型化数组视图**
+- **步骤 5：创建类型化数组视图**
 
 在完成全部范围和字节对齐检查后，使用 `new Float32Array(bin, byteOffset, count)` 和相应的整数数组。不得复制完整几何缓冲区。
 
-- [ ] **步骤 6：运行包和架构测试**
+- **步骤 6：运行包和架构测试**
 
 运行：
 
@@ -383,7 +384,7 @@ node --test tests/architecture/package-boundaries.test.mjs
 
 预期：PASS。
 
-- [ ] **步骤 7：提交**
+- **步骤 7：提交**
 
 ```bash
 git add package.json tsconfig.json tests/architecture packages/assets
@@ -428,7 +429,7 @@ export class WebGL2GeometryCache {
 }
 ```
 
-- [ ] **步骤 1：编写预期失败的缓存测试**
+- **步骤 1：编写预期失败的缓存测试**
 
 ```ts
 it('reuses buffers for the same geometry and releases unseen geometry', () => {
@@ -446,21 +447,21 @@ it('reuses buffers for the same geometry and releases unseen geometry', () => {
 });
 ```
 
-- [ ] **步骤 2：运行 RED**
+- **步骤 2：运行 RED**
 
 运行：`npm test -- packages/renderer/tests/GeometryCache.test.ts`
 
 预期：FAIL，因为缓存不存在。
 
-- [ ] **步骤 3：实现几何缓存**
+- **步骤 3：实现几何缓存**
 
 使用 `Map<ICEGeometry, Entry>`。按提供内容准确上传位置、三角形索引和可选边索引。跟踪当前帧访问的条目，并在 `endFrame()` 删除未见缓冲区。通过清除缓存引用处理上下文丢失，不发出无效删除。
 
-- [ ] **步骤 4：简化着色器和绘制路径**
+- **步骤 4：简化着色器和绘制路径**
 
 由于 M1 使用平面颜色，从 vertex shader 中移除 normals。绘制三角形和可选 `LINES`。保留使用现有裁剪三角形线条偏移的高对比度边加粗。
 
-- [ ] **步骤 5：运行渲染器测试和构建**
+- **步骤 5：运行渲染器测试和构建**
 
 运行：
 
@@ -471,7 +472,7 @@ npm run typecheck
 
 预期：PASS。
 
-- [ ] **步骤 6：提交**
+- **步骤 6：提交**
 
 ```bash
 git add packages/renderer
@@ -505,7 +506,7 @@ export function buildAssetScene(
 ): ICEBuiltAsset;
 ```
 
-- [ ] **步骤 1：编写预期失败的场景构建器测试**
+- **步骤 1：编写预期失败的场景构建器测试**
 
 ```ts
 it('instantiates the prepared node hierarchy and triangle primitive', () => {
@@ -522,17 +523,17 @@ it('combines triangle and edge accessors in one ICE mesh', () => {
 });
 ```
 
-- [ ] **步骤 2：运行 RED**
+- **步骤 2：运行 RED**
 
 运行：`npm test -- packages/runtime/tests/AssetSceneBuilder.test.ts`
 
 预期：FAIL，因为构建器不存在。
 
-- [ ] **步骤 3：实现场景构建**
+- **步骤 3：实现场景构建**
 
 创建具有确定性根 ID 的 `ICEScene`。使用 `matrix` 按深度优先顺序创建节点。按几何 ID 创建共享 `ICEIndexedGeometry` 对象，并按语义 ID 创建材质。对每个三角形 primitive，创建一个 `ICEMesh`，其 ID 为 `${nodeId}:${meshId}:${primitiveIndex}`。附加来自 profile 中 line primitive 的匹配边索引。
 
-- [ ] **步骤 4：运行测试并提交**
+- **步骤 4：运行测试并提交**
 
 运行：`npm test -- packages/runtime/tests/AssetSceneBuilder.test.ts`
 
@@ -585,7 +586,7 @@ export class ICEAssetLoader {
 }
 ```
 
-- [ ] **步骤 1：编写预期失败的加载器测试**
+- **步骤 1：编写预期失败的加载器测试**
 
 ```ts
 it('shares decoded bytes across concurrent loads', async () => {
@@ -615,21 +616,21 @@ it('disposes a handle idempotently', async () => {
 });
 ```
 
-- [ ] **步骤 2：运行 RED**
+- **步骤 2：运行 RED**
 
 运行：`npm test -- packages/runtime/tests/AssetLoader.test.ts`
 
 预期：FAIL，因为加载器 API 不存在。
 
-- [ ] **步骤 3：实现 fetch、缓存、中止和句柄**
+- **步骤 3：实现 fetch、缓存、中止和句柄**
 
 按 URL 缓存不可变 `ArrayBuffer` 和解码快照。不得缓存场景实例。在 fetch 后、profile 解析后以及场景构建前检查 `signal.aborted`。返回可幂等销毁的句柄，其 `dispose()` 调用 `scene.dispose()`。
 
-- [ ] **步骤 4：连接公共导出和架构边界**
+- **步骤 4：连接公共导出和架构边界**
 
 导出 `ICEAssetLoader` 及相关类型，经由 `@ice3/runtime` 和 `ice3`。Runtime 依赖 `@ice3/assets`；渲染器不依赖。
 
-- [ ] **步骤 5：运行包、架构和类型测试**
+- **步骤 5：运行包、架构和类型测试**
 
 运行：
 
@@ -641,7 +642,7 @@ npm run typecheck
 
 预期：PASS。
 
-- [ ] **步骤 6：提交**
+- **步骤 6：提交**
 
 ```bash
 git add packages/runtime packages/ice3 tests/architecture package-lock.json
@@ -666,7 +667,7 @@ git commit -m "feat(runtime): load prepared GLB assets"
 - 消费：`ICEAssetLoader.load('/assets/prepared-cube.glb')`。
 - 产出：端口 `8104` 上的 M1 浏览器示例、测试钩子和浏览器验证。
 
-- [ ] **步骤 1：从 toolchain 复制契约 fixture**
+- **步骤 1：从 toolchain 复制契约 fixture**
 
 运行：
 
@@ -677,7 +678,7 @@ cp ../ice3-toolchain/fixtures/prepared-cube.glb examples/m1/assets/prepared-cube
 
 预期：浏览器工作开始前，复制后的文件在单元测试中通过资产读取器。
 
-- [ ] **步骤 2：编写预期失败的浏览器测试**
+- **步骤 2：编写预期失败的浏览器测试**
 
 ```ts
 test('loads and renders the prepared industrial asset', async ({ page }) => {
@@ -695,13 +696,13 @@ test('disposes the asset exactly once', async ({ page }) => {
 });
 ```
 
-- [ ] **步骤 3：运行 RED**
+- **步骤 3：运行 RED**
 
 运行：`npx playwright test tests/e2e/m1.spec.ts --project=chromium`
 
 预期：FAIL，因为 M1 服务器和示例不存在。
 
-- [ ] **步骤 4：实现 M1 示例**
+- **步骤 4：实现 M1 示例**
 
 创建引擎、相机、轨道控制器、加载器、加载状态和销毁按钮。加载时调用 `engine.setScene(handle.scene).start()`。释放时调用 `handle.dispose()`，并幂等地清除旧引用。
 
@@ -717,7 +718,7 @@ window.__ice3M1 = {
 };
 ```
 
-- [ ] **步骤 5：添加脚本和服务器**
+- **步骤 5：添加脚本和服务器**
 
 添加：
 
@@ -730,7 +731,7 @@ window.__ice3M1 = {
 
 使用 `127.0.0.1:8104` 和 `strictPort`，不要求热重载，也不复用服务器。
 
-- [ ] **步骤 6：运行 Chromium 和 WebKit 测试**
+- **步骤 6：运行 Chromium 和 WebKit 测试**
 
 运行：
 
@@ -740,7 +741,7 @@ npx playwright test tests/e2e/m1.spec.ts
 
 预期：两个浏览器均 PASS，涵盖加载、像素、拾取、销毁且无页面错误。
 
-- [ ] **步骤 7：提交**
+- **步骤 7：提交**
 
 ```bash
 git add examples/m1 tests/e2e/m1.spec.ts package.json playwright.config.ts
@@ -760,21 +761,21 @@ git commit -m "feat(example): load prepared GLB asset"
 - 消费：完整的 M1 实现。
 - 产出：公共 API 文档、稳定的资产诊断和已验证的 M1 状态。
 
-- [ ] **步骤 1：记录公共资产 API**
+- **步骤 1：记录公共资产 API**
 
 `docs/api/m1.md` 包含完整的 `ICEAssetLoader` 示例、profile 限制、句柄生命周期、取消、错误码，以及通用 glTF 文件须经 toolchain 处理后才可接受这一规则。
 
-- [ ] **步骤 2：更新架构和状态文档**
+- **步骤 2：更新架构和状态文档**
 
 README 描述新的 `@ice3/assets` 包、M1 命令路径、端口 `8103` 和 `8104`，以及当前范围。诊断文档添加所有 `ICE3_ASSET_*` 码和调用方操作。
 
-- [ ] **步骤 3：审计名称和不支持的 runtime 导入**
+- **步骤 3：审计名称和不支持的 runtime 导入**
 
 在 `packages/runtime`、`packages/assets` 和 `packages/renderer` 下运行仓库搜索，查找被禁止的产品名称以及源格式或 toolchain 导入。
 
 预期：没有被禁止的名称，也没有 runtime 预处理导入。
 
-- [ ] **步骤 4：运行完整门禁**
+- **步骤 4：运行完整门禁**
 
 运行：
 
@@ -792,7 +793,7 @@ npm pack --workspaces --dry-run
 - workspace 包仅包含预期文件；
 - runtime 包内容中不出现源格式解析器或 toolchain 代码。
 
-- [ ] **步骤 5：提交并合并**
+- **步骤 5：提交并合并**
 
 ```bash
 git add README.md AGENTS.md docs packages examples tests package.json package-lock.json

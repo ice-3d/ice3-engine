@@ -6,7 +6,8 @@
 >
 > Owner: ICE3 Engine maintainers
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **历史计划，请勿直接执行：** 本文件只记录原始实施过程。
+> 当前代码和执行规则以 [AGENTS.md](../../../AGENTS.md) 为准；默认 Native，只有用户明确允许时才启用子 Agent。
 
 **Goal:** Stop re-uploading unchanged WebGL2 instance matrices, opacity and semantic indices, and update changed instance data with bounded buffer ranges.
 
@@ -60,7 +61,7 @@
   - `WebGL2InstanceCache.uploadStats`
   - additive `WebGL2InstanceEntry` private snapshot fields
 
-- [x] **Step 1: Write failing static-batch upload tests**
+- **Step 1: Write failing static-batch upload tests**
 
 Replace the existing `fakeWebGL2()` helper with one that records uploads:
 
@@ -191,7 +192,7 @@ test('skips all uploads when an instance batch is unchanged', () => {
 });
 ```
 
-- [x] **Step 2: Write failing ranged-change tests**
+- **Step 2: Write failing ranged-change tests**
 
 Add:
 
@@ -279,7 +280,7 @@ test('uploads only semantic indices when selection changes', () => {
 });
 ```
 
-- [x] **Step 3: Run tests and verify failure**
+- **Step 3: Run tests and verify failure**
 
 Run:
 
@@ -290,7 +291,7 @@ node --import tsx --test packages/renderer/tests/WebGL2InstanceBatch.test.ts
 Expected: FAIL because the fake context has no upload definitions/statistics and unchanged
 batches still call `bufferData()`.
 
-- [x] **Step 4: Add cache snapshots and statistics**
+- **Step 4: Add cache snapshots and statistics**
 
 Add:
 
@@ -328,7 +329,7 @@ get uploadStats(): Readonly<WebGL2InstanceUploadStats> {
 }
 ```
 
-- [x] **Step 5: Implement the bounded range helper**
+- **Step 5: Implement the bounded range helper**
 
 Add:
 
@@ -362,7 +363,7 @@ function changedUintRange(
 }
 ```
 
-- [x] **Step 6: Implement upload decisions**
+- **Step 6: Implement upload decisions**
 
 For an existing entry with unchanged multiplication count:
 
@@ -378,7 +379,7 @@ three snapshots, and increment `fullUploads`.
 
 Reset statistics in `beginFrame()`. Do not reset snapshots there.
 
-- [x] **Step 7: Run focused tests**
+- **Step 7: Run focused tests**
 
 Run:
 
@@ -388,7 +389,7 @@ node --import tsx --test packages/renderer/tests/WebGL2InstanceBatch.test.ts
 
 Expected: PASS, including existing instance-count and byte-footprint tests.
 
-- [x] **Step 8: Commit**
+- **Step 8: Commit**
 
 ```bash
 git add packages/renderer/src/WebGL2InstanceBatch.ts packages/renderer/tests/WebGL2InstanceBatch.test.ts
@@ -408,7 +409,7 @@ git commit -m "perf(renderer): upload only changed instance data"
 - Consumes: `WebGL2InstanceCache.uploadStats`
 - Produces: additive `renderer.instanceUploads` and `renderer.instanceUploadBytes`
 
-- [x] **Step 1: Write a failing stats test**
+- **Step 1: Write a failing stats test**
 
 Add to the backend stats test:
 
@@ -419,7 +420,7 @@ expect(stats.renderer.instanceUploads >= 0).toBe(true);
 expect(stats.renderer.instanceUploadBytes >= 0).toBe(true);
 ```
 
-- [x] **Step 2: Run and verify failure**
+- **Step 2: Run and verify failure**
 
 Run:
 
@@ -429,7 +430,7 @@ node --import tsx --test packages/renderer/tests/WebGL2RendererBackend.test.ts
 
 Expected: FAIL because the two fields are missing.
 
-- [x] **Step 3: Publish frame statistics**
+- **Step 3: Publish frame statistics**
 
 In `WebGL2RendererBackend`, initialize both frame fields to zero and copy
 `this.instanceCache!.uploadStats` after the main pass and picker/depth passes settle for the
@@ -437,12 +438,12 @@ frame. Use the final cumulative frame value rather than sampling between passes.
 
 Add the fields to `ICERendererStats` as required numbers so fake renderers report zero.
 
-- [x] **Step 4: Verify runtime diagnostics**
+- **Step 4: Verify runtime diagnostics**
 
 Add assertions to the runtime lifecycle test that `getDiagnostics().renderer` contains both
 fields and that a fresh frame reports non-negative values.
 
-- [x] **Step 5: Run renderer and runtime tests**
+- **Step 5: Run renderer and runtime tests**
 
 Run:
 
@@ -453,7 +454,7 @@ node --import tsx --test packages/runtime/tests/EngineLifecycle.test.ts
 
 Expected: PASS.
 
-- [x] **Step 6: Commit**
+- **Step 6: Commit**
 
 ```bash
 git add packages/renderer/src/WebGL2RendererBackend.ts packages/renderer/src/types.ts packages/runtime/src/ICE3.ts packages/runtime/tests/EngineLifecycle.test.ts packages/renderer/tests/WebGL2RendererBackend.test.ts
@@ -471,7 +472,7 @@ git commit -m "feat(renderer): report instance upload diagnostics"
 - Consumes: diagnostics from Task 2
 - Produces: operator-facing explanation and verification instructions
 
-- [x] **Step 1: Document the diagnostic meaning**
+- **Step 1: Document the diagnostic meaning**
 
 Add:
 
@@ -491,7 +492,7 @@ Expected animated batch:
 
 Explain that zero upload bytes do not mean zero draw calls and do not prove the scene changed.
 
-- [x] **Step 2: Run the full engine gate**
+- **Step 2: Run the full engine gate**
 
 Run:
 
@@ -504,7 +505,7 @@ npm run typecheck
 
 Expected: all tests pass.
 
-- [x] **Step 3: Run the Chrome integration check**
+- **Step 3: Run the Chrome integration check**
 
 Start the city viewer from the city worktree:
 
@@ -519,7 +520,7 @@ to settle, then inspect diagnostics while rotating the camera:
 - `instanceUploadBytes` falls to zero for static batches.
 - Traffic movement produces bounded positive uploads without frame spikes.
 
-- [x] **Step 4: Commit**
+- **Step 4: Commit**
 
 ```bash
 git add docs/api/m1.md docs/guides/development-and-troubleshooting.md README.md
