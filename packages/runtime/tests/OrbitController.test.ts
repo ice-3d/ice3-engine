@@ -5,6 +5,7 @@ import { FakeRendererBackend } from '@ice3/renderer';
 import {
   ICE3,
   ICEOrbitController,
+  type ICEOrbitControllerOptions,
   ICEPerspectiveCamera,
   ICEScene,
   type ICERenderScheduler,
@@ -67,6 +68,7 @@ const createManualScheduler = (): ICERenderScheduler => {
 
 const createInteractiveController = (
   initialPosition: readonly [number, number, number] = [0, 0, 5],
+  controllerOptions?: ICEOrbitControllerOptions,
 ) => {
   const scheduler = createManualScheduler();
   const engine = new ICE3({
@@ -81,7 +83,11 @@ const createInteractiveController = (
     position: initialPosition,
     target: [0, 0, 0],
   });
-  const controller = new ICEOrbitController(engine, camera).start();
+  const controller = new ICEOrbitController(
+    engine,
+    camera,
+    controllerOptions,
+  ).start();
   engine.setScene(new ICEScene({ id: 'scene' })).setCamera(camera).start();
   scheduler.flushForTest();
   return { engine, camera, controller, scheduler };
@@ -89,10 +95,14 @@ const createInteractiveController = (
 
 const createMotionScenario = (
   initialPosition: readonly [number, number, number] = [0, 0, 5],
+  controllerOptions?: ICEOrbitControllerOptions,
 ) => {
   let currentTime = 1_000;
   const now = mockApi.spyOn(performance, 'now').mockReturnValue(currentTime);
-  const resources = createInteractiveController(initialPosition);
+  const resources = createInteractiveController(
+    initialPosition,
+    controllerOptions,
+  );
   const advanceFrame = (deltaMs = 20): void => {
     currentTime += deltaMs;
     now.mockReturnValue(currentTime);
@@ -136,6 +146,28 @@ it('clamps camera pitch and zoom distance', () => {
   settle();
   expect(Math.hypot(...camera.getPosition().toArray())).toBeGreaterThanOrEqual(0.2);
   dispose();
+});
+
+it('uses explicit zoom limits after the camera moves closer', () => {
+  const scenario = createMotionScenario([0, 0, 500], {
+    minDistance: 0.5,
+    maxDistance: 500,
+    zoomFractionPerPixel: 0.001,
+  });
+
+  scenario.controller.zoomBy(-100_000);
+  scenario.settle();
+  const closeDistance = Math.hypot(
+    ...scenario.camera.getPosition().toArray(),
+  );
+
+  expect(closeDistance).toBeCloseTo(0.5, 5);
+  scenario.controller.zoomBy(100_000);
+  scenario.settle();
+  expect(
+    Math.hypot(...scenario.camera.getPosition().toArray()),
+  ).toBeCloseTo(500, 5);
+  scenario.dispose();
 });
 
 it('returns to the initial framing distance when zoomed fully out', () => {
@@ -209,6 +241,24 @@ it('is idempotent when started and stopped', () => {
   controller.dispose();
 });
 
+it('rejects invalid orbit tuning options', () => {
+  const { engine, camera, controller } = createController();
+
+  expect(() => new ICEOrbitController(engine, camera, {
+    minDistance: 0,
+  })).toThrow();
+  expect(() => new ICEOrbitController(engine, camera, {
+    maxDistance: 1,
+  })).toThrow();
+  expect(() => new ICEOrbitController(engine, camera, {
+    rotationRadiansPerPixel: 0,
+  })).toThrow();
+  expect(() => new ICEOrbitController(engine, camera, {
+    dragThresholdPixels: -1,
+  })).toThrow();
+  controller.dispose();
+});
+
 it('orbits from shared engine pointer events until pointer release', () => {
   const { engine, camera, advanceFrame, settle, dispose } = createMotionScenario();
   const before = camera.getPosition().toArray();
@@ -238,6 +288,49 @@ it('orbits from shared engine pointer events until pointer release', () => {
   });
   expect(camera.getPosition().toArray()).toEqual(afterRelease);
   dispose();
+});
+
+it('ignores pointer jitter below the configured drag threshold', () => {
+  const scenario = createMotionScenario([0, 0, 5], {
+    dragThresholdPixels: 4,
+  });
+  const before = scenario.camera.getPosition().toArray();
+
+  scenario.engine.trigger('POINTER_DOWN', {
+    target: { kind: 'scene' },
+    event: { type: 'pointerdown', point: { x: 10, y: 10 }, pointerId: 3 },
+  });
+  scenario.engine.trigger('POINTER_MOVE', {
+    target: { kind: 'scene' },
+    event: { type: 'pointermove', point: { x: 13, y: 10 }, pointerId: 3 },
+  });
+  scenario.advanceFrame();
+  expect(scenario.camera.getPosition().toArray()).toEqual(before);
+
+  scenario.engine.trigger('POINTER_MOVE', {
+    target: { kind: 'scene' },
+    event: { type: 'pointermove', point: { x: 20, y: 10 }, pointerId: 3 },
+  });
+  scenario.advanceFrame();
+  expect(scenario.camera.getPosition().toArray()).not.toEqual(before);
+  scenario.dispose();
+});
+
+it('uses the configured rotation sensitivity', () => {
+  const scenario = createMotionScenario([0, 0, 5], {
+    rotationRadiansPerPixel: 0.001,
+  });
+  const yaw = (): number => {
+    const position = scenario.camera.getPosition();
+    return Math.atan2(position.x, position.z);
+  };
+  const before = yaw();
+
+  scenario.controller.rotateBy(100, 0);
+  scenario.settle();
+
+  expect(yaw() - before).toBeCloseTo(-0.1, 5);
+  scenario.dispose();
 });
 
 it('zooms from two-pointer pinching', () => {

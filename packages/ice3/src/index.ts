@@ -33,6 +33,7 @@ export type {
   ICEInputEvent,
   ICEInputTarget,
   ICEKeyboardInputEvent,
+  ICEOrbitControllerOptions,
   ICEProjectedPoint,
   ICEAssetHandle,
   ICEAssetLoaderOptions,

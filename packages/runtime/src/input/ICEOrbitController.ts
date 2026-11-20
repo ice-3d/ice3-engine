@@ -31,6 +31,8 @@ const PAN_SPEED_PER_HOME_DISTANCE = 0.75;
 const MIN_KEY_TAP_MS = 16;
 const MIN_ZOOM_FRACTION = 0.005;
 const ABSOLUTE_MIN_ZOOM_DISTANCE = 0.2;
+const DEFAULT_ROTATION_RADIANS_PER_PIXEL = 0.005;
+const DEFAULT_ZOOM_FRACTION_PER_PIXEL = ZOOM_DISTANCE_PER_HOME_PIXEL;
 
 const NAVIGATION_KEYS = new Set([
   'KeyW',
@@ -43,6 +45,14 @@ const NAVIGATION_KEYS = new Set([
   'ArrowRight',
 ]);
 
+export interface ICEOrbitControllerOptions {
+  readonly minDistance?: number;
+  readonly maxDistance?: number;
+  readonly rotationRadiansPerPixel?: number;
+  readonly zoomFractionPerPixel?: number;
+  readonly dragThresholdPixels?: number;
+}
+
 export class ICEOrbitController {
   private target: [number, number, number];
   private yaw: number;
@@ -50,12 +60,17 @@ export class ICEOrbitController {
   private distance: number;
   private readonly minDistance: number;
   private readonly maxDistance: number;
+  private readonly rotationRadiansPerPixel: number;
+  private readonly zoomFractionPerPixel: number;
+  private readonly dragThresholdPixels: number;
   private targetYaw: number;
   private targetPitch: number;
   private targetDistance: number;
   private lastMotionAt = performance.now();
   private draggingPointer: number | null = null;
   private lastPoint: readonly [number, number] = [0, 0];
+  private dragOrigin: readonly [number, number] = [0, 0];
+  private dragThresholdExceeded = true;
   private readonly activePointers = new Map<
     number,
     Readonly<{ x: number; y: number }>
@@ -74,8 +89,11 @@ export class ICEOrbitController {
       if (this.activePointers.size === 1) {
         this.draggingPointer = input.pointerId;
         this.lastPoint = [input.point.x, input.point.y];
+        this.dragOrigin = [input.point.x, input.point.y];
+        this.dragThresholdExceeded = this.dragThresholdPixels <= 0;
       } else {
         this.draggingPointer = null;
+        this.dragThresholdExceeded = true;
         this.pinchDistance = this.distanceBetweenPointers();
       }
     }
@@ -98,6 +116,17 @@ export class ICEOrbitController {
     }
     if (input.pointerId !== this.draggingPointer) {
       return;
+    }
+    if (!this.dragThresholdExceeded) {
+      const distanceFromOrigin = Math.hypot(
+        input.point.x - this.dragOrigin[0],
+        input.point.y - this.dragOrigin[1],
+      );
+      if (distanceFromOrigin < this.dragThresholdPixels) {
+        this.lastPoint = [input.point.x, input.point.y];
+        return;
+      }
+      this.dragThresholdExceeded = true;
     }
     this.rotateBy(
       input.point.x - this.lastPoint[0],
@@ -124,8 +153,11 @@ export class ICEOrbitController {
       ];
       this.draggingPointer = remainingId;
       this.lastPoint = [point.x, point.y];
+      this.dragOrigin = [point.x, point.y];
+      this.dragThresholdExceeded = true;
     } else if (this.activePointers.size === 0) {
       this.draggingPointer = null;
+      this.dragThresholdExceeded = true;
     }
   };
   private readonly onWheel = (event: DispatchEvent): void => {
@@ -207,22 +239,56 @@ export class ICEOrbitController {
   constructor(
     private readonly engine: ICE3,
     private readonly camera: ICEPerspectiveCamera,
+    options: ICEOrbitControllerOptions = {},
   ) {
+    const minDistance = options.minDistance;
+    const maxDistance = options.maxDistance;
+    const rotationRadiansPerPixel = options.rotationRadiansPerPixel
+      ?? DEFAULT_ROTATION_RADIANS_PER_PIXEL;
+    const zoomFractionPerPixel = options.zoomFractionPerPixel
+      ?? DEFAULT_ZOOM_FRACTION_PER_PIXEL;
+    const dragThresholdPixels = options.dragThresholdPixels ?? 0;
+    if (
+      (minDistance !== undefined && (!Number.isFinite(minDistance) || minDistance <= 0))
+      || (maxDistance !== undefined && (!Number.isFinite(maxDistance) || maxDistance <= 0))
+      || !Number.isFinite(rotationRadiansPerPixel)
+      || rotationRadiansPerPixel <= 0
+      || !Number.isFinite(zoomFractionPerPixel)
+      || zoomFractionPerPixel <= 0
+      || !Number.isFinite(dragThresholdPixels)
+      || dragThresholdPixels < 0
+    ) {
+      throw new RangeError('ICE3_ORBIT_OPTIONS_INVALID');
+    }
     const target = camera.getTarget();
     const eye = camera.getPosition();
     const offsetX = eye.x - target.x;
     const offsetY = eye.y - target.y;
     const offsetZ = eye.z - target.z;
     this.target = target.toArray();
-    this.distance = Math.max(
+    const currentDistance = Math.max(
       ABSOLUTE_MIN_ZOOM_DISTANCE,
       Math.hypot(offsetX, offsetY, offsetZ),
     );
-    this.maxDistance = this.distance;
-    this.minDistance = Math.min(
-      this.maxDistance,
-      Math.max(ABSOLUTE_MIN_ZOOM_DISTANCE, this.maxDistance * MIN_ZOOM_FRACTION),
-    );
+    this.maxDistance = maxDistance ?? currentDistance;
+    if (this.maxDistance < currentDistance) {
+      throw new RangeError('ICE3_ORBIT_OPTIONS_INVALID');
+    }
+    this.distance = currentDistance;
+    this.minDistance = minDistance
+      ?? Math.min(
+        this.maxDistance,
+        Math.max(
+          ABSOLUTE_MIN_ZOOM_DISTANCE,
+          this.maxDistance * MIN_ZOOM_FRACTION,
+        ),
+      );
+    if (this.minDistance > this.maxDistance) {
+      throw new RangeError('ICE3_ORBIT_OPTIONS_INVALID');
+    }
+    this.rotationRadiansPerPixel = rotationRadiansPerPixel;
+    this.zoomFractionPerPixel = zoomFractionPerPixel;
+    this.dragThresholdPixels = dragThresholdPixels;
     this.yaw = Math.atan2(offsetX, offsetZ);
     this.pitch = Math.asin(clamp(offsetY / this.distance, -1, 1));
     this.targetYaw = this.yaw;
@@ -269,9 +335,9 @@ export class ICEOrbitController {
   rotateBy(deltaX: number, deltaY: number): this {
     this.assertActive();
     this.prepareMotion();
-    this.targetYaw -= deltaX * 0.005;
+    this.targetYaw -= deltaX * this.rotationRadiansPerPixel;
     this.targetPitch = clamp(
-      this.targetPitch + deltaY * 0.005,
+      this.targetPitch + deltaY * this.rotationRadiansPerPixel,
       -1.45,
       1.45,
     );
@@ -283,7 +349,7 @@ export class ICEOrbitController {
     this.assertActive();
     this.prepareMotion();
     this.targetDistance = clamp(
-      this.targetDistance + delta * this.maxDistance * ZOOM_DISTANCE_PER_HOME_PIXEL,
+      this.targetDistance + delta * this.maxDistance * this.zoomFractionPerPixel,
       this.minDistance,
       this.maxDistance,
     );
@@ -326,6 +392,7 @@ export class ICEOrbitController {
       .off('BEFORE_RENDER', this.onBeforeRender);
     this.started = false;
     this.draggingPointer = null;
+    this.dragThresholdExceeded = true;
     this.activePointers.clear();
     this.pinchDistance = null;
     this.pressedKeys.clear();
