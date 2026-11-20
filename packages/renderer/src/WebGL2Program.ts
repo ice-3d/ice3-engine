@@ -9,6 +9,31 @@ const LIGHTING = Object.freeze({
   minimum: 0.92,
   maximum: 1.42,
 });
+export const AO_GRAZING_START = 0.22;
+export const AO_GRAZING_FULL = 0.68;
+export const AO_MAX_SCREEN_RADIUS_PX = 64;
+
+export function ssaoPixelRadius(
+  worldRadius: number,
+  centreDepth: number,
+  tanHalfFov: number,
+  viewportHeight: number,
+): number {
+  const raw = (worldRadius / Math.max(1e-4, centreDepth * tanHalfFov))
+    * (viewportHeight * 0.5);
+  return Math.min(raw, AO_MAX_SCREEN_RADIUS_PX);
+}
+
+export function ssaoViewFadeWeight(viewFacing: number, worldNormalY: number): number {
+  const facingT = Math.min(
+    1,
+    Math.max(0, (viewFacing - AO_GRAZING_START) / (AO_GRAZING_FULL - AO_GRAZING_START)),
+  );
+  const grazingWeight = facingT * facingT * (3 - 2 * facingT);
+  const horizontalT = Math.min(1, Math.max(0, (Math.abs(worldNormalY) - 0.82) / 0.16));
+  const horizontalWeight = horizontalT * horizontalT * (3 - 2 * horizontalT);
+  return 1 - horizontalWeight * (1 - grazingWeight);
+}
 
 export function directionalLightingShade(
   normal: readonly [number, number, number],
@@ -262,7 +287,10 @@ void main() {
     float centreDepth = -centre.z;
 
     // 世界半径换算成像素半径：越远越小，近景远景才都有意义。
-    float pixelRadius = (u_aoRadius / max(1e-4, centreDepth * tanHalfFov)) * (u_viewport.y * 0.5);
+    float rawPixelRadius = (u_aoRadius / max(1e-4, centreDepth * tanHalfFov)) * (u_viewport.y * 0.5);
+    // 扁平地面在掠射角下会把较小的世界半径投成很大的屏幕圆。无上限时每圈
+    // 只剩少量有效样本，形成看似没有物体的长条暗斑。
+    float pixelRadius = min(rawPixelRadius, ${AO_MAX_SCREEN_RADIUS_PX.toFixed(1)});
     // 交错梯度噪声（IGN）代替 sin 哈希：同样是逐像素扰动，但它在相邻像素间是
     // 渐变而非跳变，采样缺口看起来像细密抖动，不像椒盐噪点。
     float rotation = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) * 6.2831853;
@@ -293,7 +321,13 @@ void main() {
     }
     if (weightSum > 0.0) {
       occlusion /= weightSum;
-      lit *= 1.0 - clamp(occlusion, 0.0, 1.0) * u_aoStrength;
+      // 屏幕空间遮蔽无法可靠表达掠射地面的各向异性足迹。接近地平线时淡出，
+      // 让方向光阴影和几何明暗承担远景接触感，避免空地出现漂浮条带。
+      float viewFacing = abs(dot(viewNormal, normalize(centre)));
+      float grazingWeight = smoothstep(${AO_GRAZING_START.toFixed(2)}, ${AO_GRAZING_FULL.toFixed(2)}, viewFacing);
+      float horizontalWeight = smoothstep(0.82, 0.98, abs(normal.y));
+      float viewFadeWeight = 1.0 - horizontalWeight * (1.0 - grazingWeight);
+      lit *= 1.0 - clamp(occlusion, 0.0, 1.0) * u_aoStrength * viewFadeWeight;
     }
   }
 
